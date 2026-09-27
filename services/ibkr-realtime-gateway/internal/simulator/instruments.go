@@ -1,6 +1,10 @@
 package simulator
 
-import "github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+import (
+	"fmt"
+
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+)
 
 // instrumentSpec describes a simulated instrument. Values are illustrative for the demo, not market data.
 type instrumentSpec struct {
@@ -35,4 +39,17 @@ func defaultInstruments() []instrumentSpec {
 		usd("TSLA", "Tesla, Inc.", 330_000_000, 180, 4, 1100),
 		usd("SPY", "SPDR S&P 500 ETF Trust", 650_000_000, 60, 2, 800),
 	}
+}
+
+// syntheticInstruments returns n load-test instruments SYN001..SYNnnn. Their parameters derive from the seed,
+// so they are as reproducible as the fixture instruments.
+func syntheticInstruments(seed uint64, n int) []instrumentSpec {
+	out := make([]instrumentSpec, 0, n)
+	for i := 1; i <= n; i++ {
+		symbol := fmt.Sprintf("SYN%03d", i)
+		h := hash2(seed, fnv64a(symbol)^0x5EED)
+		base := marketdata.Price(10+h%490) * marketdata.MicrosPerUnit // 10 to 499 USD
+		out = append(out, usd(symbol, "Synthetic load-test instrument "+symbol, base, 100, 3, 300))
+	}
+	return out
 }

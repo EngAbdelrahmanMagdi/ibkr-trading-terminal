@@ -1,8 +1,5 @@
 // Package ws is the WebSocket transport of the gateway. It is the only package that depends on the WebSocket
-// library; protocol messages live in package stream and market data comes through marketdata.MarketDataSource.
-//
-// Phase scope: one session per connection with its own subscriptions and one bounded send queue. A shared
-// subscription registry, quote coalescing and slow-consumer handling are intentionally not implemented here.
+// library; protocol messages live in package stream and market data comes through the subscription registry.
 package ws
 
 import (
@@ -11,13 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/stream"
 )
 
@@ -28,8 +26,11 @@ type Config struct {
 	MaxSymbolsPerSubscribe int           // per subscribe message
 	MaxSubscribedSymbols   int           // per connection
 	HeartbeatInterval      time.Duration // heartbeat message and ping period
-	WriteTimeout           time.Duration // per frame write timeout; also the ping (pong) timeout
-	SendQueueSize          int           // bounded per-connection send queue; when full the connection closes with 1013
+	WriteTimeout           time.Duration // per frame write timeout (exceeding it evicts the client); also the pong timeout
+	ControlQueueSize       int           // bounded control queue per connection; overflow evicts the client
+	FlushInterval          time.Duration // minimum period between two quotes of the same symbol to one connection
+	LagThreshold           time.Duration // a flush delivering data older than this counts as lagging
+	MaxLaggingFlushes      int           // more consecutive lagging flushes than this evict the client
 	MaxConnections         int           // concurrent connections; further upgrade requests get 503
 }
 
@@ -45,34 +46,40 @@ func (c Config) Limits() stream.Limits {
 
 // Server accepts WebSocket connections and runs one session per connection.
 type Server struct {
-	cfg    Config
-	source marketdata.MarketDataSource
-	clock  clock.Clock
-	log    *slog.Logger
+	cfg      Config
+	registry *registry.Registry
+	clock    clock.Clock
+	metrics  *metrics.Gateway
+	log      *slog.Logger
 
 	slots chan struct{} // bounded: one slot per concurrent connection
 
 	ctx    context.Context // server lifetime; cancelled by Shutdown
 	cancel context.CancelFunc
 
-	mu      sync.Mutex
-	closing bool
-	wg      sync.WaitGroup // one entry per active handler
-	clients atomic.Int64
+	mu       sync.Mutex
+	closing  bool
+	sessions map[*session]struct{}
+	wg       sync.WaitGroup // one entry per active handler
 }
 
 // NewServer creates a WebSocket server.
-func NewServer(cfg Config, source marketdata.MarketDataSource, clk clock.Clock, log *slog.Logger) *Server {
+func NewServer(cfg Config, reg *registry.Registry, clk clock.Clock, m *metrics.Gateway, log *slog.Logger) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		cfg: cfg, source: source, clock: clk, log: log,
+		cfg: cfg, registry: reg, clock: clk, metrics: m, log: log,
 		slots: make(chan struct{}, cfg.MaxConnections),
 		ctx:   ctx, cancel: cancel,
+		sessions: map[*session]struct{}{},
 	}
 }
 
 // Clients returns the number of connected clients.
-func (s *Server) Clients() int64 { return s.clients.Load() }
+func (s *Server) Clients() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return int64(len(s.sessions))
+}
 
 // enter registers a handler unless the server is shutting down.
 func (s *Server) enter() bool {
@@ -108,14 +115,51 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.SetReadLimit(s.cfg.MaxInboundMessageBytes)
 
-	s.clients.Add(1)
-	defer s.clients.Add(-1)
 	started := s.clock.Now()
 	sess := newSession(s, conn)
 	sess.run()
 	code, reason := sess.closeStatus()
 	s.log.Info("websocket session ended", "durationMs", s.clock.Now().Sub(started).Milliseconds(),
 		"closeCode", int(code), "closeReason", reason)
+}
+
+// register adds a session and queues its initial connection message atomically with respect to
+// BroadcastState, so that a client never misses or reorders a state change.
+func (s *Server) register(sess *session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[sess] = struct{}{}
+	s.metrics.WSClients.Set(float64(len(s.sessions)))
+	st := s.registry.State()
+	if data, err := stream.Encode(stream.NewConnection(st.State, s.registry.SourceID(), s.clock.Now(), s.cfg.Limits())); err == nil {
+		sess.lastState = st.State
+		sess.enqueueControl(frame{data: data})
+	}
+}
+
+func (s *Server) unregister(sess *session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, sess)
+	s.metrics.WSClients.Set(float64(len(s.sessions)))
+}
+
+// BroadcastState sends a connection message with the new source state to every client. A client that
+// registered after the transition but before this broadcast already received the state and is skipped.
+func (s *Server) BroadcastState(state marketdata.SourceState, at time.Time) {
+	data, err := stream.Encode(stream.NewConnection(state, s.registry.SourceID(), at, s.cfg.Limits()))
+	if err != nil {
+		s.log.Error("connection message encoding failed", "error", err.Error())
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for sess := range s.sessions {
+		if sess.lastState != state {
+			sess.lastState = state
+			sess.enqueueControl(frame{data: data})
+		}
+	}
 }
 
 // Shutdown stops accepting connections, closes every session with 1001 (going away) and waits for all

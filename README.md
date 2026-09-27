@@ -117,13 +117,22 @@ make probe
 
 The WebSocket endpoint is `ws://127.0.0.1:18090/ws`. For example, send `{"type":"subscribe","symbols":["NVDA","AAPL"]}` from any WebSocket client. Historical bars are at `http://127.0.0.1:18090/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d`.
 
+To put the running feed under load (many clients, subscription churn), with checks that sessions, subscriptions and goroutines are released afterwards:
+
+```bash
+make load                                  # 50 clients for 60s
+make load LOAD_CLIENTS=200 LOAD_DURATION=10m
+```
+
+With both the observability stack and the gateway running (`make up-obs` and `make up-mock`), Grafana shows a **Realtime Gateway** dashboard: connection state, clients, quote rates, coalescing, latency, evictions, Redis health, goroutines and heap.
+
 To check that everything works:
 
 ```bash
 make verify
 ```
 
-It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end.
+It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache.
 
 ### Services
 
@@ -140,7 +149,7 @@ Application processes run as non-root where supported. Some official images may 
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
-| Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `mock` profile. Health on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
+| Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `mock` profile. Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
 
 ### Commands
 
@@ -148,6 +157,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|
 | `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or add the realtime gateway with the simulated market feed |
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
+| `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
 | `make test-unit` | Run the Go unit and integration tests of the realtime gateway with the race detector |

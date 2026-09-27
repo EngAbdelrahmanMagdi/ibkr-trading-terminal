@@ -1,11 +1,18 @@
 package httpapi
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"golang.org/x/sync/singleflight"
+
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/stream"
 )
 
@@ -19,25 +26,129 @@ type BarJSON struct {
 	Volume int64  `json:"volume"`
 }
 
-// BarsResponse is the body of GET /api/v1/market/bars.
+// BarsResponse is the body of GET /api/v1/market/bars. Bars holds the encoded bar array, which is what the
+// cache stores.
 type BarsResponse struct {
-	Symbol   string    `json:"symbol"`
-	Interval string    `json:"interval"`
-	Range    string    `json:"range"`
-	Source   string    `json:"source"`
-	Cached   bool      `json:"cached"`
-	Bars     []BarJSON `json:"bars"`
+	Symbol   string          `json:"symbol"`
+	Interval string          `json:"interval"`
+	Range    string          `json:"range"`
+	Source   string          `json:"source"`
+	Cached   bool            `json:"cached"`
+	Bars     json.RawMessage `json:"bars"`
+}
+
+// ErrBusy is returned when the concurrent bar computation limit is reached.
+var ErrBusy = errors.New("bars: computation limit reached")
+
+// BarsConfig configures bar serving.
+type BarsConfig struct {
+	MaxConcurrent  int           // concurrent uncached computations; further requests get RATE_LIMITED
+	ComputeTimeout time.Duration // bound on one computation
+	MaxCacheTTL    time.Duration // cache TTL is a quarter of the interval, capped at this value
+}
+
+// BarsService computes bars and caches them in Redis when a store is configured. Concurrent identical
+// requests share one computation (single-flight).
+type BarsService struct {
+	source  marketdata.MarketDataSource
+	store   hotcache.Store // nil disables the cache
+	guard   *hotcache.Guard
+	cfg     BarsConfig
+	metrics *metrics.Gateway
+	sem     chan struct{}
+	group   singleflight.Group
+}
+
+// NewBarsService creates the service. store and guard may be nil (no cache).
+func NewBarsService(source marketdata.MarketDataSource, store hotcache.Store, guard *hotcache.Guard, cfg BarsConfig, m *metrics.Gateway) *BarsService {
+	return &BarsService{source: source, store: store, guard: guard, cfg: cfg, metrics: m, sem: make(chan struct{}, cfg.MaxConcurrent)}
+}
+
+// BarsKey is the Redis key of a cached bar array.
+func BarsKey(symbol string, interval marketdata.Interval, rng marketdata.Range) string {
+	return "bars:" + symbol + ":" + string(interval) + ":" + string(rng)
+}
+
+// CacheTTL returns the cache lifetime for an interval: a quarter of the interval, capped. The newest (open)
+// bar of a cached response is therefore at most one TTL old.
+func (b *BarsService) CacheTTL(interval marketdata.Interval) time.Duration {
+	return min(interval.Duration()/4, b.cfg.MaxCacheTTL)
+}
+
+func (b *BarsService) cacheUsable() bool { return b.store != nil && b.guard.Available() }
+
+// Get returns the encoded bar array and whether it came from the cache.
+func (b *BarsService) Get(ctx context.Context, inst marketdata.Instrument, interval marketdata.Interval, rng marketdata.Range) (json.RawMessage, bool, error) {
+	key := BarsKey(inst.Symbol, interval, rng)
+	if b.cacheUsable() {
+		rctx, cancel := b.guard.Context(ctx)
+		v, err := b.store.Get(rctx, key)
+		cancel()
+		switch {
+		case err == nil:
+			b.metrics.CacheHits.WithLabelValues("bars").Inc()
+			return v, true, nil
+		case errors.Is(err, hotcache.ErrMiss):
+			b.metrics.CacheMisses.WithLabelValues("bars").Inc()
+		default:
+			b.guard.Fail("bars_get", err)
+		}
+	}
+	v, err, _ := b.group.Do(key, func() (any, error) { return b.compute(ctx, inst, interval, rng, key) })
+	if err != nil {
+		return nil, false, err
+	}
+	return v.(json.RawMessage), false, nil
+}
+
+// compute runs one bounded computation and stores the result. It is detached from the first caller's
+// cancellation because other callers may share it; ComputeTimeout bounds it instead.
+func (b *BarsService) compute(ctx context.Context, inst marketdata.Instrument, interval marketdata.Interval, rng marketdata.Range, key string) (json.RawMessage, error) {
+	select {
+	case b.sem <- struct{}{}:
+		defer func() { <-b.sem }()
+	default:
+		b.metrics.BarsRateLimited.Inc()
+		return nil, ErrBusy
+	}
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), b.cfg.ComputeTimeout)
+	defer cancel()
+	bars, err := b.source.Bars(cctx, inst.Symbol, interval, rng)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]BarJSON, 0, len(bars))
+	d := inst.PriceDecimals
+	for _, bar := range bars {
+		out = append(out, BarJSON{
+			Time: stream.FormatTime(bar.Time), Open: bar.Open.Format(d), High: bar.High.Format(d),
+			Low: bar.Low.Format(d), Close: bar.Close.Format(d), Volume: bar.Volume,
+		})
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	if b.cacheUsable() {
+		rctx, cancel := b.guard.Context(ctx)
+		if err := b.store.SetMany(rctx, []hotcache.Entry{{Key: key, Value: raw, TTL: b.CacheTTL(interval)}}); err != nil {
+			b.guard.Fail("bars_set", err)
+		}
+		cancel()
+	}
+	return raw, nil
 }
 
 // BarsHandler serves historical bars.
 type BarsHandler struct {
 	source marketdata.MarketDataSource
+	bars   *BarsService
 	log    *slog.Logger
 }
 
 // NewBarsHandler creates the bars handler.
-func NewBarsHandler(source marketdata.MarketDataSource, log *slog.Logger) *BarsHandler {
-	return &BarsHandler{source: source, log: log}
+func NewBarsHandler(source marketdata.MarketDataSource, bars *BarsService, log *slog.Logger) *BarsHandler {
+	return &BarsHandler{source: source, bars: bars, log: log}
 }
 
 // ServeHTTP handles GET /api/v1/market/bars?symbol=&interval=&range=.
@@ -70,26 +181,29 @@ func (h *BarsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusNotFound, CategoryInstrumentNotFound, "instrument-not-found", "Instrument not found", "unknown symbol", cid)
 		return
 	}
-	var bars []marketdata.Bar
+	var raw json.RawMessage
+	cached := false
 	if err == nil {
-		bars, err = h.source.Bars(r.Context(), symbol, interval, rng)
+		raw, cached, err = h.bars.Get(r.Context(), inst, interval, rng)
 	}
-	if err != nil {
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrBusy):
+		writeProblem(w, http.StatusTooManyRequests, CategoryRateLimited, "rate-limited", "Too many requests",
+			"too many historical-bar computations in progress; retry shortly", cid)
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		h.log.Warn("bars computation timed out", "correlationId", cid, "symbol", symbol, "interval", string(interval), "range", string(rng))
+		writeProblem(w, http.StatusServiceUnavailable, CategoryServiceUnavailable, "service-unavailable", "Service unavailable", "historical bars are temporarily unavailable", cid)
+		return
+	default:
 		h.log.Error("bars request failed", "correlationId", cid, "symbol", symbol, "error", err.Error())
 		writeProblem(w, http.StatusInternalServerError, CategoryInternal, "internal", "Internal error", "", cid)
 		return
 	}
 
-	resp := BarsResponse{
+	writeJSON(w, http.StatusOK, "application/json", BarsResponse{
 		Symbol: symbol, Interval: string(interval), Range: string(rng),
-		Source: string(h.source.ID()), Cached: false, Bars: make([]BarJSON, 0, len(bars)),
-	}
-	d := inst.PriceDecimals
-	for _, b := range bars {
-		resp.Bars = append(resp.Bars, BarJSON{
-			Time: stream.FormatTime(b.Time), Open: b.Open.Format(d), High: b.High.Format(d),
-			Low: b.Low.Format(d), Close: b.Close.Format(d), Volume: b.Volume,
-		})
-	}
-	writeJSON(w, http.StatusOK, "application/json", resp)
+		Source: string(h.source.ID()), Cached: cached, Bars: raw,
+	})
 }

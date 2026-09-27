@@ -13,13 +13,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/config"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/simulator"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/transport/ws"
 )
@@ -52,26 +57,74 @@ func serve() int {
 	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})).With("service", "realtime-gateway")
 
 	clk := clock.Real{}
-	source, err := simulator.NewSource(simulator.NewModel(cfg.Seed), clk, cfg.TickInterval)
+	gm := metrics.New()
+	source, err := simulator.NewSource(simulator.NewModel(cfg.Seed, simulator.WithSyntheticSymbols(cfg.SyntheticSymbols)), clk, cfg.TickInterval)
 	if err != nil {
 		logger.Error("market data source setup failed", "error", err.Error())
 		return 2
 	}
-	wsServer := ws.NewServer(ws.Config{
+
+	// Redis hot state (optional, never critical).
+	var (
+		store       hotcache.Store
+		guard       *hotcache.Guard
+		quoteWriter *hotcache.QuoteWriter
+	)
+	if cfg.RedisAddr != "" {
+		password, err := readSecret(cfg.RedisPasswordFile)
+		if err != nil {
+			logger.Error("redis password file unreadable", "error", err.Error())
+			return 2
+		}
+		redisStore := hotcache.NewRedisStore(hotcache.RedisConfig{
+			Addr: cfg.RedisAddr, Username: cfg.RedisUsername, Password: password, Timeout: cfg.RedisTimeout,
+		})
+		store = redisStore
+		guard = hotcache.NewGuard(clk, cfg.RedisTimeout, cfg.RedisCooldown, gm, logger)
+		quoteWriter = hotcache.NewQuoteWriter(store, guard, clk, cfg.QuoteCacheInterval, cfg.QuoteCacheTTL, gm)
+	}
+
+	var wsServer *ws.Server
+	hooks := registry.Hooks{
+		OnState: func(state marketdata.SourceState, at time.Time) { wsServer.BroadcastState(state, at) },
+	}
+	if quoteWriter != nil {
+		hooks.OnQuote = func(u *registry.Update) { quoteWriter.Publish(u.Symbol, u.Data) }
+	}
+	reg, err := registry.New(source, clk, registry.Config{
+		MaxActiveSymbols: cfg.MaxActiveSymbols,
+		UnsubscribeGrace: cfg.UnsubscribeGrace,
+		StaleAfter:       cfg.StaleAfter,
+	}, gm, logger, hooks)
+	if err != nil {
+		logger.Error("subscription registry setup failed", "error", err.Error())
+		return 2
+	}
+	wsServer = ws.NewServer(ws.Config{
 		AllowedOrigins:         cfg.AllowedOrigins,
 		MaxInboundMessageBytes: cfg.MaxInboundMessageBytes,
 		MaxSymbolsPerSubscribe: cfg.MaxSymbolsPerSubscribe,
 		MaxSubscribedSymbols:   cfg.MaxSubscribedSymbols,
 		HeartbeatInterval:      cfg.HeartbeatInterval,
 		WriteTimeout:           cfg.WriteTimeout,
-		SendQueueSize:          cfg.SendQueueSize,
+		ControlQueueSize:       cfg.ControlQueueSize,
+		FlushInterval:          cfg.FlushInterval,
+		LagThreshold:           cfg.SlowConsumerLag,
+		MaxLaggingFlushes:      cfg.MaxLaggingFlushes,
 		MaxConnections:         cfg.MaxConnections,
-	}, source, clk, logger)
-	health := httpapi.NewHealth(source, wsServer.Clients, clk)
+	}, reg, clk, gm, logger)
+	reg.Start()
+	if quoteWriter != nil {
+		go quoteWriter.Run() // owned by serve(); stopped by quoteWriter.Close during shutdown
+	}
+	health := httpapi.NewHealth(reg, wsServer.Clients, gm.Handler())
+	bars := httpapi.NewBarsService(source, store, guard, httpapi.BarsConfig{
+		MaxConcurrent: cfg.MaxBarComputations, ComputeTimeout: cfg.BarsTimeout, MaxCacheTTL: cfg.BarsCacheMaxTTL,
+	}, gm)
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /ws", wsServer)
-	mux.Handle("GET /api/v1/market/bars", http.TimeoutHandler(httpapi.NewBarsHandler(source, logger), 10*time.Second, "request timed out"))
+	mux.Handle("GET /api/v1/market/bars", http.TimeoutHandler(httpapi.NewBarsHandler(source, bars, logger), cfg.BarsTimeout+2*time.Second, "request timed out"))
 
 	errorLog := slog.NewLogLogger(logger.Handler(), slog.LevelWarn)
 	public := &http.Server{
@@ -99,7 +152,8 @@ func serve() int {
 		}()
 	}
 	logger.Info("realtime gateway started", "source", string(source.ID()), "httpAddr", cfg.HTTPAddr,
-		"healthAddr", cfg.HealthAddr, "tickInterval", cfg.TickInterval.String())
+		"healthAddr", cfg.HealthAddr, "tickInterval", cfg.TickInterval.String(), "redis", cfg.RedisAddr != "",
+		"syntheticSymbols", cfg.SyntheticSymbols)
 
 	exitCode := 0
 	select {
@@ -110,13 +164,27 @@ func serve() int {
 		exitCode = 1
 	}
 
-	// Graceful shutdown: fail readiness, close WebSocket sessions (1001), stop HTTP servers, all within the deadline.
+	// Graceful shutdown, all within the deadline: fail readiness, close WebSocket sessions (1001), close
+	// upstream subscriptions and the stale monitor, flush and stop the hot-cache writer, close Redis, then stop
+	// the HTTP servers.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	health.SetShuttingDown()
 	if err := wsServer.Shutdown(shutdownCtx); err != nil {
 		logger.Error("websocket shutdown incomplete", "error", err.Error())
 		exitCode = 1
+	}
+	reg.Close()
+	if quoteWriter != nil {
+		if err := quoteWriter.Close(shutdownCtx); err != nil {
+			logger.Error("hot-cache writer shutdown incomplete", "error", err.Error())
+			exitCode = 1
+		}
+	}
+	if store != nil {
+		if err := store.Close(); err != nil {
+			logger.Warn("redis client close failed", "error", err.Error())
+		}
 	}
 	for _, srv := range []*http.Server{public, internal} {
 		if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -153,4 +221,17 @@ func healthcheck() int {
 		return 1
 	}
 	return 0
+}
+
+// readSecret reads a secret file, ignoring surrounding whitespace (including a trailing CR/LF).
+func readSecret(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	secret := strings.TrimSpace(string(b))
+	if secret == "" {
+		return "", fmt.Errorf("%s is empty", path)
+	}
+	return secret, nil
 }

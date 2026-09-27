@@ -4,6 +4,7 @@
 #   make up       core infrastructure: PostgreSQL, Redis, Kafka
 #   make up-obs   core infrastructure + observability: Prometheus, Grafana, Tempo, OpenTelemetry Collector
 #   make up-mock  core infrastructure + the realtime gateway streaming simulated (MOCK) market data
+#   make load     load/soak clients against the running gateway (after make up-mock)
 #
 # Every published port is bound to 127.0.0.1. Credentials are Docker secrets generated into ./secrets/
 # by `make bootstrap`. Image tags are pinned to exact, verified stable releases.
@@ -227,8 +228,10 @@ services:
     secrets:
       - grafana_admin_password
     volumes:
-      # Mount only the datasources directory so the image's default provisioning folders stay intact.
+      # Mount only the provisioning directories in use so the image's other default folders stay intact.
       - ./infrastructure/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infrastructure/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/observability/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
       - "127.0.0.1:${GRAFANA_HOST_PORT:-13000}:3000"
@@ -265,8 +268,17 @@ services:
       GATEWAY_SEED: ${GATEWAY_SEED:-20260927}
       GATEWAY_TICK_INTERVAL: ${GATEWAY_TICK_INTERVAL:-1s}
       GATEWAY_HEARTBEAT_INTERVAL: ${GATEWAY_HEARTBEAT_INTERVAL:-15s}
+      GATEWAY_SIM_SYNTHETIC_SYMBOLS: ${GATEWAY_SIM_SYNTHETIC_SYMBOLS:-100}
+      GATEWAY_MAX_ACTIVE_SYMBOLS: ${GATEWAY_MAX_ACTIVE_SYMBOLS:-150}
+      GATEWAY_STALE_AFTER: ${GATEWAY_STALE_AFTER:-5s}
+      # Redis holds disposable hot state (latest quotes, bars cache); the gateway keeps working without it.
+      GATEWAY_REDIS_ADDR: redis:6379
+      GATEWAY_REDIS_USERNAME: ${REDIS_APP_USER:-app}
+      GATEWAY_REDIS_PASSWORD_FILE: /run/secrets/redis_app_password
       GATEWAY_SHUTDOWN_TIMEOUT: 10s
       GATEWAY_LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
+    secrets:
+      - redis_app_password
     ports:
       - "127.0.0.1:${GATEWAY_HOST_PORT:-18090}:8090"
       - "127.0.0.1:${GATEWAY_HEALTH_HOST_PORT:-18091}:8091"
@@ -284,7 +296,8 @@ services:
       resources:
         limits:
           memory: 128m
-    networks: [edge]
+    # edge: clients; data: Redis; observability: Prometheus scrapes /metrics on the internal port.
+    networks: [edge, data, observability]
 
 networks:
   data: {}

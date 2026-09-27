@@ -1,4 +1,4 @@
-// Package httpapi serves the gateway's HTTP endpoints: historical bars and health.
+// Package httpapi serves the gateway's HTTP endpoints: historical bars, health and metrics.
 package httpapi
 
 import (
@@ -24,6 +24,8 @@ type Problem struct {
 const (
 	CategoryValidation         = "VALIDATION"
 	CategoryInstrumentNotFound = "INSTRUMENT_NOT_FOUND"
+	CategoryRateLimited        = "RATE_LIMITED"
+	CategoryServiceUnavailable = "SERVICE_UNAVAILABLE"
 	CategoryInternal           = "INTERNAL"
 )
 

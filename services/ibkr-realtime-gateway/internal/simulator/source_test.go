@@ -160,3 +160,19 @@ func TestSourceRejectsUnknownSymbolsAndInvalidConfig(t *testing.T) {
 		t.Error("tick that is not a whole number of milliseconds must be rejected")
 	}
 }
+
+func TestSourceReportsConnectingThenReady(t *testing.T) {
+	src, err := NewSource(NewModel(testSeed), clock.NewFake(time.Unix(0, 0)), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := <-src.Status(), <-src.Status()
+	if first.State != marketdata.StateConnecting || second.State != marketdata.StateReady {
+		t.Fatalf("status events = %s, %s", first.State, second.State)
+	}
+	select {
+	case ev := <-src.Status():
+		t.Fatalf("unexpected further event %+v", ev)
+	default:
+	}
+}

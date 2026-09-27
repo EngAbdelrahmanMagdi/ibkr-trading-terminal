@@ -58,10 +58,30 @@ type Model struct {
 	symbols map[string]*symbolModel
 }
 
-// NewModel builds the model for the embedded instruments with the given seed.
-func NewModel(seed uint64) *Model {
+// Option configures a Model.
+type Option func(*modelOptions)
+
+type modelOptions struct {
+	synthetic int
+}
+
+// MaxSyntheticSymbols is the largest number of synthetic instruments (SYN001 to SYN999).
+const MaxSyntheticSymbols = 999
+
+// WithSyntheticSymbols adds n deterministic synthetic instruments (SYN001, SYN002, ...), used only for load
+// testing. n is clamped to [0, MaxSyntheticSymbols].
+func WithSyntheticSymbols(n int) Option {
+	return func(o *modelOptions) { o.synthetic = max(0, min(n, MaxSyntheticSymbols)) }
+}
+
+// NewModel builds the model for the embedded instruments (plus any synthetic ones) with the given seed.
+func NewModel(seed uint64, opts ...Option) *Model {
+	var o modelOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	m := &Model{symbols: map[string]*symbolModel{}}
-	for _, spec := range defaultInstruments() {
+	for _, spec := range append(defaultInstruments(), syntheticInstruments(seed, o.synthetic)...) {
 		key := hash2(seed, fnv64a(spec.Symbol))
 		sm := &symbolModel{
 			spec:      spec,

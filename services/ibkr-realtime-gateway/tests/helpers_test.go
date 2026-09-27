@@ -25,7 +25,11 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/simulator"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/transport/ws"
 )
@@ -102,13 +106,16 @@ func conform(t *testing.T, rel string, data []byte) {
 // ---------------------------------------------------------------- gateway under test
 
 type gateway struct {
-	t      *testing.T
-	ws     *ws.Server
-	model  *simulator.Model
-	health *httpapi.Health
-	public *httptest.Server
-	intern *httptest.Server
-	client *http.Client
+	t       *testing.T
+	ws      *ws.Server
+	reg     *registry.Registry
+	model   *simulator.Model
+	sim     *simulator.SimulatorMarketDataSource // nil when a custom source is used
+	metrics *metrics.Gateway
+	health  *httpapi.Health
+	public  *httptest.Server
+	intern  *httptest.Server
+	client  *http.Client
 }
 
 func defaultConfig() ws.Config {
@@ -119,43 +126,106 @@ func defaultConfig() ws.Config {
 		MaxSubscribedSymbols:   100,
 		HeartbeatInterval:      100 * time.Millisecond,
 		WriteTimeout:           time.Second,
-		SendQueueSize:          256,
+		ControlQueueSize:       256,
+		FlushInterval:          5 * time.Millisecond,
+		LagThreshold:           2 * time.Second,
+		MaxLaggingFlushes:      5,
 		MaxConnections:         100,
 	}
 }
 
-// startGateway starts the gateway with an optional config change and registers shutdown plus a goroutine
-// leak check as test cleanup.
+// options customizes the gateway under test.
+type options struct {
+	ws         func(*ws.Config)
+	registry   func(*registry.Config)
+	source     marketdata.MarketDataSource // default: the simulator
+	synthetic  int                         // synthetic simulator instruments
+	store      hotcache.Store              // Redis stand-in; nil disables the hot cache
+	quoteEvery time.Duration               // quote-cache write interval (default 50ms)
+}
+
+// startGateway starts the gateway with an optional WebSocket config change and registers shutdown plus a
+// goroutine leak check as test cleanup.
 func startGateway(t *testing.T, mutate func(*ws.Config)) *gateway {
+	t.Helper()
+	return startGatewayWith(t, options{ws: mutate})
+}
+
+// startGatewayWith wires the gateway like cmd/realtime-gateway does, on httptest servers.
+func startGatewayWith(t *testing.T, o options) *gateway {
 	t.Helper()
 	baseline := runtime.NumGoroutine()
 	cfg := defaultConfig()
-	if mutate != nil {
-		mutate(&cfg)
+	if o.ws != nil {
+		o.ws(&cfg)
+	}
+	rcfg := registry.Config{MaxActiveSymbols: 200, UnsubscribeGrace: 50 * time.Millisecond, StaleAfter: time.Second}
+	if o.registry != nil {
+		o.registry(&rcfg)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	model := simulator.NewModel(testSeed)
-	source, err := simulator.NewSource(model, clock.Real{}, testTick)
+	clk := clock.Real{}
+	m := metrics.New()
+	g := &gateway{t: t, metrics: m, client: &http.Client{Transport: &http.Transport{}, Timeout: 10 * time.Second}}
+
+	source := o.source
+	if source == nil {
+		g.model = simulator.NewModel(testSeed, simulator.WithSyntheticSymbols(o.synthetic))
+		sim, err := simulator.NewSource(g.model, clk, testTick)
+		if err != nil {
+			t.Fatal(err)
+		}
+		g.sim, source = sim, sim
+	}
+
+	var (
+		guard       *hotcache.Guard
+		quoteWriter *hotcache.QuoteWriter
+		hooks       registry.Hooks
+	)
+	hooks.OnState = func(s marketdata.SourceState, at time.Time) { g.ws.BroadcastState(s, at) }
+	if o.store != nil {
+		every := o.quoteEvery
+		if every == 0 {
+			every = 50 * time.Millisecond
+		}
+		guard = hotcache.NewGuard(clk, 200*time.Millisecond, time.Second, m, logger)
+		quoteWriter = hotcache.NewQuoteWriter(o.store, guard, clk, every, 30*time.Second, m)
+		hooks.OnQuote = func(u *registry.Update) { quoteWriter.Publish(u.Symbol, u.Data) }
+	}
+	reg, err := registry.New(source, clk, rcfg, m, logger, hooks)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := ws.NewServer(cfg, source, clock.Real{}, logger)
-	health := httpapi.NewHealth(source, srv.Clients, clock.Real{})
+	g.reg = reg
+	g.ws = ws.NewServer(cfg, reg, clk, m, logger)
+	reg.Start()
+	if quoteWriter != nil {
+		go quoteWriter.Run()
+	}
+	g.health = httpapi.NewHealth(reg, g.ws.Clients, m.Handler())
+	// The compute timeout is generous because the race detector slows heavy computations considerably.
+	bars := httpapi.NewBarsService(source, o.store, guard, httpapi.BarsConfig{MaxConcurrent: 4, ComputeTimeout: time.Minute, MaxCacheTTL: time.Minute}, m)
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /ws", srv)
-	mux.Handle("GET /api/v1/market/bars", httpapi.NewBarsHandler(source, logger))
-	g := &gateway{
-		t: t, ws: srv, model: model, health: health,
-		public: httptest.NewServer(mux),
-		intern: httptest.NewServer(health.Handler()),
-		client: &http.Client{Transport: &http.Transport{}, Timeout: 10 * time.Second},
+	mux.Handle("GET /ws", g.ws)
+	mux.Handle("GET /api/v1/market/bars", httpapi.NewBarsHandler(source, bars, logger))
+	g.public = httptest.NewServer(mux)
+	g.intern = httptest.NewServer(g.health.Handler())
+	if g.sim != nil {
+		waitUntil(t, "source READY", func() bool { return reg.Ready() })
 	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
+		if err := g.ws.Shutdown(ctx); err != nil {
 			t.Errorf("shutdown: %v", err)
+		}
+		reg.Close()
+		if quoteWriter != nil {
+			if err := quoteWriter.Close(ctx); err != nil {
+				t.Errorf("quote writer: %v", err)
+			}
 		}
 		g.public.Close()
 		g.intern.Close()
@@ -163,6 +233,17 @@ func startGateway(t *testing.T, mutate func(*ws.Config)) *gateway {
 		assertNoGoroutineLeaks(t, baseline)
 	})
 	return g
+}
+
+func waitUntil(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 }
 
 func (g *gateway) wsURL() string { return "ws" + strings.TrimPrefix(g.public.URL, "http") + "/ws" }
@@ -202,6 +283,8 @@ type serverMessage struct {
 	Code      string   `json:"code"`
 	Symbols   []string `json:"symbols"`
 	Last      *string  `json:"last"`
+	Stale     bool     `json:"stale"`
+	Reason    string   `json:"reason"`
 	Sequence  int64    `json:"sequence"`
 	Timestamp string   `json:"timestamp"`
 	Limits    struct {

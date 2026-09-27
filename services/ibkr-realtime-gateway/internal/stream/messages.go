@@ -16,6 +16,7 @@ const (
 	TypeConnection  = "connection"
 	TypeSnapshot    = "snapshot"
 	TypeQuote       = "quote"
+	TypeStale       = "stale"
 	TypeError       = "error"
 	TypeHeartbeat   = "heartbeat"
 )
@@ -25,12 +26,15 @@ const (
 	ErrInvalidMessage    = "INVALID_MESSAGE"
 	ErrUnknownSymbol     = "UNKNOWN_SYMBOL"
 	ErrSubscriptionLimit = "SUBSCRIPTION_LIMIT"
+	ErrSourceUnavailable = "SOURCE_UNAVAILABLE"
 	ErrInternal          = "INTERNAL"
 )
 
-// Connection states (server-side state machine).
+// Stale reasons.
 const (
-	StateReady = "READY"
+	StaleNoUpdates          = "NO_UPDATES"
+	StaleSourceDisconnected = "SOURCE_DISCONNECTED"
+	StaleSourceDegraded     = "SOURCE_DEGRADED"
 )
 
 // FormatTime renders a UTC timestamp with millisecond precision and a trailing Z.
@@ -68,6 +72,14 @@ type QuoteMessage struct {
 	Stale     bool    `json:"stale"`
 }
 
+// Stale reports symbols without fresh data. Clients must not display them as live.
+type Stale struct {
+	Type    string   `json:"type"`
+	Symbols []string `json:"symbols"`
+	Since   string   `json:"since"`
+	Reason  string   `json:"reason"`
+}
+
 // ErrorMessage reports a recoverable protocol or subscription error.
 type ErrorMessage struct {
 	Type    string   `json:"type"`
@@ -83,20 +95,25 @@ type Heartbeat struct {
 }
 
 // NewConnection builds a connection message.
-func NewConnection(state string, source marketdata.SourceID, now time.Time, limits Limits) Connection {
-	return Connection{Type: TypeConnection, State: state, Source: string(source), Timestamp: FormatTime(now), Limits: limits}
+func NewConnection(state marketdata.SourceState, source marketdata.SourceID, now time.Time, limits Limits) Connection {
+	return Connection{Type: TypeConnection, State: string(state), Source: string(source), Timestamp: FormatTime(now), Limits: limits}
 }
 
 // NewQuoteMessage converts a normalized quote into a snapshot or quote message.
-func NewQuoteMessage(msgType string, q marketdata.Quote, priceDecimals int) QuoteMessage {
+func NewQuoteMessage(msgType string, q marketdata.Quote, priceDecimals int, stale bool) QuoteMessage {
 	bid, ask, last := q.Bid.Format(priceDecimals), q.Ask.Format(priceDecimals), q.Last.Format(priceDecimals)
 	bidSize, askSize, volume := q.BidSize, q.AskSize, min(q.Volume, marketdata.MaxSafeInteger)
 	return QuoteMessage{
 		Type: msgType, Symbol: q.Symbol,
 		Bid: &bid, Ask: &ask, Last: &last,
 		BidSize: &bidSize, AskSize: &askSize, Volume: &volume,
-		Sequence: q.Sequence, Timestamp: FormatTime(q.Time), Stale: false,
+		Sequence: q.Sequence, Timestamp: FormatTime(q.Time), Stale: stale,
 	}
+}
+
+// NewStale builds a stale message.
+func NewStale(symbols []string, since time.Time, reason string) Stale {
+	return Stale{Type: TypeStale, Symbols: symbols, Since: FormatTime(since), Reason: reason}
 }
 
 // NewError builds an error message.

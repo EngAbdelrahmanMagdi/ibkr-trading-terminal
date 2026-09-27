@@ -21,8 +21,11 @@ type SimulatorMarketDataSource struct {
 	clock clock.Clock
 	tick  time.Duration
 
+	status chan marketdata.StatusEvent // bounded; holds the CONNECTING and READY events
+
 	mu     sync.Mutex
 	active map[string]int // symbol -> number of active subscriptions
+	total  int            // active subscriptions across all symbols
 }
 
 var _ marketdata.MarketDataSource = (*SimulatorMarketDataSource)(nil)
@@ -35,8 +38,15 @@ func NewSource(model *Model, clk clock.Clock, tick time.Duration) (*SimulatorMar
 	if tick < MinTickInterval || tick%time.Millisecond != 0 {
 		return nil, errors.New("simulator: tick interval must be a whole number of milliseconds >= 10ms")
 	}
-	return &SimulatorMarketDataSource{model: model, clock: clk, tick: tick, active: map[string]int{}}, nil
+	// The simulator has no upstream connection: it connects instantly and then never changes state.
+	status := make(chan marketdata.StatusEvent, 2)
+	status <- marketdata.StatusEvent{State: marketdata.StateConnecting, At: clk.Now()}
+	status <- marketdata.StatusEvent{State: marketdata.StateReady, At: clk.Now()}
+	return &SimulatorMarketDataSource{model: model, clock: clk, tick: tick, status: status, active: map[string]int{}}, nil
 }
+
+// Status reports CONNECTING and then READY, once.
+func (s *SimulatorMarketDataSource) Status() <-chan marketdata.StatusEvent { return s.status }
 
 // ID returns MOCK.
 func (s *SimulatorMarketDataSource) ID() marketdata.SourceID { return marketdata.SourceMock }
@@ -77,9 +87,17 @@ func (s *SimulatorMarketDataSource) ActiveSymbols() int {
 	return len(s.active)
 }
 
+// ActiveSubscriptions returns the number of active subscriptions across all symbols.
+func (s *SimulatorMarketDataSource) ActiveSubscriptions() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.total
+}
+
 func (s *SimulatorMarketDataSource) track(symbol string, delta int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.total += delta
 	s.active[symbol] += delta
 	if s.active[symbol] <= 0 {
 		delete(s.active, symbol)

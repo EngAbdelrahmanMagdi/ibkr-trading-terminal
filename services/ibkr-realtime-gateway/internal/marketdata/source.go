@@ -1,6 +1,9 @@
 package marketdata
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // QuoteSink receives quotes from a subscription. OfferQuote must never block: it returns false when the
 // quote cannot be accepted, which ends the subscription.
@@ -20,6 +23,27 @@ type Subscription interface {
 	Close()
 }
 
+// SourceState is the connection state of a market-data source.
+type SourceState string
+
+// Source connection states (see the connection state machine in package connstate).
+const (
+	StateDisconnected   SourceState = "DISCONNECTED"
+	StateConnecting     SourceState = "CONNECTING"
+	StateAuthenticating SourceState = "AUTHENTICATING"
+	StateReady          SourceState = "READY"
+	StateDegraded       SourceState = "DEGRADED"
+	StateReconnecting   SourceState = "RECONNECTING"
+)
+
+// StatusEvent reports a change of the source connection state. ErrorCategory is a short, non-sensitive
+// category (never a raw upstream error or credential) and is empty for healthy states.
+type StatusEvent struct {
+	State         SourceState
+	ErrorCategory string
+	At            time.Time
+}
+
 // MarketDataSource is the port through which the gateway obtains market data.
 // Implementations: SimulatorMarketDataSource (MOCK) now, IBKRMarketDataSource later.
 type MarketDataSource interface {
@@ -34,6 +58,7 @@ type MarketDataSource interface {
 	Subscribe(ctx context.Context, symbol string, sink QuoteSink) (Subscription, error)
 	// Bars returns historical bars in ascending time order; the last bar may be the current, still open bar.
 	Bars(ctx context.Context, symbol string, interval Interval, rng Range) ([]Bar, error)
-	// ActiveSymbols returns the number of distinct symbols with at least one active subscription.
-	ActiveSymbols() int
+	// Status returns the source's status events. The channel is owned and bounded by the source; the first
+	// event reports the current state. Consumers must keep reading it while the source is in use.
+	Status() <-chan StatusEvent
 }

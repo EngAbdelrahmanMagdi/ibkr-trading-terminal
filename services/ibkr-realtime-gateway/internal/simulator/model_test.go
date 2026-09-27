@@ -344,3 +344,31 @@ func BenchmarkBarsOneDayOneYear(b *testing.B) {
 		}
 	}
 }
+
+func TestSyntheticInstrumentsAreDeterministicAndOptIn(t *testing.T) {
+	if n := len(NewModel(testSeed).Symbols()); n != 8 {
+		t.Fatalf("default instruments = %d, want 8", n)
+	}
+	a, b := NewModel(testSeed, WithSyntheticSymbols(100)), NewModel(testSeed, WithSyntheticSymbols(100))
+	if n := len(a.Symbols()); n != 108 {
+		t.Fatalf("instruments with 100 synthetic = %d", n)
+	}
+	for _, sym := range []string{"SYN001", "SYN050", "SYN100"} {
+		inst, err := a.Instrument(sym)
+		if err != nil || inst.Currency != "USD" || inst.PriceDecimals != 2 {
+			t.Fatalf("%s: %+v %v", sym, inst, err)
+		}
+		at := time.Date(2026, 9, 27, 14, 0, 0, 0, time.UTC)
+		pa, _ := a.Price(sym, at)
+		pb, _ := b.Price(sym, at)
+		if pa != pb || pa <= 0 {
+			t.Fatalf("%s: prices %d vs %d", sym, pa, pb)
+		}
+	}
+	if _, err := a.Instrument("SYN101"); err == nil {
+		t.Fatal("SYN101 must not exist")
+	}
+	if n := len(NewModel(testSeed, WithSyntheticSymbols(5000)).Symbols()); n != 8+MaxSyntheticSymbols {
+		t.Fatalf("synthetic count must be clamped, got %d instruments", n)
+	}
+}

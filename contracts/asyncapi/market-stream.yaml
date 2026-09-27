@@ -31,7 +31,9 @@ info:
     - 1008: policy violation (for example a disallowed origin).
     - 1009: message too big.
     - 1011: internal error.
-    - 1013: try again later (overload or a slow consumer).
+    - 1013: try again later (overload or a slow consumer), sent whenever the server can still deliver a close frame.
+
+    An unresponsive peer (a write that times out, or no pong within the timeout) may be disconnected without a close handshake. The server sends no close code in that case, so the client observes an abnormal closure (reported locally as 1006) and should reconnect with backoff.
   license:
     name: Proprietary
 defaultContentType: application/json

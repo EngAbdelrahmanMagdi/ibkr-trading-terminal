@@ -239,13 +239,19 @@ check_kafka_host_listener() {
 # ------------------------------------------------------------------ checks: observability
 prometheus_ready() { [[ "$(http_code "http://127.0.0.1:${PROMETHEUS_HOST_PORT}/-/ready")" == "200" ]]; }
 
+prometheus_scalar() { # prometheus_scalar <promql>: prints the value of a single-sample instant query
+  curl -s --max-time 5 --get --data-urlencode "query=$1" "http://127.0.0.1:${PROMETHEUS_HOST_PORT}/api/v1/query" \
+    | grep -o '"value":\[[^]]*\]' | sed -E 's/.*,"([0-9.]+)"\]/\1/'
+}
+
 prometheus_all_targets_up() {
-  local body up down
-  body="$(curl -s --max-time 5 "http://127.0.0.1:${PROMETHEUS_HOST_PORT}/api/v1/targets?state=active")" || return 1
-  up="$(grep -o '"health":"up"' <<< "$body" | wc -l | tr -d ' ')"
-  down="$(grep -o '"health":"\(down\|unknown\)"' <<< "$body" | wc -l | tr -d ' ')"
-  echo "targets up=$up not-up=$down"
-  [[ "$up" -ge 4 && "$down" -eq 0 ]]
+  # The realtime gateway is scraped only while the mock profile runs.
+  local selector='job=~".+"' expected=4 up down
+  if running realtime-gateway; then expected=5; else selector='job=~".+",job!="realtime-gateway"'; fi
+  up="$(prometheus_scalar "count(up{${selector}} == 1) or vector(0)")"
+  down="$(prometheus_scalar "count(up{${selector}} == 0) or vector(0)")"
+  echo "targets up=${up:-?} down=${down:-?} (expected up=${expected})"
+  [[ "${up:-0}" -ge "$expected" && "${down:-1}" -eq 0 ]]
 }
 
 grafana_ds_ok() { # grafana_ds_ok <uid>
@@ -322,6 +328,35 @@ check_gateway_stream() {
     -symbols NVDA,AAPL,META -quotes 3 -timeout 30s
 }
 
+check_gateway_metrics() {
+  local body
+  body="$(curl -s --max-time 5 "${GATEWAY_HEALTH_URL}/metrics")" || return 1
+  [[ "$body" == *'realtime_gateway_connection_state{state="READY"} 1'* ]] || { echo "connection_state READY missing"; return 1; }
+  [[ "$body" == *'realtime_gateway_quotes_received_total'* && "$body" == *'go_goroutines'* ]] || { echo "metrics incomplete"; return 1; }
+}
+
+gateway_quote_cached() {
+  local value ttl
+  value="$(redis_app GET quote:NVDA)"
+  ttl="$(redis_app TTL quote:NVDA)"
+  [[ "$value" == *'"type":"quote"'*'"symbol":"NVDA"'* ]] || { echo "quote:NVDA = '${value:0:120}'"; return 1; }
+  [[ "$ttl" =~ ^[0-9]+$ && "$ttl" -gt 0 && "$ttl" -le 30 ]] || { echo "quote:NVDA TTL = '$ttl'"; return 1; }
+}
+
+check_gateway_hot_cache() {
+  # The stream probe above subscribed NVDA; the latest quote is written to Redis about once per second.
+  retry 10 1 gateway_quote_cached
+}
+
+check_gateway_bars_cached() {
+  local url="${GATEWAY_URL}/api/v1/market/bars?symbol=AAPL&interval=15m&range=5d" first second
+  first="$(curl -s --max-time 30 "$url")" || return 1
+  second="$(curl -s --max-time 30 "$url")" || return 1
+  [[ "$first" == *'"bars":[{'* ]] || { echo "unexpected body: ${first:0:200}"; return 1; }
+  [[ "$second" == *'"cached":true'* ]] || { echo "second response not served from the cache: ${second:0:200}"; return 1; }
+  [[ "$(redis_app TTL bars:AAPL:15m:5d)" =~ ^[0-9]+$ ]] || { echo "bars cache key has no TTL"; return 1; }
+}
+
 # ------------------------------------------------------------------ checks: restarts (opt-in)
 check_pg_durable_across_restart() {
   local tbl="${TRADING_SCHEMA}.verify_durable_$$"
@@ -396,6 +431,11 @@ if running realtime-gateway; then
   check "historical bars (MOCK) and 404 for unknown symbols" check_gateway_bars
   check "WebSocket upgrade from a disallowed origin is rejected (403)" check_gateway_origin_rejected
   check "stream probe: connection, snapshots, ordered quotes for 3 symbols" check_gateway_stream
+  check "Prometheus metrics on the internal port" check_gateway_metrics
+  if running redis; then
+    check "latest quote is written to Redis (quote:NVDA, stream quote shape, TTL <= 30s)" check_gateway_hot_cache
+    check "historical bars are cached in Redis and marked cached on the next request" check_gateway_bars_cached
+  else skip "gateway Redis checks (redis not running)"; fi
 else skip "realtime gateway checks (mock profile not running; use 'make up-mock')"; fi
 
 echo "[restarts]"

@@ -32,6 +32,12 @@ GATEWAY_DIR := services/ibkr-realtime-gateway
 # Defaults for `make probe`.
 SYMBOLS ?= NVDA,AAPL,META,AMD,IONQ
 QUOTES ?= 5
+# Defaults for `make load`: a short run. For a soak use e.g. LOAD_DURATION=10m LOAD_CLIENTS=200.
+LOAD_CLIENTS ?= 50
+LOAD_SYMBOLS_PER_CLIENT ?= 20
+LOAD_DURATION ?= 60s
+LOAD_SLOW_READERS ?= 0
+LOAD_ARGS ?=
 SHELL_SCRIPTS := infrastructure/scripts/bootstrap.sh infrastructure/scripts/verify-infra.sh \
                  infrastructure/postgres/init/10-create-roles.sh infrastructure/redis/start-redis.sh
 
@@ -42,7 +48,7 @@ CONTRACT_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro"
 GATEWAY_COPY := mkdir -p /work/services && cp -r /src/contracts /work/ && cp -r /src/$(GATEWAY_DIR) /work/services/ && cd /work/$(GATEWAY_DIR)
 GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
 
-.PHONY: help bootstrap up up-obs up-mock down ps logs verify probe test test-unit test-contract contract-java \
+.PHONY: help bootstrap up up-obs up-mock down ps logs verify probe load test test-unit test-contract contract-java \
         contract-go contract-python contract-typescript lint lint-go lint-contracts security clean
 
 help: ## Show available targets
@@ -75,6 +81,12 @@ verify: ## Verify infrastructure connectivity, security posture and behavior (VE
 probe: ## Connect a WebSocket test client to the running mock feed (SYMBOLS=a,b QUOTES=n)
 	MSYS_NO_PATHCONV=1 $(COMPOSE_MOCK) exec realtime-gateway /usr/local/bin/stream-probe \
 		-url ws://127.0.0.1:8090/ws -symbols $(SYMBOLS) -quotes $(QUOTES)
+
+load: ## Run load/soak clients against the running mock feed, with leak checks (LOAD_CLIENTS, LOAD_DURATION, LOAD_ARGS)
+	MSYS_NO_PATHCONV=1 $(COMPOSE_MOCK) run --rm --no-deps --entrypoint /usr/local/bin/stream-load realtime-gateway \
+		-url ws://realtime-gateway:8090/ws -metrics-url http://realtime-gateway:8091/metrics \
+		-clients $(LOAD_CLIENTS) -symbols-per-client $(LOAD_SYMBOLS_PER_CLIENT) -duration $(LOAD_DURATION) \
+		-slow-readers $(LOAD_SLOW_READERS) $(LOAD_ARGS)
 
 test: test-contract test-unit verify ## Run all available checks: contract tests, Go tests, infrastructure verification
 

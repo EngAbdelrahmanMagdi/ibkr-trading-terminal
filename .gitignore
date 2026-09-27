@@ -1,0 +1,82 @@
+# ---- Secrets & local environment ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+secrets/
+# IBKR Client Portal Gateway local install/config (developer machine only)
+clientportal.gw/
+ibkr-gateway/
+
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# ---- Java / Maven ----
+target/
+*.class
+hs_err_pid*
+.mvn/wrapper/maven-wrapper.jar
+
+# ---- Go ----
+/services/ibkr-realtime-gateway/bin/
+*.test
+*.out
+coverage.*
+*.prof
+*.pprof
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+/apps/web/playwright-report/
+/apps/web/test-results/
+/tests/e2e/playwright-report/
+/tests/e2e/test-results/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ---- Infrastructure ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# ---- Logs / local data ----
+*.log
+/data/
+/tmp/

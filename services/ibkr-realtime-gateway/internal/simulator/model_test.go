@@ -190,7 +190,7 @@ func TestCoarseBarsAggregateMinuteBarsExactly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	byTime := map[int64]marketdata.Bar{}
+	byTime := map[int64]Bar{}
 	for _, b := range minutes {
 		byTime[b.Time.Unix()] = b
 	}
@@ -230,18 +230,18 @@ func TestMinuteBarEqualsLiveOneSecondQuotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var bar marketdata.Bar
+	var bar Bar
 	for _, b := range bars {
 		if b.Time.Equal(start) {
 			bar = b
 		}
 	}
 	// Aggregate the live 1-second quotes of that minute independently.
-	var quotes []marketdata.Quote
+	var quotes []quote
 	for s := 0; s < 60; s++ {
 		quotes = append(quotes, sm.quoteAt(start.Add(time.Duration(s)*time.Second), int64(s)))
 	}
-	want := marketdata.Bar{Time: start, Open: quotes[0].Last, High: quotes[0].Last, Low: quotes[0].Last, Close: quotes[59].Last}
+	want := Bar{Time: start, Open: quotes[0].Last, High: quotes[0].Last, Low: quotes[0].Last, Close: quotes[59].Last}
 	for _, q := range quotes {
 		want.High, want.Low = max(want.High, q.Last), min(want.Low, q.Last)
 	}

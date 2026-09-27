@@ -1,6 +1,37 @@
 # Realtime Gateway
 
-This Go service streams market data to browsers over WebSocket and serves historical bars over HTTP. In `MOCK` mode it is backed by a deterministic market simulator, so the feed runs 24/7 without any brokerage credentials.
+This Go service streams market data to browsers over WebSocket and serves historical bars over HTTP.
+
+- In `MOCK` mode it is backed by a deterministic market simulator, so the feed runs 24/7 without any brokerage credentials.
+- In `IBKR` mode it streams real market data from an Interactive Brokers **paper** account, through the Client Portal Gateway running on the developer's machine.
+
+## Market-data modes
+
+`GATEWAY_MARKET_DATA_MODE` selects the source **once, at startup**, for the whole process lifetime.
+
+| Mode | Source | Use |
+|---|---|---|
+| `MOCK` (default) | The live deterministic simulator | Demos, public deployments, development without an account |
+| `IBKR` | IBKR market data through the local Client Portal Gateway | Trusted, private environments only. It never falls back: an outage shows `RECONNECTING`/`DISCONNECTED` and stale data. |
+| `AUTO` | IBKR if configured and a session is established at startup, otherwise `MOCK` | Local development only |
+
+- **Visibility.** The active source is never silent. It appears:
+  - in every `connection` message (`source`);
+  - in bars responses (`source`);
+  - in `/health` (`source`);
+  - in the `realtime_gateway_source_info{source,mode}` metric;
+  - in the startup log. An `AUTO` fallback is logged as a warning.
+- **Trusted environment.** `IBKR` and `AUTO` refuse to start unless `GATEWAY_TRUSTED_ENVIRONMENT=true` and the allowed origins are loopback or private.
+- **Separation from trading.** Redis keys are namespaced by source (`quote:{SOURCE}:{SYMBOL}`, `bars:{SOURCE}:…`). Simulated data can never be read as broker data.
+
+## IBKR setup (paper account)
+
+1. **Certificates:** run `make ibkr-certs`. It creates a per-machine CA and a certificate for `localhost` and `host.docker.internal` in `./secrets/ibkr/` (gitignored).
+2. **CP Gateway keystore:** install the generated keystore (`cpgw.jks`, with its password in `cpgw-keystore-password`) in the Client Portal Gateway's configuration. The gateway trusts **only** that CA, with hostname verification on; certificate verification is never disabled.
+3. **Login:** start the CP Gateway and log in with your **paper-trading** username in a browser on the same machine. IBKR requires this login interactively, once a day, and does not support automating it. The service never handles credentials.
+4. **Start:** run `make up-ibkr`, or `GATEWAY_MARKET_DATA_MODE=AUTO make up-ibkr` for AUTO.
+
+`make up-ibkr-fake` runs the same IBKR code path against a **fake** gateway that serves scripted data, so it needs no account. It is for tests only.
 
 ## How it works
 
@@ -17,6 +48,25 @@ This Go service streams market data to browsers over WebSocket and serves histor
   - `5m`, `15m` and `1h` bars aggregate their 1m bars exactly;
   - `1d` bars sample each minute of the UTC day.
 - **Synthetic instruments** `SYN001`…`SYNnnn` (`GATEWAY_SIM_SYNTHETIC_SYMBOLS`) exist only for load testing. They are just as deterministic.
+
+### IBKR adapter
+
+- **Symbols to contracts.** Symbols resolve through a memory cache, then Redis, then IBKR's stock lookup. Only US stock listings are candidates, confirmed with the security definition (USD, stock). An ambiguous symbol is rejected, never guessed.
+- **Quotes.** Each instrument has one IBKR stream, however many clients want it.
+  - Streams are renewed before IBKR ends them (every 10 minutes).
+  - Streams are re-issued after every reconnect.
+- **Precision.** Prices keep **exactly the precision IBKR delivers**: no floats, no rounding, no assumed number of decimals. A price the contract cannot represent is sent as `null` and counted.
+- **Delivery mode and halts.** Delayed or frozen data is labelled by `dataMode`, and trading halts by `halted`. A symbol without a market-data subscription is rejected with `SOURCE_UNAVAILABLE`, never streamed as if it were live.
+- **Session.** The adapter:
+  - keeps the brokerage session alive;
+  - follows its state (`CONNECTING` → `AUTHENTICATING` → `READY`, `DEGRADED` for a competing session or a rate-limit cool-down, `RECONNECTING`, `DISCONNECTED`);
+  - reconnects with a bounded cycle;
+  - never takes over a session the user holds elsewhere.
+- **Pacing.** Every request goes through one limiter:
+  - the gateway's configured share of the IBKR session budget, plus IBKR's per-endpoint limits;
+  - a bounded queue with a timeout;
+  - an HTTP 429 starts a cool-down (bars return a `RATE_LIMITED` problem meanwhile).
+- **Bars.** They come from IBKR history (regular trading hours only) for the combinations one IBKR request can serve: `1m: 1d; 5m: 1d,5d; 15m: 5d; 1h: 5d,1mo; 1d: 1mo,3mo,1y`. Other combinations return `VALIDATION`.
 
 ### Shared subscriptions and fan-out
 
@@ -78,6 +128,8 @@ Unresponsive peers are dropped without waiting for a close handshake.
 | 8091 | `GET /liveness`, `/readiness`, `/ready`, `/health` | Health (internal port). Readiness requires that the source has been `READY` and hasn't given up reconnecting. Redis is not a readiness dependency. |
 | 8091 | `GET /metrics` | Prometheus metrics (internal port) |
 
+Supported bar combinations depend on the source (a combination the source cannot serve returns `VALIDATION`). The simulator serves the table below; IBKR serves the subset listed under the IBKR adapter.
+
 Supported interval/range combinations:
 
 | Interval | Ranges |
@@ -105,6 +157,11 @@ Every metric carries the `realtime_gateway_` prefix. The Go runtime and process 
 | `slow_consumer_evictions_total{reason}` | counter | `write_timeout`, `pong_timeout`, `control_queue_full`, `lagging_flushes` |
 | `control_queue_depth` | histogram | Control-queue depth at enqueue |
 | `redis_errors_total{op}`, `cache_hits_total{cache}`, `cache_misses_total{cache}`, `quote_cache_writes_total`, `bars_rate_limited_total` | counter | Redis and cache behavior |
+| `source_info{source,mode}` | gauge | Active market-data source and configured mode |
+| `unrepresentable_prices_total` | counter | Prices the contract cannot carry without rounding (sent as null) |
+| `ibkr_requests_total{endpoint,code}`, `ibkr_request_seconds{endpoint}` | counter, histogram | IBKR requests |
+| `ibkr_limiter_wait_seconds`, `ibkr_limiter_rejected_total{endpoint,reason}`, `ibkr_rate_limited_total` | histogram, counter | IBKR pacing |
+| `ibkr_ws_messages_total{direction,topic}`, `ibkr_smd_renewals_total`, `ibkr_malformed_frames_total`, `ibkr_contract_lookups_total{result}` | counter | IBKR stream and lookups |
 
 With the observability profile running, Grafana provisions a **Realtime Gateway** dashboard from these metrics.
 
@@ -141,6 +198,25 @@ Settings come from environment variables. Invalid values stop the service at sta
 | `GATEWAY_REDIS_TIMEOUT` | `100ms` | Timeout of every Redis call |
 | `GATEWAY_REDIS_COOLDOWN` | `5s` | Pause after a Redis failure |
 | `GATEWAY_QUOTE_CACHE_INTERVAL` / `GATEWAY_QUOTE_CACHE_TTL` | `1s` / `30s` | Latest-quote write interval and TTL |
+| `GATEWAY_MARKET_DATA_MODE` | `MOCK` | `MOCK`, `IBKR` or `AUTO` |
+| `GATEWAY_TRUSTED_ENVIRONMENT` | `false` | Must be `true` for `IBKR` and `AUTO` |
+| `GATEWAY_IBKR_BASE_URL` | `https://host.docker.internal:5000/v1/api` | Client Portal Gateway API base (https only) |
+| `GATEWAY_IBKR_CA_FILE` | *(empty)* | The only CA trusted for the CP Gateway (required in `IBKR` mode) |
+| `GATEWAY_IBKR_SESSION_LIMIT` / `GATEWAY_IBKR_ALLOCATION` / `GATEWAY_IBKR_HEADROOM` | `10` / `5` / `1` | Requests/second: IBKR's session limit, this service's share, reserved headroom (allocation + headroom ≤ limit) |
+| `GATEWAY_IBKR_LIMITER_QUEUE` / `GATEWAY_IBKR_LIMITER_TIMEOUT` | `64` / `5s` | Bounded wait for a pacing permit |
+| `GATEWAY_IBKR_PENALTY_COOLDOWN` | `15m` | Pause of non-essential requests after an HTTP 429 |
+| `GATEWAY_IBKR_REQUEST_TIMEOUT` | `10s` | Per IBKR request |
+| `GATEWAY_IBKR_TICKLE_INTERVAL` / `GATEWAY_IBKR_PING_INTERVAL` | `60s` / `30s` | Session keepalive and websocket ping |
+| `GATEWAY_IBKR_SMD_RENEW_AFTER` / `GATEWAY_IBKR_SMD_RENEW_JITTER` | `8m` / `60s` | Stream renewal before IBKR's 10-minute termination |
+| `GATEWAY_IBKR_RECONNECT_BASE` / `_MAX` / `_ATTEMPTS` / `_MAX_TOTAL` | `1s` / `30s` / `10` / `5m` | Bounded reconnect cycle (full-jitter backoff) |
+| `GATEWAY_IBKR_PROBE_INTERVAL` | `30s` | Session health check after a cycle is exhausted |
+| `GATEWAY_IBKR_SNAPSHOT_WAIT` | `2s` | Wait for the first data of a new instrument |
+| `GATEWAY_IBKR_WS_SEND_RATE` | `5` | Websocket topic messages per second |
+| `GATEWAY_IBKR_CONID_CACHE_TTL` | `168h` | Contract cache lifetime in Redis |
+| `GATEWAY_IBKR_CONID_SEED` | *(empty)* | Optional `SYMBOL:CONID,…` shortcut for contract lookup |
+| `GATEWAY_IBKR_STALE_AFTER` | `120s` | `NO_UPDATES` threshold in IBKR mode (IBKR sends only changes) |
+| `GATEWAY_IBKR_MARKET_DATA_LINES` | `100` | The account's market-data lines; `GATEWAY_MAX_ACTIVE_SYMBOLS` must not exceed it |
+| `GATEWAY_AUTO_PROBE_TIMEOUT` | `10s` | AUTO mode's startup session check |
 | `GATEWAY_SHUTDOWN_TIMEOUT` | `10s` | Graceful shutdown deadline |
 | `GATEWAY_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` (JSON logs) |
 
@@ -150,13 +226,16 @@ From the repository root:
 
 ```bash
 make up-mock      # build and start the gateway (plus core infrastructure)
+make up-ibkr-fake # the IBKR code path against a fake CP Gateway (no account needed)
+make up-ibkr      # IBKR market data (after make ibkr-certs and a CP Gateway login)
 make probe        # connect a test client: connection, snapshots, ordered quotes
 make load         # load/soak clients with leak checks (LOAD_CLIENTS, LOAD_DURATION, LOAD_ARGS)
 make test-unit    # unit, integration and contract-conformance tests with the race detector
 make lint-go      # gofmt, go vet, golangci-lint
 ```
 
-- **Integration tests** start the gateway on a local test server and connect real WebSocket clients. They cover shared subscriptions, slow-client eviction, source outage and recovery, and Redis failures. Every message is validated against the JSON Schemas in `contracts/schemas/`, and after each test they verify that no goroutines are left running.
+- **Integration tests** start the gateway on a local test server and connect real WebSocket clients. They cover shared subscriptions, slow-client eviction, source outage and recovery, and Redis failures.
+- **IBKR tests** run against a fake CP Gateway over real TLS; no IBKR account is involved. They cover contract resolution, the quote field mapping (precision, data mode, halts), stream sharing and renewal, reconnect and resubscription, session states, 429 cool-downs, history, untrusted certificates, and the mode selection rules. Every message is validated against the JSON Schemas in `contracts/schemas/`, and after each test they verify that no goroutines are left running.
 - **`stream-load`** (`make load`) runs many clients with subscription churn and optional slow readers against the running feed.
   - It reports delivery statistics.
   - It samples `/metrics` during the run, then checks that sessions, upstream subscriptions and goroutines return to their baseline, and that heap usage levels off.

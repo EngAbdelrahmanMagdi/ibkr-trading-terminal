@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 )
 
@@ -76,6 +77,7 @@ func (g *Guard) Fail(op string, err error) {
 // pipelined request. Publish is called on the quote hot path and only updates an in-memory map, whose size is
 // bounded by the number of active symbols.
 type QuoteWriter struct {
+	source   marketdata.SourceID
 	store    Store
 	guard    *Guard
 	clock    clock.Clock
@@ -93,13 +95,16 @@ type QuoteWriter struct {
 	entries  []Entry // writer-only buffer
 }
 
-// QuoteKey is the Redis key of a symbol's latest quote.
-func QuoteKey(symbol string) string { return "quote:" + symbol }
+// QuoteKey is the Redis key of a symbol's latest quote. Keys are namespaced by source: consumers that need
+// broker data read only quote:IBKR:* and can never mistake simulated prices for broker prices.
+func QuoteKey(source marketdata.SourceID, symbol string) string {
+	return "quote:" + string(source) + ":" + symbol
+}
 
 // NewQuoteWriter creates the writer; Run must be started once.
-func NewQuoteWriter(store Store, guard *Guard, clk clock.Clock, interval, ttl time.Duration, m *metrics.Gateway) *QuoteWriter {
+func NewQuoteWriter(source marketdata.SourceID, store Store, guard *Guard, clk clock.Clock, interval, ttl time.Duration, m *metrics.Gateway) *QuoteWriter {
 	return &QuoteWriter{
-		store: store, guard: guard, clock: clk, interval: interval, ttl: ttl, metrics: m,
+		source: source, store: store, guard: guard, clock: clk, interval: interval, ttl: ttl, metrics: m,
 		pending: map[string][]byte{}, spare: map[string][]byte{},
 		stop: make(chan struct{}), done: make(chan struct{}),
 	}
@@ -148,7 +153,7 @@ func (w *QuoteWriter) flush() {
 	}
 	entries := w.entries[:0]
 	for symbol, data := range batch {
-		entries = append(entries, Entry{Key: QuoteKey(symbol), Value: data, TTL: w.ttl})
+		entries = append(entries, Entry{Key: QuoteKey(w.source, symbol), Value: data, TTL: w.ttl})
 	}
 	ctx, cancel := w.guard.Context(context.Background())
 	err := w.store.SetMany(ctx, entries)

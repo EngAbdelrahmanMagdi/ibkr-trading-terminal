@@ -187,7 +187,7 @@ func (s *session) subscribe(symbols []string) {
 		return
 	}
 
-	var unknown, limited, unavailable, failed []string
+	var unknown, limited, unavailable, rateLimited, failed []string
 	for _, sym := range symbols {
 		err := s.srv.registry.Subscribe(sym, s, s.prepare)
 		switch {
@@ -196,7 +196,9 @@ func (s *session) subscribe(symbols []string) {
 			unknown = append(unknown, sym)
 		case errors.Is(err, registry.ErrActiveSymbolLimit):
 			limited = append(limited, sym)
-		case errors.Is(err, registry.ErrSourceUnavailable):
+		case errors.Is(err, marketdata.ErrRateLimited):
+			rateLimited = append(rateLimited, sym)
+		case errors.Is(err, registry.ErrSourceUnavailable), errors.Is(err, marketdata.ErrSymbolUnavailable):
 			unavailable = append(unavailable, sym)
 		case errors.Is(err, registry.ErrRejected), errors.Is(err, registry.ErrClosed):
 			return // the session or the gateway is ending
@@ -212,6 +214,9 @@ func (s *session) subscribe(symbols []string) {
 	}
 	if len(unavailable) > 0 {
 		s.sendError(stream.ErrSourceUnavailable, "market data is currently unavailable", unavailable)
+	}
+	if len(rateLimited) > 0 {
+		s.sendError(stream.ErrRateLimited, "the market data source is rate limited; retry shortly", rateLimited)
 	}
 	if len(failed) > 0 {
 		s.sendError(stream.ErrInternal, "subscription failed", failed)
@@ -290,6 +295,25 @@ func (s *session) OfferQuote(u *registry.Update) {
 	if armed {
 		s.signal()
 	}
+}
+
+// OfferUnavailable implements registry.Subscriber: the symbol's subscription has ended at the source.
+func (s *session) OfferUnavailable(symbol string, err error) {
+	s.mu.Lock()
+	sl := s.slots[symbol]
+	if sl != nil {
+		sl.removed = true
+		delete(s.slots, symbol)
+	}
+	s.mu.Unlock()
+	if sl == nil {
+		return
+	}
+	if errors.Is(err, marketdata.ErrRateLimited) {
+		s.sendError(stream.ErrRateLimited, "the market data source is rate limited; subscription ended", []string{symbol})
+		return
+	}
+	s.sendError(stream.ErrSourceUnavailable, "market data is unavailable for this symbol; subscription ended", []string{symbol})
 }
 
 // OfferStale implements registry.Subscriber.

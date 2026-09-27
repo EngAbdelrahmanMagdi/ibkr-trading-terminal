@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +44,50 @@ type Config struct {
 	QuoteCacheTTL          time.Duration
 	ShutdownTimeout        time.Duration
 	LogLevel               slog.Level
+
+	MarketDataMode     string // MOCK, IBKR or AUTO
+	TrustedEnvironment bool
+	IBKR               IBKR
 }
+
+// Market-data modes.
+const (
+	ModeMock = "MOCK"
+	ModeIBKR = "IBKR"
+	ModeAuto = "AUTO"
+)
+
+// IBKR configures the IBKR market-data source (used in IBKR mode, and in AUTO mode when configured).
+type IBKR struct {
+	BaseURL          string
+	CAFile           string
+	SessionLimit     float64
+	Allocation       float64
+	Headroom         float64
+	LimiterQueue     int
+	LimiterTimeout   time.Duration
+	PenaltyCooldown  time.Duration
+	RequestTimeout   time.Duration
+	TickleInterval   time.Duration
+	PingInterval     time.Duration
+	RenewAfter       time.Duration
+	RenewJitter      time.Duration
+	ReconnectBase    time.Duration
+	ReconnectMax     time.Duration
+	ReconnectTries   int
+	ReconnectTotal   time.Duration
+	ProbeInterval    time.Duration
+	SnapshotWait     time.Duration
+	WSSendRate       float64
+	ConidCacheTTL    time.Duration
+	ConidSeed        map[string]int64
+	StaleAfter       time.Duration
+	MarketDataLines  int
+	AutoProbeTimeout time.Duration
+}
+
+// Configured reports whether the settings needed to reach the CP Gateway are present.
+func (i IBKR) Configured() bool { return i.BaseURL != "" && i.CAFile != "" }
 
 // Defaults are documented in the service README and the WebSocket protocol description.
 const (
@@ -76,7 +120,66 @@ const (
 	DefaultQuoteCacheTTL          = "30s"
 	DefaultShutdownTimeout        = "10s"
 	DefaultLogLevel               = "info"
+	DefaultMarketDataMode         = ModeMock
+	DefaultIBKRBaseURL            = "https://host.docker.internal:5000/v1/api"
 )
+
+// parseSeed parses "SYMBOL:CONID,SYMBOL:CONID".
+func parseSeed(v string) (map[string]int64, error) {
+	seed := map[string]int64{}
+	for _, pair := range strings.Split(v, ",") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		sym, id, ok := strings.Cut(pair, ":")
+		conid, err := strconv.ParseInt(strings.TrimSpace(id), 10, 64)
+		if !ok || err != nil || conid <= 0 || strings.TrimSpace(sym) == "" {
+			return nil, errors.New("GATEWAY_IBKR_CONID_SEED must be a comma-separated list of SYMBOL:CONID")
+		}
+		seed[strings.ToUpper(strings.TrimSpace(sym))] = conid
+	}
+	return seed, nil
+}
+
+// brokerModeErrors enforces the trusted-environment rules for modes that may use IBKR.
+func (c Config) brokerModeErrors() []error {
+	var errs []error
+	if !c.TrustedEnvironment {
+		errs = append(errs, errors.New("GATEWAY_TRUSTED_ENVIRONMENT=true is required for IBKR and AUTO modes; public deployments use MOCK"))
+	}
+	for _, o := range c.AllowedOrigins {
+		if !privateOrigin(o) {
+			errs = append(errs, fmt.Errorf("GATEWAY_ALLOWED_ORIGINS must list only loopback or private origins in IBKR and AUTO modes: %q", o))
+		}
+	}
+	if c.MaxActiveSymbols > c.IBKR.MarketDataLines {
+		errs = append(errs, errors.New("GATEWAY_MAX_ACTIVE_SYMBOLS must not exceed GATEWAY_IBKR_MARKET_DATA_LINES"))
+	}
+	if c.MarketDataMode == ModeIBKR {
+		if c.IBKR.CAFile == "" {
+			errs = append(errs, errors.New("GATEWAY_IBKR_CA_FILE is required in IBKR mode"))
+		}
+		if !strings.HasPrefix(c.IBKR.BaseURL, "https://") {
+			errs = append(errs, errors.New("GATEWAY_IBKR_BASE_URL must be an https URL"))
+		}
+	}
+	return errs
+}
+
+// privateOrigin reports whether an origin host pattern is loopback or on a private network.
+func privateOrigin(origin string) bool {
+	host := origin
+	if h, _, err := net.SplitHostPort(origin); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
+}
 
 // Load reads the configuration using getenv (os.Getenv in production) and validates every value.
 func Load(getenv func(string) string) (Config, error) {
@@ -174,6 +277,70 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if err := c.LogLevel.UnmarshalText([]byte(get("GATEWAY_LOG_LEVEL", DefaultLogLevel))); err != nil {
 		errs = append(errs, errors.New("GATEWAY_LOG_LEVEL must be one of debug, info, warn, error"))
+	}
+
+	floatVar := func(key, def string, lo, hi float64) float64 {
+		f, err := strconv.ParseFloat(get(key, def), 64)
+		if err != nil || f < lo || f > hi {
+			errs = append(errs, fmt.Errorf("%s must be a number between %g and %g", key, lo, hi))
+		}
+		return f
+	}
+	c.MarketDataMode = strings.ToUpper(get("GATEWAY_MARKET_DATA_MODE", DefaultMarketDataMode))
+	switch c.MarketDataMode {
+	case ModeMock, ModeIBKR, ModeAuto:
+	default:
+		errs = append(errs, errors.New("GATEWAY_MARKET_DATA_MODE must be MOCK, IBKR or AUTO"))
+	}
+	switch get("GATEWAY_TRUSTED_ENVIRONMENT", "false") {
+	case "true":
+		c.TrustedEnvironment = true
+	case "false":
+	default:
+		errs = append(errs, errors.New("GATEWAY_TRUSTED_ENVIRONMENT must be true or false"))
+	}
+	c.IBKR = IBKR{
+		BaseURL:          get("GATEWAY_IBKR_BASE_URL", DefaultIBKRBaseURL),
+		CAFile:           get("GATEWAY_IBKR_CA_FILE", ""),
+		SessionLimit:     floatVar("GATEWAY_IBKR_SESSION_LIMIT", "10", 1, 100),
+		Allocation:       floatVar("GATEWAY_IBKR_ALLOCATION", "5", 0.1, 100),
+		Headroom:         floatVar("GATEWAY_IBKR_HEADROOM", "1", 0.1, 100),
+		LimiterQueue:     int(intVar("GATEWAY_IBKR_LIMITER_QUEUE", "64", 1, 10_000)),
+		LimiterTimeout:   durationVar("GATEWAY_IBKR_LIMITER_TIMEOUT", "5s", 100*time.Millisecond, time.Minute),
+		PenaltyCooldown:  durationVar("GATEWAY_IBKR_PENALTY_COOLDOWN", "15m", time.Second, time.Hour),
+		RequestTimeout:   durationVar("GATEWAY_IBKR_REQUEST_TIMEOUT", "10s", time.Second, time.Minute),
+		TickleInterval:   durationVar("GATEWAY_IBKR_TICKLE_INTERVAL", "60s", 5*time.Second, 4*time.Minute),
+		PingInterval:     durationVar("GATEWAY_IBKR_PING_INTERVAL", "30s", time.Second, 59*time.Second),
+		RenewAfter:       durationVar("GATEWAY_IBKR_SMD_RENEW_AFTER", "8m", 10*time.Second, 570*time.Second),
+		RenewJitter:      durationVar("GATEWAY_IBKR_SMD_RENEW_JITTER", "60s", 0, 5*time.Minute),
+		ReconnectBase:    durationVar("GATEWAY_IBKR_RECONNECT_BASE", "1s", 10*time.Millisecond, time.Minute),
+		ReconnectMax:     durationVar("GATEWAY_IBKR_RECONNECT_MAX", "30s", 10*time.Millisecond, 10*time.Minute),
+		ReconnectTries:   int(intVar("GATEWAY_IBKR_RECONNECT_ATTEMPTS", "10", 1, 1000)),
+		ReconnectTotal:   durationVar("GATEWAY_IBKR_RECONNECT_MAX_TOTAL", "5m", time.Second, time.Hour),
+		ProbeInterval:    durationVar("GATEWAY_IBKR_PROBE_INTERVAL", "30s", time.Second, 10*time.Minute),
+		SnapshotWait:     durationVar("GATEWAY_IBKR_SNAPSHOT_WAIT", "2s", 100*time.Millisecond, 30*time.Second),
+		WSSendRate:       floatVar("GATEWAY_IBKR_WS_SEND_RATE", "5", 0.1, 100),
+		ConidCacheTTL:    durationVar("GATEWAY_IBKR_CONID_CACHE_TTL", "168h", time.Minute, 30*24*time.Hour),
+		StaleAfter:       durationVar("GATEWAY_IBKR_STALE_AFTER", "120s", time.Second, time.Hour),
+		MarketDataLines:  int(intVar("GATEWAY_IBKR_MARKET_DATA_LINES", "100", 1, 10_000)),
+		AutoProbeTimeout: durationVar("GATEWAY_AUTO_PROBE_TIMEOUT", "10s", time.Second, time.Minute),
+	}
+	conidSeed, err := parseSeed(get("GATEWAY_IBKR_CONID_SEED", ""))
+	if err != nil {
+		errs = append(errs, err)
+	}
+	c.IBKR.ConidSeed = conidSeed
+	if c.IBKR.Allocation+c.IBKR.Headroom > c.IBKR.SessionLimit {
+		errs = append(errs, errors.New("GATEWAY_IBKR_ALLOCATION + GATEWAY_IBKR_HEADROOM must not exceed GATEWAY_IBKR_SESSION_LIMIT"))
+	}
+	if c.IBKR.RenewJitter >= c.IBKR.RenewAfter {
+		errs = append(errs, errors.New("GATEWAY_IBKR_SMD_RENEW_JITTER must be shorter than GATEWAY_IBKR_SMD_RENEW_AFTER"))
+	}
+	if c.IBKR.ReconnectMax < c.IBKR.ReconnectBase {
+		errs = append(errs, errors.New("GATEWAY_IBKR_RECONNECT_MAX must not be shorter than GATEWAY_IBKR_RECONNECT_BASE"))
+	}
+	if c.MarketDataMode != ModeMock {
+		errs = append(errs, c.brokerModeErrors()...)
 	}
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)

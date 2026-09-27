@@ -18,6 +18,9 @@ type collector struct {
 	accept bool
 }
 
+// SymbolUnavailable is never called by the simulator.
+func (c *collector) SymbolUnavailable(error) {}
+
 func (c *collector) OfferQuote(q marketdata.Quote) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -92,8 +95,8 @@ func TestSourceEmitsOneQuotePerTickAfterSnapshot(t *testing.T) {
 		if !q.Time.Equal(wantTime) || q.Sequence != snap.Sequence+int64(i+1) {
 			t.Fatalf("quote %d: time %s seq %d, want %s seq %d", i, q.Time, q.Sequence, wantTime, snap.Sequence+int64(i+1))
 		}
-		if want, _ := model.Price("NVDA", q.Time); q.Last != want {
-			t.Fatalf("quote %d: last %d differs from the price function %d", i, q.Last, want)
+		if want, _ := model.Price("NVDA", q.Time); q.Last == nil || q.Last.String() != want.Format(2) {
+			t.Fatalf("quote %d: last %v differs from the price function %d", i, q.Last, want)
 		}
 	}
 }

@@ -160,8 +160,9 @@ func checkPrices(m message) error {
 		}
 		parsed[name], _ = new(big.Rat).SetString(*v)
 	}
-	if parsed["bid"] != nil && parsed["ask"] != nil && parsed["bid"].Cmp(parsed["ask"]) >= 0 {
-		return fmt.Errorf("%s: bid %s is not below ask %s", m.Symbol, *m.Bid, *m.Ask)
+	// A locked market (bid == ask) is legitimate in real data; a crossed one is reported.
+	if parsed["bid"] != nil && parsed["ask"] != nil && parsed["bid"].Cmp(parsed["ask"]) > 0 {
+		return fmt.Errorf("%s: bid %s is above ask %s", m.Symbol, *m.Bid, *m.Ask)
 	}
 	return nil
 }

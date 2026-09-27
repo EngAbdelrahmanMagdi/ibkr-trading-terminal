@@ -203,7 +203,7 @@ func run(o options) error {
 	fmt.Printf("received: %d quotes (%.0f/s), %d snapshots, %d stale, %d errors\n",
 		st.quotes.Load(), float64(st.quotes.Load())/elapsed.Seconds(), st.snapshots.Load(), st.staleMsgs.Load(), st.errorsMsgs.Load())
 	fmt.Printf("subscription changes: %d subscribes, %d unsubscribes\n", st.subscribes.Load(), st.unsubscribes.Load())
-	fmt.Printf("sequence gaps (coalesced or skipped ticks, expected under load): %d\n", st.gaps.Load())
+	fmt.Printf("sequence gaps (coalesced or skipped ticks; not meaningful for time-derived IBKR sequences): %d\n", st.gaps.Load())
 	fmt.Printf("ordering: %d violations (normal clients), %d out-of-order frames seen by slow readers behind their own churn\n",
 		st.orderViolations.Load(), st.slowReordered.Load())
 	fmt.Printf("delivery latency (receive - quote time): p50 %s, p95 %s, p99 %s\n", st.percentile(0.50), st.percentile(0.95), st.percentile(0.99))
@@ -235,7 +235,7 @@ func run(o options) error {
 }
 
 func client(ctx context.Context, o options, id int, slow bool, st *stats) {
-	rng := rand.New(rand.NewPCG(uint64(id), 0x5eed))
+	rng := rand.New(rand.NewPCG(uint64(id), 0x5eed)) //nolint:gosec // reproducible load pattern, not security
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	conn, resp, err := websocket.Dial(dialCtx, o.url, &websocket.DialOptions{HTTPClient: http.DefaultClient})
 	cancel()

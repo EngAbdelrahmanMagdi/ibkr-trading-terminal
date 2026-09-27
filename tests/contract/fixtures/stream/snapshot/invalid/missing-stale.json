@@ -8,5 +8,7 @@
   "askSize": 200,
   "volume": 48291822,
   "sequence": 182735,
-  "timestamp": "2026-09-27T14:03:11.123Z"
+  "timestamp": "2026-09-27T14:03:11.123Z",
+  "dataMode": "REALTIME",
+  "halted": false
 }

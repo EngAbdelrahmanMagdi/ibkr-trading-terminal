@@ -1,0 +1,23 @@
+# Override: the realtime gateway on IBKR market data through the Client Portal Gateway running on this
+# machine (make up-ibkr). Trusted, private environments only; public deployments use MOCK.
+#
+# Prerequisites:
+#   1. make ibkr-certs, then install secrets/ibkr/cpgw.jks in the CP Gateway (see the service README);
+#   2. start the CP Gateway and log in with your paper-trading username in a browser on this machine.
+# The gateway trusts only the local CA in secrets/ibkr/ca.pem, with hostname verification on.
+services:
+  realtime-gateway:
+    environment:
+      GATEWAY_MARKET_DATA_MODE: ${GATEWAY_MARKET_DATA_MODE:-IBKR}
+      GATEWAY_TRUSTED_ENVIRONMENT: "true"
+      GATEWAY_IBKR_BASE_URL: ${GATEWAY_IBKR_BASE_URL:-https://host.docker.internal:5000/v1/api}
+      GATEWAY_IBKR_CA_FILE: /run/secrets/ibkr_ca
+      GATEWAY_MAX_ACTIVE_SYMBOLS: ${GATEWAY_IBKR_MAX_ACTIVE_SYMBOLS:-100}
+      GATEWAY_IBKR_CONID_SEED: ${GATEWAY_IBKR_CONID_SEED:-}
+    secrets:
+      - redis_app_password
+      - ibkr_ca
+
+secrets:
+  ibkr_ca:
+    file: ./secrets/ibkr/ca.pem # paths resolve from the repository root (first compose file)

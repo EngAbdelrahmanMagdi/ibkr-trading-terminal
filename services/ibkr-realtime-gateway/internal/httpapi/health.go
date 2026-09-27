@@ -12,6 +12,7 @@ import (
 // HealthDetail is the body of GET /health.
 type HealthDetail struct {
 	Status            string  `json:"status"`
+	Source            string  `json:"source"`
 	ConnectionState   string  `json:"connectionState"`
 	Since             string  `json:"since"`
 	ActiveSymbols     int64   `json:"activeSymbols"`
@@ -24,6 +25,7 @@ type StateProvider interface {
 	State() connstate.Snapshot
 	Ready() bool
 	ActiveSymbols() int
+	SourceID() marketdata.SourceID
 }
 
 // Health serves liveness, readiness, detailed health and (optionally) metrics on the internal port.
@@ -62,7 +64,8 @@ func (h *Health) Handler() http.Handler {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		st := h.state.State()
 		detail := HealthDetail{
-			Status: healthStatus(st.State), ConnectionState: string(st.State), Since: stream.FormatTime(st.Since),
+			Status: healthStatus(st.State), Source: string(h.state.SourceID()),
+			ConnectionState: string(st.State), Since: stream.FormatTime(st.Since),
 			ActiveSymbols: int64(h.state.ActiveSymbols()), WsClients: h.clients(),
 		}
 		if st.ErrorCategory != "" {

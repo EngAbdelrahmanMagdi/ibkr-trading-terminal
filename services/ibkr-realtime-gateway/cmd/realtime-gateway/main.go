@@ -24,8 +24,8 @@ import (
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/modes"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
-	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/simulator"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/transport/ws"
 )
 
@@ -58,11 +58,6 @@ func serve() int {
 
 	clk := clock.Real{}
 	gm := metrics.New()
-	source, err := simulator.NewSource(simulator.NewModel(cfg.Seed, simulator.WithSyntheticSymbols(cfg.SyntheticSymbols)), clk, cfg.TickInterval)
-	if err != nil {
-		logger.Error("market data source setup failed", "error", err.Error())
-		return 2
-	}
 
 	// Redis hot state (optional, never critical).
 	var (
@@ -81,7 +76,16 @@ func serve() int {
 		})
 		store = redisStore
 		guard = hotcache.NewGuard(clk, cfg.RedisTimeout, cfg.RedisCooldown, gm, logger)
-		quoteWriter = hotcache.NewQuoteWriter(store, guard, clk, cfg.QuoteCacheInterval, cfg.QuoteCacheTTL, gm)
+	}
+
+	sel, err := modes.Select(cfg, clk, gm, logger, store, guard)
+	if err != nil {
+		logger.Error("market data source setup failed", "error", err.Error())
+		return 2
+	}
+	source := sel.Source
+	if store != nil {
+		quoteWriter = hotcache.NewQuoteWriter(source.ID(), store, guard, clk, cfg.QuoteCacheInterval, cfg.QuoteCacheTTL, gm)
 	}
 
 	var wsServer *ws.Server
@@ -94,7 +98,7 @@ func serve() int {
 	reg, err := registry.New(source, clk, registry.Config{
 		MaxActiveSymbols: cfg.MaxActiveSymbols,
 		UnsubscribeGrace: cfg.UnsubscribeGrace,
-		StaleAfter:       cfg.StaleAfter,
+		StaleAfter:       sel.StaleAfter,
 	}, gm, logger, hooks)
 	if err != nil {
 		logger.Error("subscription registry setup failed", "error", err.Error())
@@ -114,6 +118,7 @@ func serve() int {
 		MaxConnections:         cfg.MaxConnections,
 	}, reg, clk, gm, logger)
 	reg.Start()
+	sel.Start()
 	if quoteWriter != nil {
 		go quoteWriter.Run() // owned by serve(); stopped by quoteWriter.Close during shutdown
 	}
@@ -151,9 +156,8 @@ func serve() int {
 			}
 		}()
 	}
-	logger.Info("realtime gateway started", "source", string(source.ID()), "httpAddr", cfg.HTTPAddr,
-		"healthAddr", cfg.HealthAddr, "tickInterval", cfg.TickInterval.String(), "redis", cfg.RedisAddr != "",
-		"syntheticSymbols", cfg.SyntheticSymbols)
+	logger.Info("realtime gateway started", "source", string(source.ID()), "mode", cfg.MarketDataMode,
+		"httpAddr", cfg.HTTPAddr, "healthAddr", cfg.HealthAddr, "redis", cfg.RedisAddr != "")
 
 	exitCode := 0
 	select {
@@ -165,8 +169,8 @@ func serve() int {
 	}
 
 	// Graceful shutdown, all within the deadline: fail readiness, close WebSocket sessions (1001), close
-	// upstream subscriptions and the stale monitor, flush and stop the hot-cache writer, close Redis, then stop
-	// the HTTP servers.
+	// upstream subscriptions and the stale monitor, stop the market-data source (never logging out of a
+	// broker session), flush and stop the hot-cache writer, close Redis, then stop the HTTP servers.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	health.SetShuttingDown()
@@ -175,6 +179,10 @@ func serve() int {
 		exitCode = 1
 	}
 	reg.Close()
+	if err := source.Close(shutdownCtx); err != nil {
+		logger.Error("market data source shutdown incomplete", "error", err.Error())
+		exitCode = 1
+	}
 	if quoteWriter != nil {
 		if err := quoteWriter.Close(shutdownCtx); err != nil {
 			logger.Error("hot-cache writer shutdown incomplete", "error", err.Error())

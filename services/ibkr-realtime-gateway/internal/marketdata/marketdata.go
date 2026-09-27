@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,9 @@ const (
 // MaxSafeInteger is the largest integer every consumer (including JavaScript) represents exactly.
 const MaxSafeInteger int64 = 1<<53 - 1
 
-// Price is a non-negative decimal amount in micro-units (1e-6). Prices never pass through floating point.
+// Price is a non-negative amount in micro-units (1e-6), used by the simulator for arithmetic on its tick grid.
+// Quotes and bars carry Decimal, which keeps any precision a source delivers. Prices never pass through
+// floating point.
 type Price int64
 
 // MicrosPerUnit is the number of micro-units in one currency unit.
@@ -54,26 +57,41 @@ type Instrument struct {
 	PriceDecimals int
 }
 
-// Quote is a normalized top-of-book quote. Volume is the cumulative volume of the current UTC day.
+// DataMode is how the source delivers market data. It is independent of staleness.
+type DataMode string
+
+// Data modes.
+const (
+	DataRealtime      DataMode = "REALTIME"
+	DataDelayed       DataMode = "DELAYED"
+	DataFrozen        DataMode = "FROZEN"
+	DataFrozenDelayed DataMode = "FROZEN_DELAYED"
+)
+
+// Quote is a normalized top-of-book quote. Optional values are nil when the source has not delivered them
+// (never zero). Volume is the cumulative volume of the current trading day. Halted is nil when the source
+// does not report halts.
 type Quote struct {
 	Symbol   string
-	Bid      Price
-	Ask      Price
-	Last     Price
-	BidSize  int64
-	AskSize  int64
-	Volume   int64
+	Bid      *Decimal
+	Ask      *Decimal
+	Last     *Decimal
+	BidSize  *int64
+	AskSize  *int64
+	Volume   *int64
+	DataMode DataMode
+	Halted   *bool
 	Sequence int64 // monotonically increasing per symbol
 	Time     time.Time
 }
 
-// Bar is an OHLCV bar starting at Time (UTC).
+// Bar is an OHLCV bar starting at Time (UTC). Prices keep the precision delivered by the source.
 type Bar struct {
 	Time   time.Time
-	Open   Price
-	High   Price
-	Low    Price
-	Close  Price
+	Open   Decimal
+	High   Decimal
+	Low    Decimal
+	Close  Decimal
 	Volume int64
 }
 
@@ -138,18 +156,12 @@ func (r Range) Duration() time.Duration {
 	}
 }
 
-// supportedRanges lists the interval/range combinations served. Other combinations are rejected.
-var supportedRanges = map[Interval][]Range{
-	Interval1m:  {Range1d, Range5d},
-	Interval5m:  {Range1d, Range5d, Range1mo},
-	Interval15m: {Range5d, Range1mo},
-	Interval1h:  {Range5d, Range1mo},
-	Interval1d:  {Range1mo, Range3mo, Range1y},
-}
+// BarSet is the set of interval/range combinations a source serves. Other combinations are rejected.
+type BarSet map[Interval][]Range
 
-// Supported reports whether the interval/range combination is served.
-func Supported(i Interval, r Range) bool {
-	for _, candidate := range supportedRanges[i] {
+// Supports reports whether the combination is served.
+func (s BarSet) Supports(i Interval, r Range) bool {
+	for _, candidate := range s[i] {
 		if candidate == r {
 			return true
 		}
@@ -157,13 +169,33 @@ func Supported(i Interval, r Range) bool {
 	return false
 }
 
-// SupportedCombinations returns a human-readable list of the served combinations.
-func SupportedCombinations() string {
-	return "1m: 1d,5d; 5m: 1d,5d,1mo; 15m: 5d,1mo; 1h: 5d,1mo; 1d: 1mo,3mo,1y"
+// String lists the combinations in a stable, human-readable order.
+func (s BarSet) String() string {
+	var parts []string
+	for _, i := range []Interval{Interval1m, Interval5m, Interval15m, Interval1h, Interval1d} {
+		ranges := s[i]
+		if len(ranges) == 0 {
+			continue
+		}
+		names := make([]string, len(ranges))
+		for k, r := range ranges {
+			names[k] = string(r)
+		}
+		parts = append(parts, string(i)+": "+strings.Join(names, ","))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // Errors returned by market-data sources.
 var (
 	ErrUnknownSymbol    = errors.New("unknown symbol")
 	ErrUnsupportedRange = errors.New("unsupported interval/range combination")
+	// ErrSymbolUnavailable: the source has no usable market data for the symbol (for example, no market-data
+	// subscription). It is never streamed as if it were live.
+	ErrSymbolUnavailable = errors.New("market data unavailable for symbol")
+	// ErrRateLimited: the request was rejected by the source's pacing limiter or by the broker (429).
+	ErrRateLimited = errors.New("market data source rate limited")
+	// ErrSourceUnavailable: the source cannot serve the request right now (not connected, not logged in,
+	// network failure). Retrying later may succeed.
+	ErrSourceUnavailable = errors.New("market data source unavailable")
 )

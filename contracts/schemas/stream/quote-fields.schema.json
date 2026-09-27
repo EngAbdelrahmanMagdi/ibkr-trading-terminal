@@ -18,7 +18,9 @@
         "volume",
         "sequence",
         "timestamp",
-        "stale"
+        "stale",
+        "dataMode",
+        "halted"
       ],
       "properties": {
         "type": {
@@ -100,6 +102,23 @@
         },
         "stale": {
           "type": "boolean"
+        },
+        "dataMode": {
+          "description": "Market-data delivery mode. Independent of stale, which reports freshness and connection state.",
+          "type": "string",
+          "enum": [
+            "REALTIME",
+            "DELAYED",
+            "FROZEN",
+            "FROZEN_DELAYED"
+          ]
+        },
+        "halted": {
+          "description": "Trading in the instrument is halted. null when the source does not report halts.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       }
     }

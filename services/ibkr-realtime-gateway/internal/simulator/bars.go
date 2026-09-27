@@ -17,8 +17,8 @@ import (
 // The last bar of a range is the current bar, truncated at now.
 
 // Bars returns the bars of symbol for the interval/range ending at now.
-func (m *Model) Bars(ctx context.Context, symbol string, interval marketdata.Interval, rng marketdata.Range, now time.Time) ([]marketdata.Bar, error) {
-	if !marketdata.Supported(interval, rng) {
+func (m *Model) Bars(ctx context.Context, symbol string, interval marketdata.Interval, rng marketdata.Range, now time.Time) ([]Bar, error) {
+	if !Bars.Supports(interval, rng) {
 		return nil, fmt.Errorf("%w: %s/%s", marketdata.ErrUnsupportedRange, interval, rng)
 	}
 	sm, err := m.lookup(symbol)
@@ -31,7 +31,7 @@ func (m *Model) Bars(ctx context.Context, symbol string, interval marketdata.Int
 	count := int(rng.Duration() / d)
 	first := last.Add(-time.Duration(count-1) * d)
 
-	bars := make([]marketdata.Bar, 0, count)
+	bars := make([]Bar, 0, count)
 	for start := first; !start.After(last); start = start.Add(d) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -41,7 +41,7 @@ func (m *Model) Bars(ctx context.Context, symbol string, interval marketdata.Int
 	return bars, nil
 }
 
-func (sm *symbolModel) bar(interval marketdata.Interval, start, nowSec time.Time) marketdata.Bar {
+func (sm *symbolModel) bar(interval marketdata.Interval, start, nowSec time.Time) Bar {
 	switch interval {
 	case marketdata.Interval1m:
 		return sm.minuteBar(start, nowSec)
@@ -53,13 +53,13 @@ func (sm *symbolModel) bar(interval marketdata.Interval, start, nowSec time.Time
 }
 
 // minuteBar samples each second of [start, start+1m), truncated at nowSec.
-func (sm *symbolModel) minuteBar(start, nowSec time.Time) marketdata.Bar {
+func (sm *symbolModel) minuteBar(start, nowSec time.Time) Bar {
 	lastSec := start.Add(59 * time.Second)
 	if lastSec.After(nowSec) {
 		lastSec = nowSec
 	}
 	open := sm.price(start.UnixMilli())
-	b := marketdata.Bar{Time: start, Open: open, High: open, Low: open, Close: open}
+	b := Bar{Time: start, Open: open, High: open, Low: open, Close: open}
 	for t := start.Add(time.Second); !t.After(lastSec); t = t.Add(time.Second) {
 		p := sm.price(t.UnixMilli())
 		b.High = max(b.High, p)
@@ -71,8 +71,8 @@ func (sm *symbolModel) minuteBar(start, nowSec time.Time) marketdata.Bar {
 }
 
 // aggregateMinutes combines the 1m bars of [start, start+d) that have started by nowSec.
-func (sm *symbolModel) aggregateMinutes(start time.Time, d time.Duration, nowSec time.Time) marketdata.Bar {
-	var out marketdata.Bar
+func (sm *symbolModel) aggregateMinutes(start time.Time, d time.Duration, nowSec time.Time) Bar {
+	var out Bar
 	for m := start; m.Before(start.Add(d)) && !m.After(nowSec); m = m.Add(time.Minute) {
 		b := sm.minuteBar(m, nowSec)
 		if m.Equal(start) {
@@ -88,13 +88,13 @@ func (sm *symbolModel) aggregateMinutes(start time.Time, d time.Duration, nowSec
 }
 
 // dayBar samples each minute of the UTC day plus the latest second, truncated at nowSec.
-func (sm *symbolModel) dayBar(start, nowSec time.Time) marketdata.Bar {
+func (sm *symbolModel) dayBar(start, nowSec time.Time) Bar {
 	lastSec := start.Add(24*time.Hour - time.Second)
 	if lastSec.After(nowSec) {
 		lastSec = nowSec
 	}
 	open := sm.price(start.UnixMilli())
-	b := marketdata.Bar{Time: start, Open: open, High: open, Low: open}
+	b := Bar{Time: start, Open: open, High: open, Low: open}
 	for t := start.Add(time.Minute); !t.After(lastSec); t = t.Add(time.Minute) {
 		p := sm.price(t.UnixMilli())
 		b.High = max(b.High, p)

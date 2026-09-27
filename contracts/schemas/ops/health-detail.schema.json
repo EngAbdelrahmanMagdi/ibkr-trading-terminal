@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": [
     "status",
+    "source",
     "connectionState",
     "since",
     "activeSymbols",
@@ -20,6 +21,14 @@
         "UP",
         "DEGRADED",
         "DOWN"
+      ]
+    },
+    "source": {
+      "description": "Active market-data source for the lifetime of the process.",
+      "type": "string",
+      "enum": [
+        "IBKR",
+        "MOCK"
       ]
     },
     "connectionState": {

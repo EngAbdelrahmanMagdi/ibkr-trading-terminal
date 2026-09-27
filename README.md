@@ -117,6 +117,16 @@ make probe
 
 The WebSocket endpoint is `ws://127.0.0.1:18090/ws`. For example, send `{"type":"subscribe","symbols":["NVDA","AAPL"]}` from any WebSocket client. Historical bars are at `http://127.0.0.1:18090/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d`.
 
+To run the gateway on real IBKR **paper** market data through the Client Portal Gateway on your machine (trusted, private environments only), see [the service README](services/ibkr-realtime-gateway/README.md#ibkr-setup-paper-account):
+
+```bash
+make ibkr-certs     # per-machine CA and CP Gateway certificate in ./secrets/ibkr
+make up-ibkr        # after installing the certificate and logging in to the CP Gateway
+make up-ibkr-fake   # the same code path against a fake gateway (no account needed)
+```
+
+Public and demo deployments always use `MOCK`.
+
 To put the running feed under load (many clients, subscription churn), with checks that sessions, subscriptions and goroutines are released afterwards:
 
 ```bash
@@ -149,7 +159,7 @@ Application processes run as non-root where supported. Some official images may 
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
-| Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `mock` profile. Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
+| Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `gateway` profile (`MOCK` by default). Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
 
 ### Commands
 
@@ -157,6 +167,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|
 | `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or add the realtime gateway with the simulated market feed |
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
+| `make up-ibkr` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, or on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
 | `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |

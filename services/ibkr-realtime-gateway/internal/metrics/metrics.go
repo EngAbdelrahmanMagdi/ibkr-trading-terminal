@@ -44,6 +44,20 @@ type Gateway struct {
 	CacheMisses       *prometheus.CounterVec
 	QuoteCacheWrites  prometheus.Counter
 	BarsRateLimited   prometheus.Counter
+
+	SourceInfo            *prometheus.GaugeVec
+	UnrepresentablePrices prometheus.Counter
+
+	// IBKR adapter.
+	IBKRRequests        *prometheus.CounterVec
+	IBKRRequestSeconds  *prometheus.HistogramVec
+	IBKRLimiterWait     prometheus.Histogram
+	IBKRLimiterRejected *prometheus.CounterVec
+	IBKRRateLimited     prometheus.Counter
+	IBKRWSMessages      *prometheus.CounterVec
+	IBKRSMDRenewals     prometheus.Counter
+	IBKRMalformedFrames prometheus.Counter
+	IBKRContractLookups *prometheus.CounterVec
 }
 
 // New creates the metrics, registered on a new registry together with the Go runtime and process collectors.
@@ -84,12 +98,37 @@ func New() *Gateway {
 			Help: "Latest-quote entries written to Redis."}),
 		BarsRateLimited: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "bars_rate_limited_total",
 			Help: "Bars requests rejected because the computation limit was reached."}),
+		SourceInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{Namespace: ns, Name: "source_info",
+			Help: "Active market-data source (1) and the configured mode, fixed for the process lifetime."}, []string{"source", "mode"}),
+		UnrepresentablePrices: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "unrepresentable_prices_total",
+			Help: "Prices the contract cannot represent without rounding; sent as null or left out, never rounded."}),
+		IBKRRequests: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_requests_total",
+			Help: "Requests to the IBKR Client Portal Gateway by endpoint class and outcome."}, []string{"endpoint", "code"}),
+		IBKRRequestSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{Namespace: ns, Name: "ibkr_request_seconds",
+			Help: "Duration of IBKR requests.", Buckets: []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}}, []string{"endpoint"}),
+		IBKRLimiterWait: prometheus.NewHistogram(prometheus.HistogramOpts{Namespace: ns, Name: "ibkr_limiter_wait_seconds",
+			Help: "Time requests waited for the IBKR pacing limiter.", Buckets: []float64{0, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5}}),
+		IBKRLimiterRejected: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_limiter_rejected_total",
+			Help: "Requests rejected by the IBKR pacing limiter."}, []string{"endpoint", "reason"}),
+		IBKRRateLimited: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_rate_limited_total",
+			Help: "HTTP 429 responses from IBKR (each starts a cool-down)."}),
+		IBKRWSMessages: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_ws_messages_total",
+			Help: "IBKR websocket messages by direction and topic class."}, []string{"direction", "topic"}),
+		IBKRSMDRenewals: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_smd_renewals_total",
+			Help: "Market-data stream renewals sent before IBKR's stream termination."}),
+		IBKRMalformedFrames: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_malformed_frames_total",
+			Help: "IBKR messages or fields that could not be mapped (dropped, never guessed)."}),
+		IBKRContractLookups: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_contract_lookups_total",
+			Help: "Symbol to contract resolutions by result."}, []string{"result"}),
 	}
 	g.registry.MustRegister(
 		collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		g.ConnectionState, g.QuotesReceived, g.QuotesForwarded, g.QuotesCoalesced, g.WSClients, g.ActiveSymbols,
 		g.StaleSymbols, g.ReconnectTotal, g.ProcessingSeconds, g.Evictions, g.ControlQueueDepth, g.RedisErrors,
 		g.CacheHits, g.CacheMisses, g.QuoteCacheWrites, g.BarsRateLimited,
+		g.SourceInfo, g.UnrepresentablePrices,
+		g.IBKRRequests, g.IBKRRequestSeconds, g.IBKRLimiterWait, g.IBKRLimiterRejected, g.IBKRRateLimited,
+		g.IBKRWSMessages, g.IBKRSMDRenewals, g.IBKRMalformedFrames, g.IBKRContractLookups,
 	)
 	for _, reason := range []string{EvictWriteTimeout, EvictControlQueue, EvictLaggingFlushes, EvictPongTimeout} {
 		g.Evictions.WithLabelValues(reason)

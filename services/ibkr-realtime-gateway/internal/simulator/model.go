@@ -168,7 +168,30 @@ func (sm *symbolModel) cumulativeVolume(unixSec int64) int64 {
 }
 
 // quoteAt builds the quote of the tick at t with the given sequence number.
-func (sm *symbolModel) quoteAt(t time.Time, seq int64) marketdata.Quote {
+// quote is a simulated quote on the instrument's tick grid (micro-unit prices).
+type quote struct {
+	Symbol   string
+	Bid      marketdata.Price
+	Ask      marketdata.Price
+	Last     marketdata.Price
+	BidSize  int64
+	AskSize  int64
+	Volume   int64
+	Sequence int64
+	Time     time.Time
+}
+
+// Bar is a simulated OHLCV bar on the instrument's tick grid (micro-unit prices).
+type Bar struct {
+	Time   time.Time
+	Open   marketdata.Price
+	High   marketdata.Price
+	Low    marketdata.Price
+	Close  marketdata.Price
+	Volume int64
+}
+
+func (sm *symbolModel) quoteAt(t time.Time, seq int64) quote {
 	ms := t.UnixMilli()
 	sec := floorDiv(ms, 1000)
 	last := sm.price(ms)
@@ -179,7 +202,7 @@ func (sm *symbolModel) quoteAt(t time.Time, seq int64) marketdata.Quote {
 		bid = tick
 	}
 	ask := bid + marketdata.Price(spreadTicks)*tick
-	return marketdata.Quote{
+	return quote{
 		Symbol:   sm.spec.Symbol,
 		Bid:      bid,
 		Ask:      ask,

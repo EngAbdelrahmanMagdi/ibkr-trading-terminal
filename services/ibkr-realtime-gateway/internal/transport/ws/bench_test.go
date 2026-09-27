@@ -84,11 +84,16 @@ func BenchmarkOfferCoalescing(b *testing.B) {
 
 // BenchmarkEncodeQuote measures encoding one quote message (done once per quote, shared by all clients).
 func BenchmarkEncodeQuote(b *testing.B) {
-	q := marketdata.Quote{Symbol: "NVDA", Bid: 182_120_000, Ask: 182_140_000, Last: 182_130_000,
-		BidSize: 300, AskSize: 500, Volume: 101_168_049, Sequence: 1_790_000_000, Time: time.Now()}
+	bid, _ := marketdata.ParseDecimal("182.12")
+	ask, _ := marketdata.ParseDecimal("182.14")
+	last, _ := marketdata.ParseDecimal("182.13")
+	bidSize, askSize, volume, halted := int64(300), int64(500), int64(101_168_049), false
+	q := marketdata.Quote{Symbol: "NVDA", Bid: &bid, Ask: &ask, Last: &last,
+		BidSize: &bidSize, AskSize: &askSize, Volume: &volume, DataMode: marketdata.DataRealtime, Halted: &halted,
+		Sequence: 1_790_000_000, Time: time.Now()}
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := stream.Encode(stream.NewQuoteMessage(stream.TypeQuote, q, 2, false)); err != nil {
+		if _, err := stream.Encode(stream.NewQuoteMessage(stream.TypeQuote, q, false)); err != nil {
 			b.Fatal(err)
 		}
 	}

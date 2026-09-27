@@ -1,5 +1,6 @@
 {
   "status": "DEGRADED",
+  "source": "IBKR",
   "connectionState": "RECONNECTING",
   "since": "2026-09-27T14:03:11.123Z",
   "activeSymbols": 4,

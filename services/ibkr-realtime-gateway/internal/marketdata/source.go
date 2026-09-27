@@ -5,17 +5,22 @@ import (
 	"time"
 )
 
-// QuoteSink receives quotes from a subscription. OfferQuote must never block: it returns false when the
-// quote cannot be accepted, which ends the subscription.
+// QuoteSink receives quotes from a subscription. Methods must never block. OfferQuote returns false when the
+// quote cannot be accepted, which ends the subscription. SymbolUnavailable reports that the source can no
+// longer deliver usable data for the subscription (for example, ErrSymbolUnavailable); no quotes follow.
 type QuoteSink interface {
 	OfferQuote(Quote) bool
+	SymbolUnavailable(err error)
 }
 
-// QuoteSinkFunc adapts a function to QuoteSink.
+// QuoteSinkFunc adapts a function to QuoteSink; SymbolUnavailable is ignored.
 type QuoteSinkFunc func(Quote) bool
 
 // OfferQuote calls f.
 func (f QuoteSinkFunc) OfferQuote(q Quote) bool { return f(q) }
+
+// SymbolUnavailable does nothing.
+func (QuoteSinkFunc) SymbolUnavailable(error) {}
 
 // Subscription is an active quote subscription.
 type Subscription interface {
@@ -45,7 +50,7 @@ type StatusEvent struct {
 }
 
 // MarketDataSource is the port through which the gateway obtains market data.
-// Implementations: SimulatorMarketDataSource (MOCK) now, IBKRMarketDataSource later.
+// Implementations: SimulatorMarketDataSource (MOCK) and IBKRMarketDataSource (IBKR).
 type MarketDataSource interface {
 	// ID identifies the source kind on the wire.
 	ID() SourceID
@@ -58,7 +63,11 @@ type MarketDataSource interface {
 	Subscribe(ctx context.Context, symbol string, sink QuoteSink) (Subscription, error)
 	// Bars returns historical bars in ascending time order; the last bar may be the current, still open bar.
 	Bars(ctx context.Context, symbol string, interval Interval, rng Range) ([]Bar, error)
+	// SupportedBars returns the interval/range combinations Bars serves.
+	SupportedBars() BarSet
 	// Status returns the source's status events. The channel is owned and bounded by the source; the first
 	// event reports the current state. Consumers must keep reading it while the source is in use.
 	Status() <-chan StatusEvent
+	// Close stops all upstream activity. It never ends the broker login session.
+	Close(ctx context.Context) error
 }

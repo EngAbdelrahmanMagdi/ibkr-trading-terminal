@@ -8,8 +8,12 @@ SHELL := bash
 
 COMPOSE := docker compose
 COMPOSE_OBS := $(COMPOSE) --profile observability
-COMPOSE_MOCK := $(COMPOSE) --profile mock
-COMPOSE_ALL := $(COMPOSE) --profile observability --profile mock
+COMPOSE_MOCK := $(COMPOSE) --profile gateway
+IBKR_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr.yml
+IBKR_FAKE_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr-fake.yml
+COMPOSE_IBKR := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway
+COMPOSE_IBKR_FAKE := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile gateway
+COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway
 WAIT_TIMEOUT := 240
 
 # Host path of the repository for bind mounts (Git Bash on Windows needs a Windows-style path).
@@ -39,7 +43,8 @@ LOAD_DURATION ?= 60s
 LOAD_SLOW_READERS ?= 0
 LOAD_ARGS ?=
 SHELL_SCRIPTS := infrastructure/scripts/bootstrap.sh infrastructure/scripts/verify-infra.sh \
-                 infrastructure/postgres/init/10-create-roles.sh infrastructure/redis/start-redis.sh
+                 infrastructure/postgres/init/10-create-roles.sh infrastructure/redis/start-redis.sh \
+                 infrastructure/ibkr/generate-cpgw-cert.sh
 
 # Contract tests run on a copy of the sources inside the container (repository mounted read-only).
 CONTRACT_COPY := mkdir -p /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cd /work/tests/contract
@@ -48,7 +53,7 @@ CONTRACT_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro"
 GATEWAY_COPY := mkdir -p /work/services && cp -r /src/contracts /work/ && cp -r /src/$(GATEWAY_DIR) /work/services/ && cd /work/$(GATEWAY_DIR)
 GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
 
-.PHONY: help bootstrap up up-obs up-mock down ps logs verify probe load test test-unit test-contract contract-java \
+.PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-contract contract-java \
         contract-go contract-python contract-typescript lint lint-go lint-contracts security clean
 
 help: ## Show available targets
@@ -65,6 +70,18 @@ up-obs: bootstrap ## Start core infrastructure plus Prometheus, Grafana, Tempo a
 
 up-mock: bootstrap ## Start core infrastructure plus the realtime gateway streaming simulated (MOCK) market data
 	$(COMPOSE_MOCK) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
+
+up-ibkr: bootstrap ## Start the realtime gateway on IBKR market data (needs make ibkr-certs and a CP Gateway login)
+	@test -s secrets/ibkr/ca.pem || { echo "up-ibkr: secrets/ibkr/ca.pem is missing - run 'make ibkr-certs' and install the certificate in the CP Gateway first"; exit 1; }
+	$(COMPOSE_IBKR) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
+
+up-ibkr-fake: bootstrap ## Start the gateway's IBKR code path against a FAKE CP Gateway (tests; no IBKR account)
+	$(COMPOSE_IBKR_FAKE) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
+
+ibkr-certs: ## Generate the per-machine local CA and CP Gateway certificate into ./secrets/ibkr (FORCE=1 replaces them)
+	@mkdir -p secrets/ibkr
+	$(DOCKER_RUN) -e FORCE=$(FORCE) -v "$(HOST_PWD)/secrets/ibkr:/out" -v "$(HOST_PWD)/infrastructure/ibkr:/scripts:ro" \
+		--entrypoint sh $(MAVEN_IMAGE) /scripts/generate-cpgw-cert.sh /out
 
 down: ## Stop and remove containers (data volumes are kept)
 	$(COMPOSE_ALL) down
@@ -119,7 +136,8 @@ contract-typescript: ## Contract tests - TypeScript (Ajv) with strict type check
 lint: bootstrap lint-contracts lint-go ## Validate Compose, lint shell scripts, Go code and the API contracts
 	@echo "compose: default profile"; $(COMPOSE) config --quiet
 	@echo "compose: observability profile"; $(COMPOSE_OBS) config --quiet
-	@echo "compose: mock profile"; $(COMPOSE_MOCK) config --quiet
+	@echo "compose: gateway profile"; $(COMPOSE_MOCK) config --quiet
+	@echo "compose: ibkr-fake override"; $(COMPOSE_IBKR_FAKE) config --quiet
 	@echo "shellcheck: $(SHELL_SCRIPTS)"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/mnt:ro" -w /mnt $(SHELLCHECK_IMAGE) --severity=style $(SHELL_SCRIPTS)
 	@echo "lint: ok"

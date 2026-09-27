@@ -64,9 +64,10 @@ func NewBarsService(source marketdata.MarketDataSource, store hotcache.Store, gu
 	return &BarsService{source: source, store: store, guard: guard, cfg: cfg, metrics: m, sem: make(chan struct{}, cfg.MaxConcurrent)}
 }
 
-// BarsKey is the Redis key of a cached bar array.
-func BarsKey(symbol string, interval marketdata.Interval, rng marketdata.Range) string {
-	return "bars:" + symbol + ":" + string(interval) + ":" + string(rng)
+// BarsKey is the Redis key of a cached bar array. Keys are namespaced by source, so simulated bars can never
+// be served as broker data, or the other way round.
+func BarsKey(source marketdata.SourceID, symbol string, interval marketdata.Interval, rng marketdata.Range) string {
+	return "bars:" + string(source) + ":" + symbol + ":" + string(interval) + ":" + string(rng)
 }
 
 // CacheTTL returns the cache lifetime for an interval: a quarter of the interval, capped. The newest (open)
@@ -79,7 +80,7 @@ func (b *BarsService) cacheUsable() bool { return b.store != nil && b.guard.Avai
 
 // Get returns the encoded bar array and whether it came from the cache.
 func (b *BarsService) Get(ctx context.Context, inst marketdata.Instrument, interval marketdata.Interval, rng marketdata.Range) (json.RawMessage, bool, error) {
-	key := BarsKey(inst.Symbol, interval, rng)
+	key := BarsKey(b.source.ID(), inst.Symbol, interval, rng)
 	if b.cacheUsable() {
 		rctx, cancel := b.guard.Context(ctx)
 		v, err := b.store.Get(rctx, key)
@@ -118,11 +119,15 @@ func (b *BarsService) compute(ctx context.Context, inst marketdata.Instrument, i
 		return nil, err
 	}
 	out := make([]BarJSON, 0, len(bars))
-	d := inst.PriceDecimals
 	for _, bar := range bars {
+		if !stream.FitsWire(bar.Open) || !stream.FitsWire(bar.High) || !stream.FitsWire(bar.Low) || !stream.FitsWire(bar.Close) {
+			// Never rounded: a bar the contract cannot represent is left out rather than altered.
+			b.metrics.UnrepresentablePrices.Inc()
+			continue
+		}
 		out = append(out, BarJSON{
-			Time: stream.FormatTime(bar.Time), Open: bar.Open.Format(d), High: bar.High.Format(d),
-			Low: bar.Low.Format(d), Close: bar.Close.Format(d), Volume: bar.Volume,
+			Time: stream.FormatTime(bar.Time), Open: bar.Open.String(), High: bar.High.String(),
+			Low: bar.Low.String(), Close: bar.Close.String(), Volume: bar.Volume,
 		})
 	}
 	raw, err := json.Marshal(out)
@@ -170,9 +175,9 @@ func (h *BarsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case rng.Duration() == 0:
 		writeProblem(w, http.StatusBadRequest, CategoryValidation, "validation", "Validation failed", "range must be one of 1d, 5d, 1mo, 3mo, 1y", cid)
 		return
-	case !marketdata.Supported(interval, rng):
+	case !h.source.SupportedBars().Supports(interval, rng):
 		writeProblem(w, http.StatusBadRequest, CategoryValidation, "validation", "Validation failed",
-			"unsupported interval/range combination; supported: "+marketdata.SupportedCombinations(), cid)
+			"unsupported interval/range combination; supported: "+h.source.SupportedBars().String(), cid)
 		return
 	}
 
@@ -188,11 +193,11 @@ func (h *BarsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case err == nil:
-	case errors.Is(err, ErrBusy):
+	case errors.Is(err, ErrBusy), errors.Is(err, marketdata.ErrRateLimited):
 		writeProblem(w, http.StatusTooManyRequests, CategoryRateLimited, "rate-limited", "Too many requests",
 			"too many historical-bar computations in progress; retry shortly", cid)
 		return
-	case errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, marketdata.ErrSourceUnavailable):
 		h.log.Warn("bars computation timed out", "correlationId", cid, "symbol", symbol, "interval", string(interval), "range", string(rng))
 		writeProblem(w, http.StatusServiceUnavailable, CategoryServiceUnavailable, "service-unavailable", "Service unavailable", "historical bars are temporarily unavailable", cid)
 		return

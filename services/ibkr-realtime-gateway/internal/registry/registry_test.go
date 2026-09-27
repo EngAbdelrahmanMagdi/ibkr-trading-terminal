@@ -31,9 +31,10 @@ type staleEvent struct {
 
 // recorder is a Subscriber that records everything it is offered.
 type recorder struct {
-	mu     sync.Mutex
-	quotes []*Update
-	stale  []staleEvent
+	mu          sync.Mutex
+	quotes      []*Update
+	stale       []staleEvent
+	unavailable []string
 }
 
 func (r *recorder) OfferQuote(u *Update) {
@@ -46,6 +47,18 @@ func (r *recorder) OfferStale(symbols []string, _ time.Time, reason string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.stale = append(r.stale, staleEvent{symbols: symbols, reason: reason})
+}
+
+func (r *recorder) OfferUnavailable(symbol string, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.unavailable = append(r.unavailable, symbol+": "+err.Error())
+}
+
+func (r *recorder) unavailableSymbols() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.unavailable...)
 }
 
 func (r *recorder) quoteCount() int {
@@ -511,5 +524,19 @@ func TestConcurrentSubscribeUnsubscribeAndFanOut(t *testing.T) {
 	wg.Wait()
 	if n := len(*f.entry("NVDA").subs.Load()); n != 0 {
 		t.Fatalf("subscribers left = %d", n)
+	}
+}
+
+func TestSymbolUnavailableEndsTheSubscription(t *testing.T) {
+	f := newFixture(t, Config{UnsubscribeGrace: time.Minute})
+	a, b := &recorder{}, &recorder{}
+	f.subscribe("NVDA", a)
+	f.subscribe("NVDA", b)
+	f.src.MarkUnavailable("NVDA")
+	waitFor(t, "subscribers told", func() bool { return len(a.unavailableSymbols()) == 1 && len(b.unavailableSymbols()) == 1 })
+	waitFor(t, "entry removed", func() bool { return f.reg.ActiveSymbols() == 0 && f.src.ActiveSubscriptions() == 0 })
+	f.src.Publish("NVDA")
+	if a.quoteCount() != 0 {
+		t.Fatal("no quotes after the symbol became unavailable")
 	}
 }

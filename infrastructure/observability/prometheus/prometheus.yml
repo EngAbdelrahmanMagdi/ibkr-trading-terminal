@@ -22,7 +22,7 @@ scrape_configs:
     static_configs:
       - targets: ["grafana:3000"]
 
-  # Present only while the gateway runs (mock profile); the target is reported down otherwise.
+  # Present only while the gateway runs (gateway profile); the target is reported down otherwise.
   - job_name: realtime-gateway
     scrape_interval: 5s
     static_configs:

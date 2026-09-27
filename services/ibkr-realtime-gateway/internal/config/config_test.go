@@ -57,3 +57,29 @@ func TestAllErrorsAreReportedTogether(t *testing.T) {
 		t.Fatalf("expected both errors, got %v", err)
 	}
 }
+
+func TestMarketDataModeRules(t *testing.T) {
+	invalid := map[string]map[string]string{
+		"unknown mode":            {"GATEWAY_MARKET_DATA_MODE": "LIVE"},
+		"IBKR untrusted":          {"GATEWAY_MARKET_DATA_MODE": "IBKR", "GATEWAY_IBKR_CA_FILE": "/ca.pem"},
+		"AUTO untrusted":          {"GATEWAY_MARKET_DATA_MODE": "AUTO"},
+		"IBKR public origin":      {"GATEWAY_MARKET_DATA_MODE": "IBKR", "GATEWAY_TRUSTED_ENVIRONMENT": "true", "GATEWAY_IBKR_CA_FILE": "/ca.pem", "GATEWAY_ALLOWED_ORIGINS": "terminal.example.com"},
+		"IBKR without CA":         {"GATEWAY_MARKET_DATA_MODE": "IBKR", "GATEWAY_TRUSTED_ENVIRONMENT": "true"},
+		"allocation above budget": {"GATEWAY_IBKR_ALLOCATION": "9.5"},
+		"malformed conid seed":    {"GATEWAY_IBKR_CONID_SEED": "NVDA:abc"},
+		"symbols above lines":     {"GATEWAY_MARKET_DATA_MODE": "AUTO", "GATEWAY_TRUSTED_ENVIRONMENT": "true", "GATEWAY_MAX_ACTIVE_SYMBOLS": "150"},
+	}
+	for name, values := range invalid {
+		if _, err := Load(env(values)); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+	c, err := Load(env(map[string]string{"GATEWAY_MARKET_DATA_MODE": "ibkr", "GATEWAY_TRUSTED_ENVIRONMENT": "true",
+		"GATEWAY_IBKR_CA_FILE": "/ca.pem", "GATEWAY_IBKR_CONID_SEED": "NVDA:4815747, aapl:265598"}))
+	if err != nil || c.MarketDataMode != ModeIBKR || c.IBKR.ConidSeed["AAPL"] != 265598 {
+		t.Fatalf("valid IBKR configuration: %+v, %v", c.IBKR.ConidSeed, err)
+	}
+	if c, _ := Load(env(nil)); c.MarketDataMode != ModeMock || c.TrustedEnvironment {
+		t.Fatal("the default mode must be MOCK and untrusted")
+	}
+}

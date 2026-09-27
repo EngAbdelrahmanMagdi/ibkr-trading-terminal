@@ -11,7 +11,7 @@ set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 2
 # Resolve services of every profile (checks for services that are not running are skipped).
-export COMPOSE_PROFILES=observability,mock
+export COMPOSE_PROFILES=observability,gateway
 # Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
@@ -245,7 +245,7 @@ prometheus_scalar() { # prometheus_scalar <promql>: prints the value of a single
 }
 
 prometheus_all_targets_up() {
-  # The realtime gateway is scraped only while the mock profile runs.
+  # The realtime gateway is scraped only while the gateway profile runs.
   local selector='job=~".+"' expected=4 up down
   if running realtime-gateway; then expected=5; else selector='job=~".+",job!="realtime-gateway"'; fi
   up="$(prometheus_scalar "count(up{${selector}} == 1) or vector(0)")"
@@ -294,9 +294,14 @@ JSON
   echo "trace ${trace_id}: collector -> tempo ok"
 }
 
-# ------------------------------------------------------------------ checks: realtime gateway (mock profile)
+# ------------------------------------------------------------------ checks: realtime gateway (gateway profile)
 GATEWAY_URL="http://127.0.0.1:${GATEWAY_HOST_PORT:-18090}"
 GATEWAY_HEALTH_URL="http://127.0.0.1:${GATEWAY_HEALTH_HOST_PORT:-18091}"
+
+# gateway_source prints the active market-data source (MOCK or IBKR) reported by /health.
+gateway_source() {
+  curl -s --max-time 5 "${GATEWAY_HEALTH_URL}/health" | grep -o '"source":"[A-Z]*"' | cut -d'"' -f4
+}
 
 check_gateway_health() {
   local body
@@ -308,8 +313,10 @@ check_gateway_health() {
 
 check_gateway_bars() {
   local body
+  local src; src="$(gateway_source)"
+  [[ "$src" == "MOCK" || "$src" == "IBKR" ]] || { echo "unknown source '$src'"; return 1; }
   body="$(curl -s --max-time 10 "${GATEWAY_URL}/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d")" || return 1
-  [[ "$body" == *'"source":"MOCK"'* && "$body" == *'"bars":[{'* ]] || { echo "unexpected body: ${body:0:200}"; return 1; }
+  [[ "$body" == *"\"source\":\"${src}\""* && "$body" == *'"bars":[{'* ]] || { echo "unexpected body: ${body:0:200}"; return 1; }
   [[ "$(http_code "${GATEWAY_URL}/api/v1/market/bars?symbol=NOPE&interval=1m&range=1d")" == "404" ]] || { echo "unknown symbol not 404"; return 1; }
 }
 
@@ -325,7 +332,7 @@ check_gateway_origin_rejected() {
 
 check_gateway_stream() {
   docker exec "$(cid realtime-gateway)" /usr/local/bin/stream-probe -url ws://127.0.0.1:8090/ws \
-    -symbols NVDA,AAPL,META -quotes 3 -timeout 30s
+    -symbols NVDA,AAPL,MSFT -quotes 3 -timeout 30s
 }
 
 check_gateway_metrics() {
@@ -336,11 +343,12 @@ check_gateway_metrics() {
 }
 
 gateway_quote_cached() {
-  local value ttl
-  value="$(redis_app GET quote:NVDA)"
-  ttl="$(redis_app TTL quote:NVDA)"
-  [[ "$value" == *'"type":"quote"'*'"symbol":"NVDA"'* ]] || { echo "quote:NVDA = '${value:0:120}'"; return 1; }
-  [[ "$ttl" =~ ^[0-9]+$ && "$ttl" -gt 0 && "$ttl" -le 30 ]] || { echo "quote:NVDA TTL = '$ttl'"; return 1; }
+  local key value ttl
+  key="quote:$(gateway_source):NVDA" # keys are namespaced by source
+  value="$(redis_app GET "$key")"
+  ttl="$(redis_app TTL "$key")"
+  [[ "$value" == *'"type":"quote"'*'"symbol":"NVDA"'* ]] || { echo "$key = '${value:0:120}'"; return 1; }
+  [[ "$ttl" =~ ^[0-9]+$ && "$ttl" -gt 0 && "$ttl" -le 30 ]] || { echo "$key TTL = '$ttl'"; return 1; }
 }
 
 check_gateway_hot_cache() {
@@ -354,7 +362,7 @@ check_gateway_bars_cached() {
   second="$(curl -s --max-time 30 "$url")" || return 1
   [[ "$first" == *'"bars":[{'* ]] || { echo "unexpected body: ${first:0:200}"; return 1; }
   [[ "$second" == *'"cached":true'* ]] || { echo "second response not served from the cache: ${second:0:200}"; return 1; }
-  [[ "$(redis_app TTL bars:AAPL:15m:5d)" =~ ^[0-9]+$ ]] || { echo "bars cache key has no TTL"; return 1; }
+  [[ "$(redis_app TTL "bars:$(gateway_source):AAPL:15m:5d")" =~ ^[0-9]+$ ]] || { echo "bars cache key has no TTL"; return 1; }
 }
 
 # ------------------------------------------------------------------ checks: restarts (opt-in)
@@ -428,15 +436,15 @@ echo "[realtime-gateway]"
 if running realtime-gateway; then
   check "realtime gateway is healthy" retry 30 2 wait_healthy realtime-gateway
   check "readiness, detailed health and healthcheck subcommand" check_gateway_health
-  check "historical bars (MOCK) and 404 for unknown symbols" check_gateway_bars
+  check "historical bars from the active source (MOCK or IBKR) and 404 for unknown symbols" check_gateway_bars
   check "WebSocket upgrade from a disallowed origin is rejected (403)" check_gateway_origin_rejected
   check "stream probe: connection, snapshots, ordered quotes for 3 symbols" check_gateway_stream
   check "Prometheus metrics on the internal port" check_gateway_metrics
   if running redis; then
-    check "latest quote is written to Redis (quote:NVDA, stream quote shape, TTL <= 30s)" check_gateway_hot_cache
+    check "latest quote is written to Redis (quote:{SOURCE}:NVDA, stream quote shape, TTL <= 30s)" check_gateway_hot_cache
     check "historical bars are cached in Redis and marked cached on the next request" check_gateway_bars_cached
   else skip "gateway Redis checks (redis not running)"; fi
-else skip "realtime gateway checks (mock profile not running; use 'make up-mock')"; fi
+else skip "realtime gateway checks (gateway profile not running; use 'make up-mock')"; fi
 
 echo "[restarts]"
 if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then

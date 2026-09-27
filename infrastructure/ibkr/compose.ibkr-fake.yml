@@ -1,0 +1,45 @@
+# Override: the realtime gateway's IBKR code path against a FAKE Client Portal Gateway (make up-ibkr-fake).
+# The fake serves scripted test data only; it needs no IBKR account and is never a real data source.
+# It generates a throwaway CA at startup and shares only the CA certificate with the gateway.
+services:
+  fake-cpgw:
+    restart: unless-stopped
+    profiles: [gateway]
+    build:
+      context: ./services/ibkr-realtime-gateway # paths resolve from the repository root (first compose file)
+      target: fake-cpgw
+    image: trading-terminal/fake-cpgw:local
+    command: ["-addr", ":5000", "-hosts", "fake-cpgw,localhost", "-ca-out", "/run/fake-cpgw/ca.pem"]
+    volumes:
+      - fake-cpgw-ca:/run/fake-cpgw
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/fake-cpgw", "-check", "-addr", ":5000", "-ca-out", "/run/fake-cpgw/ca.pem"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 3s
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    networks: [edge]
+
+  realtime-gateway:
+    environment:
+      GATEWAY_MARKET_DATA_MODE: IBKR
+      GATEWAY_TRUSTED_ENVIRONMENT: "true"
+      GATEWAY_IBKR_BASE_URL: https://fake-cpgw:5000/v1/api
+      GATEWAY_IBKR_CA_FILE: /run/fake-cpgw/ca.pem
+      GATEWAY_MAX_ACTIVE_SYMBOLS: "100"
+    volumes:
+      - fake-cpgw-ca:/run/fake-cpgw:ro
+    depends_on:
+      fake-cpgw:
+        condition: service_healthy
+
+volumes:
+  fake-cpgw-ca: {}

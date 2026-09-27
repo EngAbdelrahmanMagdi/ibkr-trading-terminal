@@ -13,6 +13,9 @@ info:
     - Quotes are coalesced: the latest value wins per symbol, and `sequence` increases monotonically per symbol, so clients drop older sequences.
     - After every (re)subscription the server sends a `snapshot` before incremental `quote` messages.
     - Symbols without fresh data are reported with `stale`, and clients must not display them as live.
+    - `dataMode` states how the source delivers the data (`REALTIME`, `DELAYED`, `FROZEN`, `FROZEN_DELAYED`); it is independent of `stale`, which reports freshness and connection state. Clients must label non-realtime data as such. `halted` reports a trading halt (`null` when the source does not report halts).
+    - Prices keep the precision delivered by the source; no value is rounded. A value the contract cannot represent is sent as `null`.
+    - A symbol for which the source has no usable market data (for example, no market-data subscription) is rejected or dropped with an `error` of code `SOURCE_UNAVAILABLE`; it is never streamed as if it were live.
 
     **Limits.** Operational limits are server configuration, not protocol constants. The effective values for a connection are advertised in the `connection` message (`limits`). The defaults, which can be changed per deployment, are:
 

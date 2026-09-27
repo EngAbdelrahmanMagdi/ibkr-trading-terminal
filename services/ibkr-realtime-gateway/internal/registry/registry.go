@@ -7,8 +7,10 @@
 //   - Subscriber sets are copy-on-write, so fan-out on every quote takes no lock.
 //   - It follows the source's connection state, marks symbols stale, and resubscribes after recovery.
 //
-// Lock order: Registry.mu before entry.mu. The quote ingest path never acquires Registry.mu, which is why
-// upstream subscriptions may be closed while Registry.mu is held.
+// Locking: Registry.mu guards the entry map and is never held during source calls (which may be network
+// requests). A symbol being opened is represented by an entry whose opening channel is still open; concurrent
+// subscribers wait for it. Lock order: Registry.mu before entry.mu. The quote ingest path never acquires
+// Registry.mu.
 package registry
 
 import (
@@ -31,7 +33,7 @@ import (
 // Errors returned by Subscribe.
 var (
 	ErrActiveSymbolLimit = errors.New("registry: active symbol limit reached")
-	ErrSourceUnavailable = errors.New("registry: market data source unavailable")
+	ErrSourceUnavailable = marketdata.ErrSourceUnavailable
 	ErrRejected          = errors.New("registry: subscriber rejected the snapshot")
 	ErrClosed            = errors.New("registry: closed")
 )
@@ -55,6 +57,9 @@ type Snapshot struct {
 type Subscriber interface {
 	OfferQuote(u *Update)
 	OfferStale(symbols []string, since time.Time, reason string)
+	// OfferUnavailable reports that the symbol's subscription ended because the source cannot deliver usable
+	// data for it (err wraps marketdata.ErrSymbolUnavailable or marketdata.ErrRateLimited).
+	OfferUnavailable(symbol string, err error)
 }
 
 // Config bounds the registry.
@@ -63,6 +68,7 @@ type Config struct {
 	UnsubscribeGrace time.Duration // 0 closes the upstream subscription immediately
 	StaleAfter       time.Duration // no update for this long marks a symbol stale
 	SweepInterval    time.Duration // housekeeping period (grace expiry and staleness); 0 derives it
+	OpenTimeout      time.Duration // bound on opening a symbol at the source; 0 means 10s
 }
 
 // Hooks are optional callbacks. They are called without registry locks held and must not block.
@@ -93,9 +99,10 @@ type Registry struct {
 }
 
 type entry struct {
-	symbol   string
-	decimals int
-	subs     atomic.Pointer[[]Subscriber] // copy-on-write; replaced under Registry.mu
+	symbol  string
+	subs    atomic.Pointer[[]Subscriber] // copy-on-write; replaced under Registry.mu
+	opening chan struct{}                // closed once the upstream is open (or opening failed)
+	openErr error                        // set before opening is closed
 
 	// Guarded by Registry.mu.
 	upstream  marketdata.Subscription
@@ -115,6 +122,9 @@ func New(source marketdata.MarketDataSource, clk clock.Clock, cfg Config, m *met
 	}
 	if cfg.SweepInterval <= 0 {
 		cfg.SweepInterval = deriveSweep(cfg)
+	}
+	if cfg.OpenTimeout <= 0 {
+		cfg.OpenTimeout = 10 * time.Second
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Registry{
@@ -154,16 +164,25 @@ func (r *Registry) Close() {
 	r.cancel()
 	r.wg.Wait()
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.closed = true
+	var ups []marketdata.Subscription
 	for sym, e := range r.entries {
 		if e.upstream != nil {
-			e.upstream.Close()
+			ups = append(ups, e.upstream)
+			e.upstream = nil
 		}
 		delete(r.entries, sym)
 	}
 	r.metrics.ActiveSymbols.Set(0)
 	r.metrics.StaleSymbols.Set(0)
+	r.mu.Unlock()
+	closeAll(ups)
+}
+
+func closeAll(ups []marketdata.Subscription) {
+	for _, up := range ups {
+		up.Close()
+	}
 }
 
 // SourceID returns the source kind.
@@ -199,33 +218,153 @@ func (r *Registry) usable() bool {
 // fan-out, so the subscriber can queue it ahead of any quote; returning false aborts the subscription.
 // Subscribing an existing subscriber again only delivers a fresh snapshot.
 func (r *Registry) Subscribe(symbol string, sub Subscriber, onSnapshot func(Snapshot) bool) error {
-	inst, err := r.source.Instrument(symbol)
-	if err != nil {
+	if _, err := r.source.Instrument(symbol); err != nil {
+		return sourceError(err)
+	}
+	for {
+		r.mu.Lock()
+		if r.closed {
+			r.mu.Unlock()
+			return ErrClosed
+		}
+		e := r.entries[symbol]
+		if e == nil {
+			var evicted []marketdata.Subscription
+			if len(r.entries) >= r.cfg.MaxActiveSymbols {
+				victim := r.idleVictimLocked()
+				if victim == nil {
+					r.mu.Unlock()
+					return ErrActiveSymbolLimit
+				}
+				evicted = append(evicted, r.removeLocked(victim)...)
+			}
+			if !r.usable() {
+				r.mu.Unlock()
+				closeAll(evicted)
+				return ErrSourceUnavailable
+			}
+			e = newEntry(symbol)
+			r.entries[symbol] = e
+			r.metrics.ActiveSymbols.Set(float64(len(r.entries)))
+			r.mu.Unlock()
+			closeAll(evicted)
+			return r.open(e, sub, onSnapshot)
+		}
+		select {
+		case <-e.opening:
+		default:
+			r.mu.Unlock()
+			if err := r.awaitOpen(e); err != nil {
+				return err
+			}
+			continue
+		}
+		if e.openErr != nil { // a failed entry that has not been removed yet
+			r.mu.Unlock()
+			return e.openErr
+		}
+		err := r.handOverLocked(e, sub, onSnapshot)
+		r.mu.Unlock()
 		return err
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.closed {
+}
+
+func newEntry(symbol string) *entry {
+	e := &entry{symbol: symbol, opening: make(chan struct{})}
+	empty := []Subscriber{}
+	e.subs.Store(&empty)
+	return e
+}
+
+func (r *Registry) awaitOpen(e *entry) error {
+	select {
+	case <-e.opening:
+		return e.openErr
+	case <-r.ctx.Done():
 		return ErrClosed
 	}
-	e := r.entries[symbol]
-	if e == nil {
-		if e, err = r.openLocked(inst); err != nil {
-			return err
-		}
-	}
+}
 
+// open takes the snapshot and opens the upstream subscription without holding Registry.mu, then publishes
+// the entry and hands the first subscriber its snapshot in one critical section (so housekeeping can never
+// expire the new entry before it has a subscriber). The snapshot is recorded before subscribing, so a quote
+// delivered by the new subscription can never be overwritten by it.
+func (r *Registry) open(e *entry, sub Subscriber, onSnapshot func(Snapshot) bool) error {
+	ctx, cancel := context.WithTimeout(r.ctx, r.cfg.OpenTimeout)
+	defer cancel()
+	up, err := r.openUpstream(ctx, e)
+
+	r.mu.Lock()
+	switch {
+	case err != nil:
+		e.openErr = err
+	case r.closed || r.entries[e.symbol] != e: // closed or removed while opening
+		e.openErr = ErrClosed
+	default:
+		e.upstream = up
+		up = nil
+	}
+	var handOverErr error
+	if e.openErr != nil {
+		if r.entries[e.symbol] == e {
+			delete(r.entries, e.symbol)
+			r.metrics.ActiveSymbols.Set(float64(len(r.entries)))
+		}
+	} else {
+		e.idleSince = r.clock.Now() // grace applies if the first subscriber rejects the snapshot
+		handOverErr = r.handOverLocked(e, sub, onSnapshot)
+	}
+	close(e.opening)
+	openErr := e.openErr
+	r.mu.Unlock()
+	if up != nil {
+		up.Close()
+	}
+	if openErr != nil {
+		return openErr
+	}
+	return handOverErr
+}
+
+func (r *Registry) openUpstream(ctx context.Context, e *entry) (marketdata.Subscription, error) {
+	snap, err := r.source.Snapshot(ctx, e.symbol)
+	if err != nil {
+		return nil, sourceError(err)
+	}
+	e.mu.Lock()
+	e.latest, e.hasLatest, e.lastUpdate = snap, true, r.clock.Now()
+	e.mu.Unlock()
+	up, err := r.source.Subscribe(r.ctx, e.symbol, r.sinkFor(e))
+	if err != nil {
+		return nil, sourceError(err)
+	}
+	return up, nil
+}
+
+// sourceError keeps the source's classified errors and maps everything else to ErrSourceUnavailable.
+func sourceError(err error) error {
+	switch {
+	case errors.Is(err, marketdata.ErrUnknownSymbol), errors.Is(err, marketdata.ErrSymbolUnavailable),
+		errors.Is(err, marketdata.ErrRateLimited), errors.Is(err, marketdata.ErrSourceUnavailable):
+		return err
+	default:
+		return fmt.Errorf("%w: %v", ErrSourceUnavailable, err)
+	}
+}
+
+// handOverLocked gives the subscriber the current snapshot and adds it to the fan-out. Caller holds r.mu.
+func (r *Registry) handOverLocked(e *entry, sub Subscriber, onSnapshot func(Snapshot) bool) error {
 	e.mu.Lock()
 	snapQuote, has, stale := e.latest, e.hasLatest, e.stale
 	e.mu.Unlock()
 	if !has {
 		return ErrSourceUnavailable
 	}
-	data, err := stream.Encode(stream.NewQuoteMessage(stream.TypeSnapshot, snapQuote, e.decimals, stale))
+	data, err := stream.Encode(stream.NewQuoteMessage(stream.TypeSnapshot, snapQuote, stale))
 	if err != nil {
 		return fmt.Errorf("registry: encode snapshot: %w", err)
 	}
-	if !onSnapshot(Snapshot{Symbol: symbol, Sequence: snapQuote.Sequence, Data: data}) {
+	if !onSnapshot(Snapshot{Symbol: e.symbol, Sequence: snapQuote.Sequence, Data: data}) {
 		return ErrRejected
 	}
 	subs := *e.subs.Load()
@@ -239,88 +378,100 @@ func (r *Registry) Subscribe(symbol string, sub Subscriber, onSnapshot func(Snap
 	return nil
 }
 
-// openLocked creates the entry and its upstream subscription. Caller holds r.mu.
-func (r *Registry) openLocked(inst marketdata.Instrument) (*entry, error) {
-	if len(r.entries) >= r.cfg.MaxActiveSymbols && !r.evictIdleLocked() {
-		return nil, ErrActiveSymbolLimit
-	}
-	if !r.usable() {
-		return nil, ErrSourceUnavailable
-	}
-	snap, err := r.source.Snapshot(r.ctx, inst.Symbol)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrSourceUnavailable, err)
-	}
-	e := &entry{symbol: inst.Symbol, decimals: inst.PriceDecimals, latest: snap, hasLatest: true, lastUpdate: r.clock.Now()}
-	empty := []Subscriber{}
-	e.subs.Store(&empty)
-	up, err := r.source.Subscribe(r.ctx, inst.Symbol, r.sinkFor(e))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrSourceUnavailable, err)
-	}
-	e.upstream = up
-	r.entries[inst.Symbol] = e
-	r.metrics.ActiveSymbols.Set(float64(len(r.entries)))
-	return e, nil
-}
-
-// evictIdleLocked closes the longest-idle entry without subscribers. Caller holds r.mu.
-func (r *Registry) evictIdleLocked() bool {
+// idleVictimLocked returns the longest-idle open entry without subscribers. Caller holds r.mu.
+func (r *Registry) idleVictimLocked() *entry {
 	var victim *entry
 	for _, e := range r.entries {
-		if len(*e.subs.Load()) == 0 && (victim == nil || e.idleSince.Before(victim.idleSince)) {
+		if e.upstream != nil && len(*e.subs.Load()) == 0 && (victim == nil || e.idleSince.Before(victim.idleSince)) {
 			victim = e
 		}
 	}
-	if victim == nil {
-		return false
-	}
-	r.removeLocked(victim)
-	return true
+	return victim
 }
 
-func (r *Registry) removeLocked(e *entry) {
+// removeLocked deletes an entry and returns its upstream subscription for the caller to close after
+// releasing r.mu.
+func (r *Registry) removeLocked(e *entry) []marketdata.Subscription {
+	var ups []marketdata.Subscription
 	if e.upstream != nil {
-		e.upstream.Close()
+		ups = append(ups, e.upstream)
 		e.upstream = nil
 	}
 	delete(r.entries, e.symbol)
 	r.metrics.ActiveSymbols.Set(float64(len(r.entries)))
+	return ups
 }
 
 // Unsubscribe removes sub from symbol's fan-out. The upstream subscription closes after the grace period
 // once no subscribers remain.
 func (r *Registry) Unsubscribe(symbol string, sub Subscriber) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	e := r.entries[symbol]
 	if e == nil {
+		r.mu.Unlock()
 		return
 	}
 	subs := *e.subs.Load()
 	i := slices.Index(subs, sub)
 	if i < 0 {
+		r.mu.Unlock()
 		return
 	}
 	next := make([]Subscriber, 0, len(subs)-1)
 	next = append(next, subs[:i]...)
 	next = append(next, subs[i+1:]...)
 	e.subs.Store(&next)
+	var ups []marketdata.Subscription
 	if len(next) == 0 {
 		if r.cfg.UnsubscribeGrace == 0 {
-			r.removeLocked(e)
-			return
+			ups = r.removeLocked(e)
+		} else {
+			e.idleSince = r.clock.Now()
 		}
-		e.idleSince = r.clock.Now()
 	}
+	r.mu.Unlock()
+	closeAll(ups)
 }
 
-// sinkFor returns the upstream sink of an entry. It never blocks and never takes Registry.mu.
-func (r *Registry) sinkFor(e *entry) marketdata.QuoteSink {
-	return marketdata.QuoteSinkFunc(func(q marketdata.Quote) bool {
-		r.ingest(e, q)
-		return true
-	})
+// entrySink is the upstream sink of one entry. It never blocks and never takes Registry.mu.
+type entrySink struct {
+	r *Registry
+	e *entry
+}
+
+func (s entrySink) OfferQuote(q marketdata.Quote) bool {
+	s.r.ingest(s.e, q)
+	return true
+}
+
+// SymbolUnavailable ends the symbol: it is removed and every subscriber is told why. The removal runs on a
+// registry goroutine because it closes the upstream subscription, which must not happen on the source's own
+// delivery path.
+func (s entrySink) SymbolUnavailable(err error) {
+	s.r.wg.Add(1)
+	go func() { // owned by the registry; bounded by the number of active symbols
+		defer s.r.wg.Done()
+		s.r.drop(s.e, err)
+	}()
+}
+
+func (r *Registry) sinkFor(e *entry) marketdata.QuoteSink { return entrySink{r: r, e: e} }
+
+func (r *Registry) drop(e *entry, err error) {
+	r.mu.Lock()
+	var ups []marketdata.Subscription
+	if r.entries[e.symbol] == e {
+		ups = r.removeLocked(e)
+	}
+	subs := *e.subs.Load()
+	empty := []Subscriber{}
+	e.subs.Store(&empty)
+	r.mu.Unlock()
+	closeAll(ups)
+	r.log.Warn("market data unavailable for symbol; subscription ended", "symbol", e.symbol, "reason", err.Error())
+	for _, s := range subs {
+		s.OfferUnavailable(e.symbol, err)
+	}
 }
 
 func (r *Registry) ingest(e *entry, q marketdata.Quote) {
@@ -334,7 +485,7 @@ func (r *Registry) ingest(e *entry, q marketdata.Quote) {
 	e.latest, e.hasLatest, e.lastUpdate, e.stale = q, true, now, false
 	e.mu.Unlock()
 
-	data, err := stream.Encode(stream.NewQuoteMessage(stream.TypeQuote, q, e.decimals, false))
+	data, err := stream.Encode(stream.NewQuoteMessage(stream.TypeQuote, q, false))
 	if err != nil {
 		r.log.Error("quote encoding failed", "symbol", e.symbol, "error", err.Error())
 		return
@@ -398,22 +549,44 @@ func (r *Registry) applyStatus(ev marketdata.StatusEvent) {
 	}
 }
 
-// resubscribeAll re-issues the upstream subscription of every active symbol after the source recovered.
-// Symbols stay stale until their first fresh quote.
+// resubscribeAll re-issues the upstream subscription of every open symbol after the source recovered. The
+// source calls happen without Registry.mu. Symbols stay stale until their first fresh quote.
 func (r *Registry) resubscribeAll() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	var entries []*entry
+	var old []marketdata.Subscription
 	for _, e := range r.entries {
+		select {
+		case <-e.opening:
+		default:
+			continue // still opening; it subscribes against the recovered source itself
+		}
+		if e.openErr != nil {
+			continue
+		}
 		if e.upstream != nil {
-			e.upstream.Close()
+			old = append(old, e.upstream)
 			e.upstream = nil
 		}
+		entries = append(entries, e)
+	}
+	r.mu.Unlock()
+	closeAll(old)
+
+	for _, e := range entries {
 		up, err := r.source.Subscribe(r.ctx, e.symbol, r.sinkFor(e))
 		if err != nil {
 			r.log.Warn("resubscription failed; retried on the next recovery", "symbol", e.symbol, "error", err.Error())
 			continue
 		}
+		r.mu.Lock()
+		if r.closed || r.entries[e.symbol] != e {
+			r.mu.Unlock()
+			up.Close()
+			continue
+		}
 		e.upstream = up
+		r.mu.Unlock()
 	}
 }
 
@@ -458,12 +631,18 @@ func (r *Registry) sweep() {
 	detect := r.usable()
 	groups := map[Subscriber][]string{}
 	staleCount := 0
+	var expired []marketdata.Subscription
 
 	r.mu.Lock()
 	for _, e := range r.entries {
+		select {
+		case <-e.opening:
+		default:
+			continue // still opening
+		}
 		subs := *e.subs.Load()
 		if len(subs) == 0 && now.Sub(e.idleSince) >= r.cfg.UnsubscribeGrace {
-			r.removeLocked(e)
+			expired = append(expired, r.removeLocked(e)...)
 			continue
 		}
 		e.mu.Lock()
@@ -483,5 +662,6 @@ func (r *Registry) sweep() {
 	}
 	r.metrics.StaleSymbols.Set(float64(staleCount))
 	r.mu.Unlock()
+	closeAll(expired)
 	deliverStale(groups, now, stream.StaleNoUpdates)
 }

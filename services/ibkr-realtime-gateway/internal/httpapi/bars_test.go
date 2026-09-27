@@ -112,7 +112,7 @@ func TestMissComputesAndStoresThenHitServesFromCache(t *testing.T) {
 	if err := json.Unmarshal(raw, &bars); err != nil || len(bars) != 120 {
 		t.Fatalf("bars = %d, err = %v", len(bars), err)
 	}
-	e, ok := store.data[BarsKey("NVDA", marketdata.Interval1h, marketdata.Range5d)]
+	e, ok := store.data[BarsKey(marketdata.SourceMock, "NVDA", marketdata.Interval1h, marketdata.Range5d)]
 	if !ok || e.TTL != 5*time.Minute || string(e.Value) != string(raw) {
 		t.Fatalf("cache entry = %+v", e)
 	}

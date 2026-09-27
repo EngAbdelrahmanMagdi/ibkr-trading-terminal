@@ -220,8 +220,8 @@ func TestHotCacheStoresTheLatestQuoteInContractShape(t *testing.T) {
 	mustRead(t, conn)
 	send(t, conn, subscribeMsg("NVDA"))
 	readUntil(t, conn, "quote", func(m serverMessage) bool { return m.Type == "quote" })
-	waitUntil(t, "quote:NVDA", func() bool { _, ok := store.entry(hotcache.QuoteKey("NVDA")); return ok })
-	e, _ := store.entry(hotcache.QuoteKey("NVDA"))
+	waitUntil(t, "quote:MOCK:NVDA", func() bool { _, ok := store.entry(hotcache.QuoteKey(marketdata.SourceMock, "NVDA")); return ok })
+	e, _ := store.entry(hotcache.QuoteKey(marketdata.SourceMock, "NVDA"))
 	conform(t, "stream/quote.schema.json", e.Value)
 	if e.TTL != 30*time.Second {
 		t.Fatalf("TTL = %s", e.TTL)
@@ -253,7 +253,7 @@ func TestBarsAreCachedAndMarked(t *testing.T) {
 	if first.Cached || !second.Cached || len(first.Bars) != len(second.Bars) || len(first.Bars) == 0 {
 		t.Fatalf("cached flags %v/%v, bars %d/%d", first.Cached, second.Cached, len(first.Bars), len(second.Bars))
 	}
-	if e, ok := store.entry("bars:AAPL:1h:5d"); !ok || e.TTL != time.Minute {
+	if e, ok := store.entry("bars:MOCK:AAPL:1h:5d"); !ok || e.TTL != time.Minute {
 		t.Fatalf("cache entry: %+v", e)
 	}
 }
@@ -366,7 +366,7 @@ func TestShortSoakWithSubscriptionChurn(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rng := rand.New(rand.NewPCG(uint64(c), 7))
+			rng := rand.New(rand.NewPCG(uint64(c), 7)) //nolint:gosec // reproducible churn pattern, not security
 			conn, _, err := g.dial("")
 			if err != nil {
 				t.Errorf("dial: %v", err)

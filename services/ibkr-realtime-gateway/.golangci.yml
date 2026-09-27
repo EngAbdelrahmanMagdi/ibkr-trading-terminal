@@ -1,0 +1,24 @@
+# golangci-lint v2: the standard linters plus gosec, restricted to the security rules that apply to this
+# service: TLS configuration (G402: never disable certificate verification), weak cryptography
+# (G401-G405, G501-G507) and hard-coded credentials (G101).
+version: "2"
+linters:
+  default: standard
+  enable:
+    - gosec
+  settings:
+    gosec:
+      includes:
+        - G101
+        - G401
+        - G402
+        - G403
+        - G404
+        - G405
+        - G501
+        - G502
+        - G503
+        - G504
+        - G505
+        - G506
+        - G507

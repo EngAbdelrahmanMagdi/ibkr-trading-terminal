@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 )
 
@@ -70,7 +71,7 @@ func newWriter(t *testing.T, store Store) (*QuoteWriter, *Guard, *clock.Fake, *m
 	clk := clock.NewFake(time.Date(2026, 9, 27, 14, 0, 0, 0, time.UTC))
 	m := metrics.New()
 	g := NewGuard(clk, 100*time.Millisecond, 5*time.Second, m, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	w := NewQuoteWriter(store, g, clk, time.Second, 30*time.Second, m)
+	w := NewQuoteWriter(marketdata.SourceMock, store, g, clk, time.Second, 30*time.Second, m)
 	go w.Run()
 	t.Cleanup(func() { _ = w.Close(context.Background()) })
 	return w, g, clk, m
@@ -99,8 +100,8 @@ func TestQuoteWritesAreThrottledToTheLatestValuePerSymbol(t *testing.T) {
 	if calls != 1 || len(data) != 2 {
 		t.Fatalf("pipelined writes = %d, keys = %d; want 1 request with 2 keys", calls, len(data))
 	}
-	if e := data["quote:NVDA"]; string(e.Value) != "9" || e.TTL != 30*time.Second {
-		t.Fatalf("quote:NVDA = %+v", e)
+	if e := data["quote:MOCK:NVDA"]; string(e.Value) != "9" || e.TTL != 30*time.Second {
+		t.Fatalf("quote:MOCK:NVDA = %+v", e)
 	}
 	if got := testutil.ToFloat64(m.QuoteCacheWrites); got != 2 {
 		t.Fatalf("quote_cache_writes_total = %v", got)
@@ -138,8 +139,8 @@ func TestFailureStartsACooldown(t *testing.T) {
 	w.Publish("NVDA", []byte("3"))
 	tick(t, clk)
 	data, _ := store.snapshot()
-	if string(data["quote:NVDA"].Value) != "3" {
-		t.Fatalf("writes must resume after the cool-down, got %q", data["quote:NVDA"].Value)
+	if string(data["quote:MOCK:NVDA"].Value) != "3" {
+		t.Fatalf("writes must resume after the cool-down, got %q", data["quote:MOCK:NVDA"].Value)
 	}
 }
 
@@ -151,7 +152,7 @@ func TestCloseFlushesTheLatestState(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, _ := store.snapshot()
-	if string(data["quote:NVDA"].Value) != "final" {
+	if string(data["quote:MOCK:NVDA"].Value) != "final" {
 		t.Fatal("Close must flush pending quotes")
 	}
 }

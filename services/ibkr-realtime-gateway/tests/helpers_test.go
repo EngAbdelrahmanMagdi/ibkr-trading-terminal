@@ -25,10 +25,12 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/config"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/modes"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/simulator"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/transport/ws"
@@ -142,6 +144,7 @@ type options struct {
 	synthetic  int                         // synthetic simulator instruments
 	store      hotcache.Store              // Redis stand-in; nil disables the hot cache
 	quoteEvery time.Duration               // quote-cache write interval (default 50ms)
+	mode       *config.Config              // select the source like cmd/realtime-gateway does (modes.Select)
 }
 
 // startGateway starts the gateway with an optional WebSocket config change and registers shutdown plus a
@@ -169,6 +172,26 @@ func startGatewayWith(t *testing.T, o options) *gateway {
 	g := &gateway{t: t, metrics: m, client: &http.Client{Transport: &http.Transport{}, Timeout: 10 * time.Second}}
 
 	source := o.source
+	var closeSource func()
+	if o.mode != nil {
+		sel, err := modes.Select(*o.mode, clk, m, logger, o.store, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source = sel.Source
+		rcfg.StaleAfter = sel.StaleAfter
+		sel.Start()
+		closeSource = func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := source.Close(ctx); err != nil {
+				t.Errorf("source close: %v", err)
+			}
+		}
+		if sim, ok := source.(*simulator.SimulatorMarketDataSource); ok {
+			g.sim = sim
+		}
+	}
 	if source == nil {
 		g.model = simulator.NewModel(testSeed, simulator.WithSyntheticSymbols(o.synthetic))
 		sim, err := simulator.NewSource(g.model, clk, testTick)
@@ -190,7 +213,7 @@ func startGatewayWith(t *testing.T, o options) *gateway {
 			every = 50 * time.Millisecond
 		}
 		guard = hotcache.NewGuard(clk, 200*time.Millisecond, time.Second, m, logger)
-		quoteWriter = hotcache.NewQuoteWriter(o.store, guard, clk, every, 30*time.Second, m)
+		quoteWriter = hotcache.NewQuoteWriter(source.ID(), o.store, guard, clk, every, 30*time.Second, m)
 		hooks.OnQuote = func(u *registry.Update) { quoteWriter.Publish(u.Symbol, u.Data) }
 	}
 	reg, err := registry.New(source, clk, rcfg, m, logger, hooks)
@@ -212,7 +235,7 @@ func startGatewayWith(t *testing.T, o options) *gateway {
 	mux.Handle("GET /api/v1/market/bars", httpapi.NewBarsHandler(source, bars, logger))
 	g.public = httptest.NewServer(mux)
 	g.intern = httptest.NewServer(g.health.Handler())
-	if g.sim != nil {
+	if g.sim != nil && o.mode == nil {
 		waitUntil(t, "source READY", func() bool { return reg.Ready() })
 	}
 	t.Cleanup(func() {
@@ -222,6 +245,9 @@ func startGatewayWith(t *testing.T, o options) *gateway {
 			t.Errorf("shutdown: %v", err)
 		}
 		reg.Close()
+		if closeSource != nil {
+			closeSource()
+		}
 		if quoteWriter != nil {
 			if err := quoteWriter.Close(ctx); err != nil {
 				t.Errorf("quote writer: %v", err)
@@ -285,6 +311,8 @@ type serverMessage struct {
 	Last      *string  `json:"last"`
 	Stale     bool     `json:"stale"`
 	Reason    string   `json:"reason"`
+	DataMode  string   `json:"dataMode"`
+	Halted    *bool    `json:"halted"`
 	Sequence  int64    `json:"sequence"`
 	Timestamp string   `json:"timestamp"`
 	Limits    struct {

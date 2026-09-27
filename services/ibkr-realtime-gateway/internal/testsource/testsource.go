@@ -72,9 +72,13 @@ func (s *Source) Instrument(symbol string) (marketdata.Instrument, error) {
 
 func (s *Source) quote(symbol string, seq int64) marketdata.Quote {
 	last := marketdata.Price(100_000_000 + seq*10_000)
+	bid, ask, lastD := marketdata.DecimalFromPrice(last-10_000, 2), marketdata.DecimalFromPrice(last+10_000, 2), marketdata.DecimalFromPrice(last, 2)
+	bidSize, askSize, volume := int64(100), int64(200), 1000+seq
+	halted := false
 	return marketdata.Quote{
-		Symbol: symbol, Bid: last - 10_000, Ask: last + 10_000, Last: last,
-		BidSize: 100, AskSize: 200, Volume: 1000 + seq, Sequence: seq, Time: s.clock.Now(),
+		Symbol: symbol, Bid: &bid, Ask: &ask, Last: &lastD,
+		BidSize: &bidSize, AskSize: &askSize, Volume: &volume,
+		DataMode: marketdata.DataRealtime, Halted: &halted, Sequence: seq, Time: s.clock.Now(),
 	}
 }
 
@@ -115,7 +119,7 @@ func (s *Source) Bars(ctx context.Context, symbol string, interval marketdata.In
 	if _, err := s.Instrument(symbol); err != nil {
 		return nil, err
 	}
-	if !marketdata.Supported(interval, rng) {
+	if !Bars.Supports(interval, rng) {
 		return nil, marketdata.ErrUnsupportedRange
 	}
 	if err := ctx.Err(); err != nil {
@@ -124,11 +128,50 @@ func (s *Source) Bars(ctx context.Context, symbol string, interval marketdata.In
 	end := s.clock.Now().Truncate(interval.Duration())
 	n := int(rng.Duration() / interval.Duration())
 	bars := make([]marketdata.Bar, 0, n)
+	open, high, low, closing := mustDecimal("100.00"), mustDecimal("101.00"), mustDecimal("99.00"), mustDecimal("100.50")
 	for i := n - 1; i >= 0; i-- {
 		bars = append(bars, marketdata.Bar{Time: end.Add(-time.Duration(i) * interval.Duration()),
-			Open: 100_000_000, High: 101_000_000, Low: 99_000_000, Close: 100_500_000, Volume: 1000})
+			Open: open, High: high, Low: low, Close: closing, Volume: 1000})
 	}
 	return bars, nil
+}
+
+func mustDecimal(s string) marketdata.Decimal {
+	d, err := marketdata.ParseDecimal(s)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// Bars is the combination set the test source serves (the same as the simulator's).
+var Bars = marketdata.BarSet{
+	marketdata.Interval1m:  {marketdata.Range1d, marketdata.Range5d},
+	marketdata.Interval5m:  {marketdata.Range1d, marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval15m: {marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval1h:  {marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval1d:  {marketdata.Range1mo, marketdata.Range3mo, marketdata.Range1y},
+}
+
+// SupportedBars returns Bars.
+func (s *Source) SupportedBars() marketdata.BarSet { return Bars }
+
+// Close does nothing.
+func (s *Source) Close(context.Context) error { return nil }
+
+// MarkUnavailable reports to every subscription of symbol that its market data is no longer usable.
+func (s *Source) MarkUnavailable(symbol string) {
+	s.mu.Lock()
+	var sinks []marketdata.QuoteSink
+	for sub := range s.subs {
+		if sub.symbol == symbol {
+			sinks = append(sinks, sub.sink)
+		}
+	}
+	s.mu.Unlock()
+	for _, sink := range sinks {
+		sink.SymbolUnavailable(marketdata.ErrSymbolUnavailable)
+	}
 }
 
 // Publish delivers the next quote of symbol to its subscriptions synchronously and returns how many

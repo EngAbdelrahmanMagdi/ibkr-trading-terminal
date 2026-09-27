@@ -72,13 +72,58 @@ func (s *SimulatorMarketDataSource) Snapshot(ctx context.Context, symbol string)
 		return marketdata.Quote{}, err
 	}
 	t, seq := s.tickAt(s.clock.Now())
-	return sm.quoteAt(t, seq), nil
+	return sm.quoteAt(t, seq).normalized(sm.spec.PriceDecimals), nil
+}
+
+// normalized converts a simulated quote into the broker-neutral quote. The simulator always delivers every
+// field, in real time, and never halts.
+func (q quote) normalized(decimals int) marketdata.Quote {
+	bid, ask, last := marketdata.DecimalFromPrice(q.Bid, decimals), marketdata.DecimalFromPrice(q.Ask, decimals), marketdata.DecimalFromPrice(q.Last, decimals)
+	bidSize, askSize, volume := q.BidSize, q.AskSize, q.Volume
+	halted := false
+	return marketdata.Quote{
+		Symbol: q.Symbol, Bid: &bid, Ask: &ask, Last: &last,
+		BidSize: &bidSize, AskSize: &askSize, Volume: &volume,
+		DataMode: marketdata.DataRealtime, Halted: &halted,
+		Sequence: q.Sequence, Time: q.Time,
+	}
 }
 
 // Bars returns historical bars up to the current time.
 func (s *SimulatorMarketDataSource) Bars(ctx context.Context, symbol string, interval marketdata.Interval, rng marketdata.Range) ([]marketdata.Bar, error) {
-	return s.model.Bars(ctx, symbol, interval, rng, s.clock.Now())
+	inst, err := s.model.Instrument(symbol)
+	if err != nil {
+		return nil, err
+	}
+	bars, err := s.model.Bars(ctx, symbol, interval, rng, s.clock.Now())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]marketdata.Bar, len(bars))
+	d := inst.PriceDecimals
+	for i, b := range bars {
+		out[i] = marketdata.Bar{
+			Time: b.Time, Open: marketdata.DecimalFromPrice(b.Open, d), High: marketdata.DecimalFromPrice(b.High, d),
+			Low: marketdata.DecimalFromPrice(b.Low, d), Close: marketdata.DecimalFromPrice(b.Close, d), Volume: b.Volume,
+		}
+	}
+	return out, nil
 }
+
+// SupportedBars returns the combinations the simulator serves.
+func (s *SimulatorMarketDataSource) SupportedBars() marketdata.BarSet { return Bars }
+
+// Bars is the simulator's supported interval/range set.
+var Bars = marketdata.BarSet{
+	marketdata.Interval1m:  {marketdata.Range1d, marketdata.Range5d},
+	marketdata.Interval5m:  {marketdata.Range1d, marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval15m: {marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval1h:  {marketdata.Range5d, marketdata.Range1mo},
+	marketdata.Interval1d:  {marketdata.Range1mo, marketdata.Range3mo, marketdata.Range1y},
+}
+
+// Close ends the simulator's lifetime; subscriptions are closed by their owners.
+func (s *SimulatorMarketDataSource) Close(context.Context) error { return nil }
 
 // ActiveSymbols returns the number of distinct subscribed symbols.
 func (s *SimulatorMarketDataSource) ActiveSymbols() int {
@@ -136,7 +181,7 @@ func (s *SimulatorMarketDataSource) run(ctx context.Context, sm *symbolModel, si
 			return
 		case <-s.clock.After(next.Sub(s.clock.Now())):
 		}
-		if !sink.OfferQuote(sm.quoteAt(next, next.UnixMilli()/s.tick.Milliseconds())) {
+		if !sink.OfferQuote(sm.quoteAt(next, next.UnixMilli()/s.tick.Milliseconds()).normalized(sm.spec.PriceDecimals)) {
 			return
 		}
 		next = next.Add(s.tick)

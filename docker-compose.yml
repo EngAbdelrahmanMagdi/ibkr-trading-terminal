@@ -4,6 +4,8 @@
 #   make up       core infrastructure: PostgreSQL, Redis, Kafka
 #   make up-obs   core infrastructure + observability: Prometheus, Grafana, Tempo, OpenTelemetry Collector
 #   make up-mock  core infrastructure + the realtime gateway streaming simulated (MOCK) market data
+#   make up-ibkr  the realtime gateway on IBKR market data (local CP Gateway login; infrastructure/ibkr/)
+#   make up-ibkr-fake  the IBKR code path against a FAKE CP Gateway (tests; no IBKR account)
 #   make load     load/soak clients against the running gateway (after make up-mock)
 #
 # Every published port is bound to 127.0.0.1. Credentials are Docker secrets generated into ./secrets/
@@ -256,7 +258,7 @@ services:
   # ---------------------------------------------------------------- application services (profiles)
   realtime-gateway:
     <<: *defaults
-    profiles: [mock]
+    profiles: [gateway]
     build:
       context: ./services/ibkr-realtime-gateway
     image: trading-terminal/realtime-gateway:local
@@ -264,6 +266,9 @@ services:
     environment:
       GATEWAY_HTTP_ADDR: ":8090"
       GATEWAY_HEALTH_ADDR: ":8091"
+      # MOCK (default, the only mode for public demos), IBKR or AUTO; IBKR modes are enabled by the
+      # override files in infrastructure/ibkr/.
+      GATEWAY_MARKET_DATA_MODE: MOCK
       GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-localhost:3000,127.0.0.1:3000}
       GATEWAY_SEED: ${GATEWAY_SEED:-20260927}
       GATEWAY_TICK_INTERVAL: ${GATEWAY_TICK_INTERVAL:-1s}
@@ -296,6 +301,9 @@ services:
       resources:
         limits:
           memory: 128m
+    # Lets the gateway reach a CP Gateway running on the developer's machine (IBKR modes only).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # edge: clients; data: Redis; observability: Prometheus scrapes /metrics on the internal port.
     networks: [edge, data, observability]
 

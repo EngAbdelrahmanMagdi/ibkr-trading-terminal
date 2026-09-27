@@ -27,6 +27,7 @@ const (
 	ErrUnknownSymbol     = "UNKNOWN_SYMBOL"
 	ErrSubscriptionLimit = "SUBSCRIPTION_LIMIT"
 	ErrSourceUnavailable = "SOURCE_UNAVAILABLE"
+	ErrRateLimited       = "RATE_LIMITED"
 	ErrInternal          = "INTERNAL"
 )
 
@@ -70,6 +71,8 @@ type QuoteMessage struct {
 	Sequence  int64   `json:"sequence"`
 	Timestamp string  `json:"timestamp"`
 	Stale     bool    `json:"stale"`
+	DataMode  string  `json:"dataMode"`
+	Halted    *bool   `json:"halted"`
 }
 
 // Stale reports symbols without fresh data. Clients must not display them as live.
@@ -99,15 +102,40 @@ func NewConnection(state marketdata.SourceState, source marketdata.SourceID, now
 	return Connection{Type: TypeConnection, State: string(state), Source: string(source), Timestamp: FormatTime(now), Limits: limits}
 }
 
+// Wire limits of the contract's Price primitive (contracts/schemas/common/primitives.schema.json).
+const (
+	maxWireIntegerDigits  = 13
+	maxWireFractionDigits = 6
+)
+
+// FitsWire reports whether a price can be represented by the contract's Price primitive without rounding.
+func FitsWire(d marketdata.Decimal) bool {
+	return d.Valid() && d.IntegerDigits() <= maxWireIntegerDigits && d.Scale() <= maxWireFractionDigits
+}
+
+// wirePrice renders a price exactly as delivered, or nil when it is missing or not representable on the wire
+// (it is never rounded).
+func wirePrice(d *marketdata.Decimal) *string {
+	if d == nil || !FitsWire(*d) {
+		return nil
+	}
+	s := d.String()
+	return &s
+}
+
 // NewQuoteMessage converts a normalized quote into a snapshot or quote message.
-func NewQuoteMessage(msgType string, q marketdata.Quote, priceDecimals int, stale bool) QuoteMessage {
-	bid, ask, last := q.Bid.Format(priceDecimals), q.Ask.Format(priceDecimals), q.Last.Format(priceDecimals)
-	bidSize, askSize, volume := q.BidSize, q.AskSize, min(q.Volume, marketdata.MaxSafeInteger)
+func NewQuoteMessage(msgType string, q marketdata.Quote, stale bool) QuoteMessage {
+	var volume *int64
+	if q.Volume != nil {
+		v := min(*q.Volume, marketdata.MaxSafeInteger)
+		volume = &v
+	}
 	return QuoteMessage{
 		Type: msgType, Symbol: q.Symbol,
-		Bid: &bid, Ask: &ask, Last: &last,
-		BidSize: &bidSize, AskSize: &askSize, Volume: &volume,
+		Bid: wirePrice(q.Bid), Ask: wirePrice(q.Ask), Last: wirePrice(q.Last),
+		BidSize: q.BidSize, AskSize: q.AskSize, Volume: volume,
 		Sequence: q.Sequence, Timestamp: FormatTime(q.Time), Stale: stale,
+		DataMode: string(q.DataMode), Halted: q.Halted, // sources always set the mode; it is never defaulted
 	}
 }
 

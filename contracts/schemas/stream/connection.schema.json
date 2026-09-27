@@ -31,7 +31,7 @@
       "type": "string",
       "enum": [
         "IBKR",
-        "REPLAY"
+        "MOCK"
       ]
     },
     "timestamp": {

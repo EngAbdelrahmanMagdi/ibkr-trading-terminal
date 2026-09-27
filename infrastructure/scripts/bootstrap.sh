@@ -56,7 +56,15 @@ command -v curl > /dev/null 2>&1 || info "note: curl not found - it is required 
 
 echo "bootstrap: environment file"
 if [[ -f .env ]]; then
-  info ".env exists - left unchanged"
+  info ".env exists - existing values left unchanged"
+  # Append settings introduced in .env.example since .env was created (never overwrites existing keys).
+  while IFS= read -r line; do
+    key="${line%%=*}"
+    if ! grep -qE "^${key}=" .env; then
+      printf '%s\n' "$line" >> .env
+      info "added new setting ${key}"
+    fi
+  done < <(grep -E '^[A-Z][A-Z0-9_]*=' .env.example)
 else
   cp .env.example .env
   info "created .env from .env.example"

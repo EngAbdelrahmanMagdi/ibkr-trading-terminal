@@ -10,6 +10,8 @@
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 2
+# Resolve services of every profile (checks for services that are not running are skipped).
+export COMPOSE_PROFILES=observability,mock
 # Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
@@ -286,6 +288,40 @@ JSON
   echo "trace ${trace_id}: collector -> tempo ok"
 }
 
+# ------------------------------------------------------------------ checks: realtime gateway (mock profile)
+GATEWAY_URL="http://127.0.0.1:${GATEWAY_HOST_PORT:-18090}"
+GATEWAY_HEALTH_URL="http://127.0.0.1:${GATEWAY_HEALTH_HOST_PORT:-18091}"
+
+check_gateway_health() {
+  local body
+  [[ "$(http_code "${GATEWAY_HEALTH_URL}/readiness")" == "200" ]] || { echo "readiness not 200"; return 1; }
+  body="$(curl -s --max-time 5 "${GATEWAY_HEALTH_URL}/health")"
+  [[ "$body" == *'"connectionState":"READY"'* ]] || { echo "health: $body"; return 1; }
+  docker exec "$(cid realtime-gateway)" /usr/local/bin/realtime-gateway healthcheck || { echo "healthcheck subcommand failed"; return 1; }
+}
+
+check_gateway_bars() {
+  local body
+  body="$(curl -s --max-time 10 "${GATEWAY_URL}/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d")" || return 1
+  [[ "$body" == *'"source":"MOCK"'* && "$body" == *'"bars":[{'* ]] || { echo "unexpected body: ${body:0:200}"; return 1; }
+  [[ "$(http_code "${GATEWAY_URL}/api/v1/market/bars?symbol=NOPE&interval=1m&range=1d")" == "404" ]] || { echo "unknown symbol not 404"; return 1; }
+}
+
+check_gateway_origin_rejected() {
+  local code nonce
+  nonce="$(head -c 16 /dev/urandom | base64)" # fresh handshake nonce per request, as RFC 6455 requires
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+    -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+    -H "Sec-WebSocket-Key: ${nonce}" -H 'Origin: http://evil.example' \
+    "${GATEWAY_URL}/ws")"
+  [[ "$code" == "403" ]] || { echo "disallowed origin returned $code"; return 1; }
+}
+
+check_gateway_stream() {
+  docker exec "$(cid realtime-gateway)" /usr/local/bin/stream-probe -url ws://127.0.0.1:8090/ws \
+    -symbols NVDA,AAPL,META -quotes 3 -timeout 30s
+}
+
 # ------------------------------------------------------------------ checks: restarts (opt-in)
 check_pg_durable_across_restart() {
   local tbl="${TRADING_SCHEMA}.verify_durable_$$"
@@ -352,6 +388,15 @@ if running prometheus; then
   check "grafana healthy; anonymous API rejected; datasources Prometheus and Tempo healthy" check_grafana
   check "trace end-to-end: OTLP/HTTP -> collector -> tempo" check_trace_end_to_end
 else skip "observability checks (profile not running; use 'make up-obs')"; fi
+
+echo "[realtime-gateway]"
+if running realtime-gateway; then
+  check "realtime gateway is healthy" retry 30 2 wait_healthy realtime-gateway
+  check "readiness, detailed health and healthcheck subcommand" check_gateway_health
+  check "historical bars (MOCK) and 404 for unknown symbols" check_gateway_bars
+  check "WebSocket upgrade from a disallowed origin is rejected (403)" check_gateway_origin_rejected
+  check "stream probe: connection, snapshots, ordered quotes for 3 symbols" check_gateway_stream
+else skip "realtime gateway checks (mock profile not running; use 'make up-mock')"; fi
 
 echo "[restarts]"
 if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then

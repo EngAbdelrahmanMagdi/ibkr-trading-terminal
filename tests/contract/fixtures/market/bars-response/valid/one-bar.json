@@ -2,7 +2,7 @@
   "symbol": "NVDA",
   "interval": "1m",
   "range": "1d",
-  "source": "REPLAY",
+  "source": "MOCK",
   "cached": true,
   "bars": [
     {

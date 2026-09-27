@@ -2,7 +2,7 @@
   "symbol": "NVDA",
   "interval": "1m",
   "range": "1d",
-  "source": "MOCK",
+  "source": "REPLAY",
   "cached": true,
   "bars": [
     {
@@ -10,7 +10,7 @@
       "open": "184.10",
       "high": "184.40",
       "low": "184.00",
-      "close": 184.23,
+      "close": "184.23",
       "volume": 48291822
     }
   ]

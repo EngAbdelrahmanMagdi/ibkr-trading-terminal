@@ -27,7 +27,7 @@
       "type": "string",
       "enum": [
         "IBKR",
-        "REPLAY"
+        "MOCK"
       ]
     },
     "cached": {

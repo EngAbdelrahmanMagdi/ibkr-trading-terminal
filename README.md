@@ -81,7 +81,7 @@ Java · Spring Boot · Go · Python · TypeScript · Next.js · React · Postgre
 
 ## Getting started
 
-The local infrastructure (PostgreSQL, Redis, Kafka, and the observability stack) runs with Docker Compose. The application services will be added to the same environment as they become available.
+Everything runs with Docker Compose: the local infrastructure (PostgreSQL, Redis, Kafka, the observability stack) and the application services that are available so far. Currently that's the realtime gateway, with a simulated market feed.
 
 ### Prerequisites
 
@@ -108,6 +108,15 @@ To also start Prometheus, Grafana, Tempo and the OpenTelemetry Collector:
 make up-obs
 ```
 
+To start the realtime gateway with the simulated (MOCK) market feed, and connect a test client to it:
+
+```bash
+make up-mock
+make probe
+```
+
+The WebSocket endpoint is `ws://127.0.0.1:18090/ws`. For example, send `{"type":"subscribe","symbols":["NVDA","AAPL"]}` from any WebSocket client. Historical bars are at `http://127.0.0.1:18090/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d`.
+
 To check that everything works:
 
 ```bash
@@ -131,18 +140,21 @@ Application processes run as non-root where supported. Some official images may 
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
+| Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `mock` profile. Health on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
 
 ### Commands
 
 | Command | Description |
 |---|---|
-| `make up` / `make up-obs` | Start the core infrastructure, or add the observability stack |
+| `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or add the realtime gateway with the simulated market feed |
+| `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
-| `make test` | Run the contract tests, then the infrastructure verification |
+| `make test-unit` | Run the Go unit and integration tests of the realtime gateway with the race detector |
+| `make test` | Run the contract tests, the Go tests, then the infrastructure verification |
 | `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
-| `make lint` | Validate the Compose configuration, run shellcheck, and lint the API contracts |
-| `make security` | Scan git history and every file that would be committed for secrets (gitleaks) |
+| `make lint` | Validate the Compose configuration, run shellcheck, lint the Go code (gofmt, go vet, golangci-lint), and lint the API contracts |
+| `make security` | Scan git history and every file that would be committed for secrets (gitleaks), and check the Go modules for known vulnerabilities (govulncheck) |
 | `make down` | Stop the containers and keep the data |
 | `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |
 

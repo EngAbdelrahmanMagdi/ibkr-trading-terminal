@@ -72,7 +72,70 @@ Java · Spring Boot · Go · Python · TypeScript · Next.js · React · Postgre
 
 ## Getting started
 
-Local setup instructions will be published here together with the Docker Compose environment.
+The local infrastructure (PostgreSQL, Redis, Kafka, and the observability stack) runs with Docker Compose. The application services will be added to the same environment as they become available.
+
+### Prerequisites
+
+- Docker with **Docker Compose v2.17.0 or newer**
+- GNU Make, bash, and curl (on Windows, Git Bash provides bash and curl)
+
+No local Java, Go, Node.js, or Python installation is needed for the infrastructure. Linters and the secret scanner run in pinned containers.
+
+### Quick start
+
+```bash
+make up
+```
+
+This command:
+1. checks the prerequisites;
+2. creates `.env` from `.env.example`;
+3. generates random local credentials into `./secrets/`, which is git-ignored and never overwritten;
+4. starts PostgreSQL, Redis and Kafka, and waits until they are healthy.
+
+To also start Prometheus, Grafana, Tempo and the OpenTelemetry Collector:
+
+```bash
+make up-obs
+```
+
+To check that everything works:
+
+```bash
+make verify
+```
+
+It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end.
+
+### Services
+
+All ports are published on `127.0.0.1` only. You can change them in `.env`.
+
+Application processes run as non-root where supported. Some official images may briefly start as root during initialization before dropping privileges.
+
+| Service | Address | Notes |
+|---|---|---|
+| PostgreSQL 18 | `127.0.0.1:15432` | Database `trading`, schema `trading`. Roles: `trading_owner` for schema migrations and `trading_app` for data access only. |
+| Redis 8 | `127.0.0.1:16379` | ACL user `app`. No persistence (cache and hot state only). |
+| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled |
+| Grafana | <http://127.0.0.1:13000> | User `admin`. The password is in `secrets/grafana_admin_password`. |
+| Prometheus | <http://127.0.0.1:19090> | |
+| Tempo | <http://127.0.0.1:13200> | Trace query API |
+| OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `make up` / `make up-obs` | Start the core infrastructure, or add the observability stack |
+| `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
+| `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
+| `make lint` | Validate the Compose configuration and run shellcheck |
+| `make security` | Scan git history and every file that would be committed for secrets (gitleaks) |
+| `make down` | Stop the containers and keep the data |
+| `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |
+
+If a port is already in use, `make up` warns about it. Change the corresponding `*_HOST_PORT` value in `.env`.
 
 ## Security
 

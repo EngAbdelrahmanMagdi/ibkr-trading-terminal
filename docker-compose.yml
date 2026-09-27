@@ -1,0 +1,273 @@
+# Local development environment for the Real-Time Trading Terminal.
+#
+# Requires Docker Compose v2.17.0 or newer (the Makefile uses `up --wait --wait-timeout`).
+#   make up       core infrastructure: PostgreSQL, Redis, Kafka
+#   make up-obs   core infrastructure + observability: Prometheus, Grafana, Tempo, OpenTelemetry Collector
+#
+# Every published port is bound to 127.0.0.1. Credentials are Docker secrets generated into ./secrets/
+# by `make bootstrap`. Image tags are pinned to exact, verified stable releases.
+
+x-defaults: &defaults
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  # ---------------------------------------------------------------- core infrastructure
+  postgres:
+    <<: *defaults
+    image: postgres:18.6
+    command:
+      - postgres
+      - -c
+      - timezone=UTC
+      - -c
+      - log_timezone=UTC
+      - -c
+      - password_encryption=scram-sha-256
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-trading_admin}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+      TRADING_SCHEMA: ${TRADING_SCHEMA:-trading}
+      TRADING_OWNER_ROLE: ${TRADING_OWNER_ROLE:-trading_owner}
+      TRADING_APP_ROLE: ${TRADING_APP_ROLE:-trading_app}
+      TZ: UTC
+    secrets:
+      - postgres_admin_password
+      - trading_owner_password
+      - trading_app_password
+    volumes:
+      # PostgreSQL 18 images use PGDATA=/var/lib/postgresql/18/docker; mount the parent directory.
+      - postgres-data:/var/lib/postgresql
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15432}:5432"
+    # The official entrypoint briefly starts as root during initialization to prepare the data directory,
+    # then drops privileges to the postgres user; capabilities are limited to what that step needs.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [data]
+
+  redis:
+    <<: *defaults
+    image: redis:8.10.2
+    user: "999:999"
+    command: ["sh", "/usr/local/etc/redis/start-redis.sh"]
+    environment:
+      REDIS_APP_USER: ${REDIS_APP_USER:-app}
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-256mb}
+    secrets:
+      - redis_app_password
+    volumes:
+      - ./infrastructure/redis:/usr/local/etc/redis:ro
+    # Disposable state only: no persistence, read-only root filesystem, in-memory scratch space.
+    read_only: true
+    tmpfs:
+      - /tmp:size=1m
+      - /data:size=1m
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-16379}:6379"
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(tr -d '\\r\\n' < /run/secrets/redis_app_password)\" redis-cli --no-auth-warning --user \"$${REDIS_APP_USER}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    networks: [data]
+
+  kafka:
+    <<: *defaults
+    image: apache/kafka:4.3.1
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?KAFKA_CLUSTER_ID is empty - run make bootstrap}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://127.0.0.1:${KAFKA_HOST_PORT:-19092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # Topics are provisioned explicitly; producers can never create them implicitly.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:${KAFKA_HOST_PORT:-19092}:9092"
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD-SHELL", "KAFKA_HEAP_OPTS=-Xmx64m /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 20s
+      retries: 12
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks: [data]
+
+  # ---------------------------------------------------------------- observability (profile)
+  prometheus:
+    <<: *defaults
+    profiles: [observability]
+    image: prom/prometheus:v3.13.3
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=1GB
+    volumes:
+      - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    read_only: true
+    ports:
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-19090}:9090"
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [observability]
+
+  otel-collector:
+    <<: *defaults
+    profiles: [observability]
+    image: otel/opentelemetry-collector:0.161.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infrastructure/observability/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    read_only: true
+    ports:
+      - "127.0.0.1:${OTLP_GRPC_HOST_PORT:-14317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_HOST_PORT:-14318}:4318"
+    cap_drop: [ALL]
+    # Distroless image (no shell): liveness is observed through Prometheus scraping its telemetry endpoint.
+    depends_on:
+      tempo:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks: [observability]
+
+  tempo:
+    <<: *defaults
+    profiles: [observability]
+    image: grafana/tempo:3.0.3
+    command: ["-target=all", "-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./infrastructure/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    ports:
+      - "127.0.0.1:${TEMPO_HOST_PORT:-13200}:3200"
+    cap_drop: [ALL]
+    # Distroless image (no shell): readiness is checked by `make verify` and via Prometheus scraping.
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [observability]
+
+  grafana:
+    <<: *defaults
+    profiles: [observability]
+    image: grafana/grafana:13.2.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_LOG_MODE: console
+    secrets:
+      - grafana_admin_password
+    volumes:
+      # Mount only the datasources directory so the image's default provisioning folders stay intact.
+      - ./infrastructure/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-13000}:3000"
+    cap_drop: [ALL]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [observability]
+
+networks:
+  data: {}
+  observability: {}
+
+volumes:
+  postgres-data: {}
+  kafka-data: {}
+  prometheus-data: {}
+  tempo-data: {}
+  grafana-data: {}
+
+secrets:
+  postgres_admin_password:
+    file: ./secrets/postgres_admin_password
+  trading_owner_password:
+    file: ./secrets/trading_owner_password
+  trading_app_password:
+    file: ./secrets/trading_app_password
+  redis_app_password:
+    file: ./secrets/redis_app_password
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password

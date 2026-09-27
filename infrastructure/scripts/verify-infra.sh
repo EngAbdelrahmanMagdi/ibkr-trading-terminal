@@ -1,0 +1,364 @@
+#!/usr/bin/env bash
+# Verifies the local infrastructure: connectivity, security posture, and expected behavior.
+#
+#   make verify                     non-disruptive checks
+#   VERIFY_RESTARTS=1 make verify   additionally restarts PostgreSQL and Redis to prove that
+#                                   durable data survives and disposable data does not
+#
+# Observability checks run only when the `observability` profile is running.
+# Requirements on the host: bash, docker (Compose v2), curl.
+set -uo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 2
+# Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
+export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+
+[[ -f .env ]] || { echo "verify: .env not found - run 'make bootstrap' first" >&2; exit 2; }
+while IFS='=' read -r key value; do
+  [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] && printf -v "$key" '%s' "$value"
+done < <(grep -E '^[A-Z][A-Z0-9_]*=' .env)
+
+PROJECT="${COMPOSE_PROJECT_NAME:-trading-platform}"
+PG_IMAGE="postgres:18.6"
+KAFKA_BOOTSTRAP="localhost:29092"
+PASS=0 FAIL=0 SKIP=0
+
+secret() { tr -d '\r\n' < "secrets/$1"; }
+cid() { docker compose ps -q "$1" 2> /dev/null; }
+running() { [[ -n "$(docker compose ps -q --status running "$1" 2> /dev/null)" ]]; }
+
+# check <description> <command...>: runs the command and records PASS/FAIL with its output on failure.
+check() {
+  local desc="$1"; shift
+  local out
+  if out="$("$@" 2>&1)"; then
+    PASS=$((PASS + 1)); printf '  PASS  %s\n' "$desc"
+  else
+    FAIL=$((FAIL + 1)); printf '  FAIL  %s\n' "$desc"
+    printf '%s\n' "$out" | tail -n 8 | sed 's/^/        | /'
+  fi
+}
+skip() { SKIP=$((SKIP + 1)); printf '  SKIP  %s\n' "$1"; }
+
+# retry <attempts> <sleep-seconds> <command...>: bounded retry for eventually-consistent checks.
+retry() {
+  local attempts="$1" pause="$2"; shift 2
+  local i
+  for ((i = 1; i <= attempts; i++)); do
+    "$@" && return 0
+    sleep "$pause"
+  done
+  "$@"
+}
+
+wait_healthy() {
+  local svc="$1" status
+  status="$(docker inspect -f '{{.State.Health.Status}}' "$(cid "$svc")" 2> /dev/null)"
+  [[ "$status" == "healthy" ]] || { echo "$svc health: ${status:-not running}"; return 1; }
+}
+
+# ------------------------------------------------------------------ helpers per component
+psql_net() { # psql_net <role> <password> <sql>: connects over the Compose network with password auth
+  local role="$1" password="$2" sql="$3"
+  PGPASSWORD="$password" docker run --rm --network "${PROJECT}_data" -e PGPASSWORD "$PG_IMAGE" \
+    psql --no-psqlrc -h postgres -U "$role" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -tAc "$sql"
+}
+owner_sql() { psql_net "$TRADING_OWNER_ROLE" "$(secret trading_owner_password)" "$1"; }
+app_sql() { psql_net "$TRADING_APP_ROLE" "$(secret trading_app_password)" "$1"; }
+
+redis_app() {
+  REDISCLI_AUTH="$(secret redis_app_password)" docker exec -i -e REDISCLI_AUTH "$(cid redis)" \
+    redis-cli --no-auth-warning --user "$REDIS_APP_USER" "$@"
+}
+redis_anon() { docker exec -i "$(cid redis)" redis-cli "$@"; }
+
+kafka_tool() { # kafka_tool <script> <args...>
+  local tool="$1"; shift
+  docker exec -i -e KAFKA_HEAP_OPTS=-Xmx128m "$(cid kafka)" "/opt/kafka/bin/${tool}" "$@"
+}
+
+http_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$@"; }
+
+# ------------------------------------------------------------------ checks: posture
+check_ports_loopback() {
+  local ids bad=0 id binding
+  ids="$(docker compose ps -q)"
+  [[ -n "$ids" ]] || { echo "no containers running"; return 1; }
+  for id in $ids; do
+    for binding in $(docker inspect -f '{{range $p, $b := .NetworkSettings.Ports}}{{range $b}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}' "$id"); do
+      if [[ "$binding" != 127.0.0.1:* ]]; then
+        echo "$(docker inspect -f '{{.Name}}' "$id") publishes $binding"; bad=1
+      fi
+    done
+  done
+  return "$bad"
+}
+
+check_non_root() {
+  # Checks the steady state after startup. Some official images (e.g. PostgreSQL) start their entrypoint as
+  # root to prepare data directories and then drop privileges; that initialization phase is not covered here.
+  local bad=0 svc id uids
+  for svc in $(docker compose ps --services --status running); do
+    id="$(cid "$svc")"
+    # Default `docker top` output; the first column is the UID (numeric or user name).
+    uids="$(docker top "$id" 2> /dev/null | awk 'NR > 1 {print $1}' | sort -u | tr '\n' ' ')"
+    if [[ -z "$uids" ]]; then
+      echo "$svc: could not read process uids"; bad=1
+    elif [[ " $uids " == *" 0 "* || " $uids " == *" root "* ]]; then
+      echo "$svc: process running as uid 0 (uids: $uids)"; bad=1
+    else
+      echo "$svc: uids $uids"
+    fi
+  done
+  return "$bad"
+}
+
+# ------------------------------------------------------------------ checks: PostgreSQL
+check_pg_app_connect() {
+  local row
+  row="$(app_sql "SELECT current_user || '|' || current_setting('TimeZone') || '|' || current_setting('search_path')")" || return 1
+  echo "$row"
+  [[ "$row" == "${TRADING_APP_ROLE}|UTC|${TRADING_SCHEMA}" ]]
+}
+
+check_pg_wrong_password() {
+  local out
+  if out="$(psql_net "$TRADING_APP_ROLE" "definitely-wrong-password" "SELECT 1" 2>&1)"; then
+    echo "connection with a wrong password succeeded"; return 1
+  fi
+  [[ "$out" == *"password authentication failed"* ]] || { echo "unexpected error: $out"; return 1; }
+}
+
+check_pg_least_privilege() {
+  local tbl="${TRADING_SCHEMA}.verify_probe_$$"
+  owner_sql "CREATE TABLE ${tbl} (id int PRIMARY KEY)" > /dev/null || return 1
+  local ok=0 count
+  app_sql "INSERT INTO ${tbl} VALUES (1)" > /dev/null || ok=1
+  count="$(app_sql "SELECT count(*) FROM ${tbl}")"
+  [[ "$count" == "1" ]] \
+    || { echo "app role cannot use a table created by the owner (default privileges): $count"; ok=1; }
+  if app_sql "CREATE TABLE ${TRADING_SCHEMA}.app_should_not_create (id int)" > /dev/null 2>&1; then
+    echo "app role was able to CREATE TABLE in ${TRADING_SCHEMA}"; ok=1
+  fi
+  if app_sql "CREATE TABLE public.app_should_not_create (id int)" > /dev/null 2>&1; then
+    echo "app role was able to CREATE TABLE in public"; ok=1
+  fi
+  if app_sql "DROP TABLE ${tbl}" > /dev/null 2>&1; then
+    echo "app role was able to DROP a table"; ok=1
+  fi
+  owner_sql "DROP TABLE IF EXISTS ${tbl}" > /dev/null || ok=1
+  return "$ok"
+}
+
+# ------------------------------------------------------------------ checks: Redis
+check_redis_anonymous_rejected() {
+  local out
+  out="$(redis_anon PING 2>&1)"
+  [[ "$out" == *NOAUTH* ]] || { echo "unauthenticated PING returned: $out"; return 1; }
+}
+
+check_redis_app_rw_ttl() {
+  local key="verify:probe:$$" ttl
+  [[ "$(redis_app PING)" == "PONG" ]] || return 1
+  [[ "$(redis_app SET "$key" value EX 60)" == "OK" ]] || return 1
+  ttl="$(redis_app TTL "$key")"
+  redis_app DEL "$key" > /dev/null
+  echo "ttl=$ttl"
+  [[ "$ttl" =~ ^[0-9]+$ ]] && ((ttl > 0 && ttl <= 60))
+}
+
+redis_denied() { # redis_denied <command> [args...]: the ACL must reject the command
+  local out
+  out="$(redis_app "$@" 2>&1)"
+  [[ "$out" == *NOPERM* ]] || { echo "'$*' was not denied by the ACL: $out"; return 1; }
+}
+
+check_redis_dangerous_denied() {
+  local bad=0
+  redis_denied FLUSHALL || bad=1
+  redis_denied FLUSHDB || bad=1
+  redis_denied CONFIG GET maxmemory || bad=1
+  redis_denied KEYS '*' || bad=1
+  return "$bad"
+}
+
+# ------------------------------------------------------------------ checks: Kafka
+# Tool output is captured before matching: piping `docker exec` into `grep -q` breaks the pipe on Windows.
+check_kafka_no_auto_create_config() {
+  local out
+  out="$(kafka_tool kafka-configs.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --describe \
+    --entity-type brokers --entity-name 1 --all)" || return 1
+  [[ "$out" == *"auto.create.topics.enable=false"* ]] || { echo "auto.create.topics.enable=false not found"; return 1; }
+}
+
+topic_absent() {
+  local topics
+  topics="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --list | tr -d '\r')" || return 1
+  ! grep -qx -- "$1" <<< "$topics"
+}
+
+kafka_smoke_roundtrip() { # kafka_smoke_roundtrip <topic>
+  local topic="$1" payload="probe-$RANDOM-$RANDOM" received
+  kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --create \
+    --topic "$topic" --partitions 1 --replication-factor 1 > /dev/null || return 1
+  printf '%s\n' "$payload" | kafka_tool kafka-console-producer.sh --bootstrap-server "$KAFKA_BOOTSTRAP" \
+    --topic "$topic" > /dev/null || return 1
+  received="$(kafka_tool kafka-console-consumer.sh --bootstrap-server "$KAFKA_BOOTSTRAP" \
+    --topic "$topic" --from-beginning --max-messages 1 --timeout-ms 30000 2> /dev/null | tr -d '\r')"
+  [[ "$received" == "$payload" ]] || { echo "sent '$payload', received '$received'"; return 1; }
+}
+
+check_kafka_smoke_roundtrip() {
+  local topic result=0
+  topic="infra-smoke-$(date +%s)-$RANDOM"
+  kafka_smoke_roundtrip "$topic" || result=1
+  # Always remove the temporary topic, whether or not the roundtrip succeeded.
+  kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --delete --topic "$topic" > /dev/null 2>&1
+  retry 10 1 topic_absent "$topic" || { echo "smoke topic $topic still present after deletion"; return 1; }
+  [[ "$result" -eq 0 ]] && echo "roundtrip ok; topic $topic created, used, and deleted"
+  return "$result"
+}
+
+check_kafka_missing_topic_rejected() {
+  local topic out
+  topic="infra-missing-$(date +%s)-$RANDOM"
+  out="$(printf 'x\n' | kafka_tool kafka-console-producer.sh --bootstrap-server "$KAFKA_BOOTSTRAP" \
+    --topic "$topic" --producer-property max.block.ms=5000 2>&1)"
+  topic_absent "$topic" || { echo "producing created topic $topic implicitly"; kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --delete --topic "$topic" > /dev/null 2>&1; return 1; }
+  [[ "$out" == *"not present in metadata"* || "$out" == *UNKNOWN_TOPIC* || "$out" == *TimeoutException* ]] \
+    || { echo "unexpected producer output: $out"; return 1; }
+}
+
+check_kafka_host_listener() {
+  (exec 3<> "/dev/tcp/127.0.0.1/${KAFKA_HOST_PORT}") 2> /dev/null \
+    || { echo "127.0.0.1:${KAFKA_HOST_PORT} not reachable"; return 1; }
+}
+
+# ------------------------------------------------------------------ checks: observability
+prometheus_ready() { [[ "$(http_code "http://127.0.0.1:${PROMETHEUS_HOST_PORT}/-/ready")" == "200" ]]; }
+
+prometheus_all_targets_up() {
+  local body up down
+  body="$(curl -s --max-time 5 "http://127.0.0.1:${PROMETHEUS_HOST_PORT}/api/v1/targets?state=active")" || return 1
+  up="$(grep -o '"health":"up"' <<< "$body" | wc -l | tr -d ' ')"
+  down="$(grep -o '"health":"\(down\|unknown\)"' <<< "$body" | wc -l | tr -d ' ')"
+  echo "targets up=$up not-up=$down"
+  [[ "$up" -ge 4 && "$down" -eq 0 ]]
+}
+
+grafana_ds_ok() { # grafana_ds_ok <uid>
+  local body
+  # Credentials go through curl's config on stdin, so they never appear in the process list.
+  body="$(curl -s --max-time 10 -K - "http://127.0.0.1:${GRAFANA_HOST_PORT}/api/datasources/uid/$1/health" \
+    <<< "user = \"${GRAFANA_ADMIN_USER}:$(secret grafana_admin_password)\"")"
+  echo "$1: $body"
+  [[ "$body" == *'"status":"OK"'* ]]
+}
+
+check_grafana() {
+  local health
+  health="$(curl -s --max-time 5 "http://127.0.0.1:${GRAFANA_HOST_PORT}/api/health")" || return 1
+  [[ "$health" == *'"database"'*'"ok"'* ]] || { echo "health: $health"; return 1; }
+  [[ "$(http_code "http://127.0.0.1:${GRAFANA_HOST_PORT}/api/datasources")" == "401" ]] \
+    || { echo "anonymous API access was not rejected"; return 1; }
+  retry 10 3 grafana_ds_ok prometheus && retry 10 3 grafana_ds_ok tempo
+}
+
+tempo_ready() { [[ "$(curl -s --max-time 5 "http://127.0.0.1:${TEMPO_HOST_PORT}/ready")" == *ready* ]]; }
+
+trace_found() { [[ "$(http_code "http://127.0.0.1:${TEMPO_HOST_PORT}/api/v2/traces/$1")" == "200" ]]; }
+
+random_hex() { od -An -tx1 -N"$1" /dev/urandom | tr -d ' \n'; }
+
+check_trace_end_to_end() {
+  local trace_id span_id now_ns code
+  trace_id="$(random_hex 16)"; span_id="$(random_hex 8)"
+  now_ns="$(date +%s)000000000"
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Content-Type: application/json' \
+    -X POST "http://127.0.0.1:${OTLP_HTTP_HOST_PORT}/v1/traces" --data @- << JSON
+{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"infra-verify"}}]},
+"scopeSpans":[{"scope":{"name":"verify-infra"},"spans":[{"traceId":"${trace_id}","spanId":"${span_id}",
+"name":"verify-span","kind":1,"startTimeUnixNano":"${now_ns}","endTimeUnixNano":"${now_ns}"}]}]}]}
+JSON
+)"
+  [[ "$code" == "200" ]] || { echo "collector OTLP/HTTP returned $code"; return 1; }
+  retry 30 2 trace_found "$trace_id" || { echo "trace ${trace_id} not found in Tempo within 60s"; return 1; }
+  echo "trace ${trace_id}: collector -> tempo ok"
+}
+
+# ------------------------------------------------------------------ checks: restarts (opt-in)
+check_pg_durable_across_restart() {
+  local tbl="${TRADING_SCHEMA}.verify_durable_$$"
+  owner_sql "CREATE TABLE ${tbl} (v text); INSERT INTO ${tbl} VALUES ('kept')" > /dev/null || return 1
+  docker compose restart postgres > /dev/null 2>&1 || return 1
+  retry 30 2 wait_healthy postgres > /dev/null || { echo "postgres not healthy after restart"; return 1; }
+  local v; v="$(owner_sql "SELECT v FROM ${tbl}")"
+  owner_sql "DROP TABLE ${tbl}" > /dev/null
+  [[ "$v" == "kept" ]] || { echo "row lost across restart (got '$v')"; return 1; }
+}
+
+check_redis_disposable_across_restart() {
+  local key="verify:disposable:$$" v
+  redis_app SET "$key" value EX 300 > /dev/null || return 1
+  docker compose restart redis > /dev/null 2>&1 || return 1
+  retry 30 2 wait_healthy redis > /dev/null || { echo "redis not healthy after restart"; return 1; }
+  v="$(redis_app GET "$key")"
+  [[ -z "$v" ]] || { echo "key survived restart - Redis must not persist data"; return 1; }
+}
+
+# ================================================================== run
+echo "verify: project '${PROJECT}'"
+
+echo "[posture]"
+check "published ports are bound to 127.0.0.1 only" check_ports_loopback
+check "running application processes are non-root (images may start as root during init, then drop privileges)" check_non_root
+
+echo "[health]"
+for svc in postgres redis kafka; do
+  if running "$svc"; then
+    check "$svc is healthy" retry 30 2 wait_healthy "$svc"
+  else
+    check "$svc is running" false
+  fi
+done
+
+echo "[postgresql]"
+if running postgres; then
+  check "app role connects over the network with password auth; timezone UTC; search_path" check_pg_app_connect
+  check "wrong password is rejected" check_pg_wrong_password
+  check "least privilege: app role has DML via default privileges, no DDL" check_pg_least_privilege
+else skip "postgresql checks (not running)"; fi
+
+echo "[redis]"
+if running redis; then
+  check "unauthenticated access is rejected (default user disabled)" check_redis_anonymous_rejected
+  check "app user can read/write keys with TTL" check_redis_app_rw_ttl
+  check "dangerous commands are denied by the ACL (FLUSHALL, FLUSHDB, CONFIG, KEYS)" check_redis_dangerous_denied
+else skip "redis checks (not running)"; fi
+
+echo "[kafka]"
+if running kafka; then
+  check "broker has auto.create.topics.enable=false" check_kafka_no_auto_create_config
+  check "smoke topic: create -> produce -> consume -> delete" check_kafka_smoke_roundtrip
+  check "producing to a missing topic fails and creates nothing" check_kafka_missing_topic_rejected
+  check "host listener reachable on 127.0.0.1:${KAFKA_HOST_PORT}" check_kafka_host_listener
+else skip "kafka checks (not running)"; fi
+
+echo "[observability]"
+if running prometheus; then
+  check "prometheus is ready" retry 15 2 prometheus_ready
+  check "prometheus scrapes all targets successfully" retry 30 3 prometheus_all_targets_up
+  check "tempo is ready" retry 30 2 tempo_ready
+  check "grafana healthy; anonymous API rejected; datasources Prometheus and Tempo healthy" check_grafana
+  check "trace end-to-end: OTLP/HTTP -> collector -> tempo" check_trace_end_to_end
+else skip "observability checks (profile not running; use 'make up-obs')"; fi
+
+echo "[restarts]"
+if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then
+  check "postgresql data survives a restart" check_pg_durable_across_restart
+  check "redis data does not survive a restart (disposable)" check_redis_disposable_across_restart
+else skip "restart checks (set VERIFY_RESTARTS=1)"; fi
+
+echo
+echo "verify: ${PASS} passed, ${FAIL} failed, ${SKIP} skipped"
+[[ "$FAIL" -eq 0 ]]

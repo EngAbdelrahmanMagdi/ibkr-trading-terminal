@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/trading/execution.schema.json",
+  "title": "Execution",
+  "description": "A fill of an order.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "orderId",
+    "symbol",
+    "side",
+    "quantity",
+    "price",
+    "commission",
+    "currency",
+    "executedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "orderId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "side": {
+      "$ref": "enums.schema.json#/$defs/BrokerSide"
+    },
+    "quantity": {
+      "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+    },
+    "price": {
+      "$ref": "../common/primitives.schema.json#/$defs/Price"
+    },
+    "commission": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/Money"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "currency": {
+      "$ref": "../common/primitives.schema.json#/$defs/CurrencyCode"
+    },
+    "executedAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    }
+  }
+}

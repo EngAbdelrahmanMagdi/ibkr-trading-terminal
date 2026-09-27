@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/common/problem.schema.json",
+  "title": "Problem",
+  "description": "Error response body (compatible with RFC 9457 problem details) with a stable machine-readable category. Never contains stack traces or internal details.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "title",
+    "status",
+    "category",
+    "correlationId"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^(about:blank|urn:problem-type:trading:[a-z0-9-]{1,64})$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "category": {
+      "$ref": "#/$defs/ErrorCategory"
+    },
+    "detail": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "correlationId": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ErrorCategory": {
+      "type": "string",
+      "enum": [
+        "VALIDATION",
+        "INSTRUMENT_NOT_FOUND",
+        "CONFLICT",
+        "RATE_LIMITED",
+        "STALE_MARKET_DATA",
+        "BROKER_REJECTED",
+        "BROKER_UNAVAILABLE",
+        "SERVICE_UNAVAILABLE",
+        "INTERNAL"
+      ]
+    }
+  }
+}

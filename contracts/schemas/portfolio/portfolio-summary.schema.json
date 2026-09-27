@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/portfolio/portfolio-summary.schema.json",
+  "title": "PortfolioSummary",
+  "description": "Account-level metrics. Metrics not provided by the broker are reported as unavailable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "accountMode",
+    "netLiquidation",
+    "cash",
+    "buyingPower",
+    "excessLiquidity",
+    "dayPnl",
+    "unrealizedPnl",
+    "realizedPnl",
+    "asOf"
+  ],
+  "properties": {
+    "accountMode": {
+      "type": "string",
+      "enum": [
+        "MOCK",
+        "IBKR_PAPER"
+      ]
+    },
+    "netLiquidation": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "cash": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "buyingPower": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "excessLiquidity": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "dayPnl": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "unrealizedPnl": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "realizedPnl": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "asOf": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    }
+  }
+}

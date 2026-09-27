@@ -1,0 +1,8 @@
+{
+  "symbol": "NVDA",
+  "interval": "1m",
+  "range": "1d",
+  "source": "REPLAY",
+  "cached": true,
+  "bars": []
+}

@@ -1,0 +1,32 @@
+{
+  "id": "8a7b6c5d-4e3f-4a1b-9c8d-7e6f5a4b3c2d",
+  "symbols": [],
+  "headline": "Chipmaker beats estimates",
+  "source": "Example Wire",
+  "url": "https://news.example.com/a/1",
+  "publishedAt": "2026-09-27T14:03:11.123Z",
+  "rawSummary": "Quarterly results above expectations.",
+  "enrichment": {
+    "promptVersion": "news-insight.v1",
+    "model": "provider-model-id",
+    "modelVersion": "2026-09-01",
+    "enrichedAt": "2026-09-27T14:03:11.123Z",
+    "insight": {
+      "summary": "Revenue beat expectations; guidance raised.",
+      "sentiment": "POSITIVE",
+      "sentimentScore": 0.72,
+      "relevanceScore": 0.91,
+      "catalysts": [
+        {
+          "type": "EARNINGS",
+          "description": "Quarterly revenue above consensus."
+        }
+      ],
+      "confidence": 0.86,
+      "evidence": [
+        "8a7b6c5d-4e3f-4a1b-9c8d-7e6f5a4b3c2d"
+      ],
+      "flags": []
+    }
+  }
+}

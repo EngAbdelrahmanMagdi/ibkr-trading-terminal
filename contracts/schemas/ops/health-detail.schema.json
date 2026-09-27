@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/ops/health-detail.schema.json",
+  "title": "HealthDetail",
+  "description": "Detailed health of the realtime gateway, including its market-data connection state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "connectionState",
+    "since",
+    "activeSymbols",
+    "wsClients",
+    "lastErrorCategory"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "UP",
+        "DEGRADED",
+        "DOWN"
+      ]
+    },
+    "connectionState": {
+      "type": "string",
+      "enum": [
+        "DISCONNECTED",
+        "CONNECTING",
+        "AUTHENTICATING",
+        "READY",
+        "DEGRADED",
+        "RECONNECTING"
+      ]
+    },
+    "since": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "activeSymbols": {
+      "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+    },
+    "wsClients": {
+      "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+    },
+    "lastErrorCategory": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64
+    }
+  }
+}

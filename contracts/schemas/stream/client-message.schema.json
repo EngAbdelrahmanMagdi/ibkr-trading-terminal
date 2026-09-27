@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/client-message.schema.json",
+  "title": "ClientMessage",
+  "description": "Any message a client may send.",
+  "oneOf": [
+    {
+      "$ref": "subscribe.schema.json"
+    },
+    {
+      "$ref": "unsubscribe.schema.json"
+    }
+  ]
+}

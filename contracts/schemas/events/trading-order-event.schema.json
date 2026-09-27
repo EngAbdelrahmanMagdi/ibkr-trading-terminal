@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/trading-order-event.schema.json",
+  "title": "TradingOrderEvent",
+  "description": "Order lifecycle event (topic trading.order-events.v1, key accountId:orderId). The event type determines the order status in the payload.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    },
+    {
+      "required": [
+        "accountId",
+        "orderId",
+        "symbol"
+      ],
+      "properties": {
+        "source": {
+          "const": "trading-core"
+        },
+        "eventVersion": {
+          "const": 1
+        },
+        "eventType": {
+          "enum": [
+            "ORDER_CREATED",
+            "ORDER_SUBMISSION_PENDING",
+            "ORDER_CONFIRMATION_REQUIRED",
+            "ORDER_SUBMITTED",
+            "ORDER_PARTIALLY_FILLED",
+            "ORDER_FILLED",
+            "ORDER_CANCEL_REQUESTED",
+            "ORDER_CANCELLED",
+            "ORDER_REJECTED",
+            "ORDER_FAILED",
+            "ORDER_STATUS_UNKNOWN"
+          ]
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_CREATED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "CREATED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_SUBMISSION_PENDING"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "SUBMISSION_PENDING"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_CONFIRMATION_REQUIRED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "PENDING_CONFIRMATION"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_SUBMITTED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "SUBMITTED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_PARTIALLY_FILLED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "PARTIALLY_FILLED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_FILLED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "FILLED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_CANCEL_REQUESTED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "CANCEL_PENDING"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_CANCELLED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "CANCELLED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_REJECTED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "REJECTED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_FAILED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "FAILED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "ORDER_STATUS_UNKNOWN"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "status": {
+                "const": "UNKNOWN"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clientOrderId",
+        "brokerOrderId",
+        "status",
+        "previousStatus",
+        "intent",
+        "brokerSide",
+        "orderType",
+        "quantity",
+        "filledQuantity",
+        "limitPrice",
+        "averageFillPrice",
+        "timeInForce",
+        "reason"
+      ],
+      "properties": {
+        "clientOrderId": {
+          "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+        },
+        "brokerOrderId": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "../trading/enums.schema.json#/$defs/OrderStatus"
+        },
+        "previousStatus": {
+          "anyOf": [
+            {
+              "$ref": "../trading/enums.schema.json#/$defs/OrderStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent": {
+          "$ref": "../trading/enums.schema.json#/$defs/OrderIntent"
+        },
+        "brokerSide": {
+          "$ref": "../trading/enums.schema.json#/$defs/BrokerSide"
+        },
+        "orderType": {
+          "$ref": "../trading/enums.schema.json#/$defs/OrderType"
+        },
+        "quantity": {
+          "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+        },
+        "filledQuantity": {
+          "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+        },
+        "limitPrice": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "averageFillPrice": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeInForce": {
+          "$ref": "../trading/enums.schema.json#/$defs/TimeInForce"
+        },
+        "reason": {
+          "description": "Sanitized rejection/failure reason or broker confirmation message.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        }
+      }
+    }
+  }
+}

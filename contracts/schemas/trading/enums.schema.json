@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/trading/enums.schema.json",
+  "title": "Trading enumerations",
+  "description": "Order-related enumerations shared by the REST API and events.",
+  "$defs": {
+    "OrderIntent": {
+      "description": "What the user intends. SHORT opens or increases a short position.",
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL",
+        "SHORT"
+      ]
+    },
+    "BrokerSide": {
+      "description": "Side sent to the broker (a SHORT intent is submitted as SELL).",
+      "type": "string",
+      "enum": [
+        "BUY",
+        "SELL"
+      ]
+    },
+    "OrderType": {
+      "type": "string",
+      "enum": [
+        "MARKET",
+        "LIMIT"
+      ]
+    },
+    "TimeInForce": {
+      "type": "string",
+      "enum": [
+        "DAY",
+        "GTC"
+      ]
+    },
+    "OrderStatus": {
+      "description": "Order lifecycle status. Terminal: FILLED, CANCELLED, REJECTED, FAILED. UNKNOWN means the broker outcome is uncertain and is resolved by reconciliation, never by automatic resubmission.",
+      "type": "string",
+      "enum": [
+        "CREATED",
+        "SUBMISSION_PENDING",
+        "PENDING_CONFIRMATION",
+        "SUBMITTED",
+        "PARTIALLY_FILLED",
+        "FILLED",
+        "CANCEL_PENDING",
+        "CANCELLED",
+        "REJECTED",
+        "FAILED",
+        "UNKNOWN"
+      ]
+    }
+  }
+}

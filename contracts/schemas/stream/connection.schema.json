@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/connection.schema.json",
+  "title": "Connection",
+  "description": "Server to client: market-data connection state, sent on connect and on every change, including the effective protocol limits for this connection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "state",
+    "source",
+    "timestamp",
+    "limits"
+  ],
+  "properties": {
+    "type": {
+      "const": "connection"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "DISCONNECTED",
+        "CONNECTING",
+        "AUTHENTICATING",
+        "READY",
+        "DEGRADED",
+        "RECONNECTING"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "IBKR",
+        "REPLAY"
+      ]
+    },
+    "timestamp": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxSymbolsPerSubscribe",
+        "maxSubscribedSymbols",
+        "maxInboundMessageBytes",
+        "heartbeatIntervalMs"
+      ],
+      "properties": {
+        "maxSymbolsPerSubscribe": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxSubscribedSymbols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "maxInboundMessageBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "heartbeatIntervalMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    }
+  }
+}

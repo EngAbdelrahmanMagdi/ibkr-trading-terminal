@@ -1,0 +1,8 @@
+{
+  "symbol": "NVDA",
+  "intent": "BUY",
+  "orderType": "LIMIT",
+  "quantity": "-1",
+  "limitPrice": "184.25",
+  "timeInForce": "DAY"
+}

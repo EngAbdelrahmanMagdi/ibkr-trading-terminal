@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/broker-order-update.schema.json",
+  "title": "BrokerOrderUpdate",
+  "description": "Broker-neutral observation of an order or execution from the broker stream (topic broker.order-updates.v1, key accountId:brokerOrderId). Observations are not domain decisions; the trading core interprets them.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    },
+    {
+      "required": [
+        "accountId"
+      ],
+      "properties": {
+        "source": {
+          "const": "realtime-gateway"
+        },
+        "eventVersion": {
+          "const": 1
+        },
+        "eventType": {
+          "enum": [
+            "BROKER_ORDER_STATUS_OBSERVED",
+            "BROKER_EXECUTION_OBSERVED"
+          ]
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "const": "BROKER_EXECUTION_OBSERVED"
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "execution": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brokerOrderId",
+        "clientOrderRef",
+        "observedStatus",
+        "brokerStatusRaw",
+        "filledQuantity",
+        "remainingQuantity",
+        "averagePrice",
+        "execution",
+        "sourceTimestamp"
+      ],
+      "properties": {
+        "brokerOrderId": {
+          "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+        },
+        "clientOrderRef": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedStatus": {
+          "type": "string",
+          "enum": [
+            "WORKING",
+            "PARTIALLY_FILLED",
+            "FILLED",
+            "CANCELLED",
+            "REJECTED",
+            "INACTIVE",
+            "OTHER"
+          ]
+        },
+        "brokerStatusRaw": {
+          "description": "Original broker status label (not a raw payload).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "filledQuantity": {
+          "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+        },
+        "remainingQuantity": {
+          "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+        },
+        "averagePrice": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "brokerExecutionId",
+                "quantity",
+                "price",
+                "executedAt"
+              ],
+              "properties": {
+                "brokerExecutionId": {
+                  "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+                },
+                "quantity": {
+                  "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+                },
+                "price": {
+                  "$ref": "../common/primitives.schema.json#/$defs/Price"
+                },
+                "executedAt": {
+                  "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceTimestamp": {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+        }
+      }
+    }
+  }
+}

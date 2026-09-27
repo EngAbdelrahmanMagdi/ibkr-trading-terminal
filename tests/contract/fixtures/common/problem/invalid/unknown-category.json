@@ -1,0 +1,14 @@
+{
+  "type": "urn:problem-type:trading:validation",
+  "title": "Validation failed",
+  "status": 400,
+  "category": "OOPS",
+  "detail": "limitPrice is required for LIMIT orders",
+  "correlationId": "3f1c2a9e-4b7d-4c8e-9f0a-1b2c3d4e5f60",
+  "errors": [
+    {
+      "field": "limitPrice",
+      "message": "required"
+    }
+  ]
+}

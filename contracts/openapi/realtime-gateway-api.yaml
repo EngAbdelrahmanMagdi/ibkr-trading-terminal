@@ -1,0 +1,119 @@
+openapi: 3.1.0
+info:
+  title: Realtime Gateway HTTP API
+  version: 1.0.0
+  summary: Historical market data and health endpoints of the realtime gateway.
+  description: |
+    The browser WebSocket protocol is described separately (`contracts/asyncapi/market-stream.yaml`).
+    Prices are decimal strings and timestamps are UTC. Historical data is cached server-side, so clients never
+    need to know upstream data-provider pacing rules.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:8090
+    description: Local development
+security: []
+tags:
+  - name: market
+    description: Historical OHLCV bars.
+  - name: health
+    description: Liveness, readiness and detailed health (served on the internal port).
+paths:
+  /api/v1/market/bars:
+    get:
+      tags: [market]
+      operationId: getBars
+      summary: Historical OHLCV bars
+      description: Returns bars in ascending time order. Interval/range combinations the data source cannot serve are rejected with a `VALIDATION` problem.
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            $ref: '../schemas/common/primitives.schema.json#/$defs/Symbol'
+        - name: interval
+          in: query
+          required: true
+          schema:
+            $ref: '../schemas/market/bars-response.schema.json#/$defs/Interval'
+        - name: range
+          in: query
+          required: true
+          schema:
+            $ref: '../schemas/market/bars-response.schema.json#/$defs/Range'
+        - name: X-Correlation-Id
+          in: header
+          required: false
+          schema:
+            $ref: '../schemas/common/primitives.schema.json#/$defs/Uuid'
+      responses:
+        '200':
+          description: Bars
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarsResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /liveness:
+    get:
+      tags: [health]
+      operationId: liveness
+      summary: The process is alive
+      responses:
+        '200':
+          description: Alive
+  /readiness:
+    get:
+      tags: [health]
+      operationId: readiness
+      summary: Ready to serve market data
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready
+  /ready:
+    get:
+      tags: [health]
+      operationId: ready
+      summary: Alias of /readiness
+      responses:
+        '200':
+          description: Ready
+        '503':
+          description: Not ready
+  /health:
+    get:
+      tags: [health]
+      operationId: health
+      summary: Detailed health including the market-data connection state
+      responses:
+        '200':
+          description: Health detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDetail'
+components:
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      $ref: '../schemas/common/problem.schema.json'
+    BarsResponse:
+      $ref: '../schemas/market/bars-response.schema.json'
+    HealthDetail:
+      $ref: '../schemas/ops/health-detail.schema.json'

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/instruments/instrument.schema.json",
+  "title": "Instrument",
+  "description": "Resolved instrument metadata.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol",
+    "name",
+    "exchange",
+    "currency",
+    "assetType",
+    "shortability"
+  ],
+  "properties": {
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    },
+    "exchange": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "currency": {
+      "$ref": "../common/primitives.schema.json#/$defs/CurrencyCode"
+    },
+    "assetType": {
+      "type": "string",
+      "enum": [
+        "STK"
+      ]
+    },
+    "shortability": {
+      "$ref": "shortability.schema.json"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/watchlist/watchlist.schema.json",
+  "title": "Watchlist",
+  "description": "The persisted watchlist, ordered by position.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "items"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "symbol",
+          "position"
+        ],
+        "properties": {
+          "symbol": {
+            "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+          },
+          "position": {
+            "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+          }
+        }
+      }
+    }
+  }
+}

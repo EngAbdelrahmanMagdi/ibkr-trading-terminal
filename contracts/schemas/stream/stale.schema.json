@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/stale.schema.json",
+  "title": "Stale",
+  "description": "Server to client: symbols without fresh data within the staleness threshold. Clients must not display them as live.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "symbols",
+    "since",
+    "reason"
+  ],
+  "properties": {
+    "type": {
+      "const": "stale"
+    },
+    "symbols": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+      }
+    },
+    "since": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "NO_UPDATES",
+        "SOURCE_DISCONNECTED",
+        "SOURCE_DEGRADED"
+      ]
+    }
+  }
+}

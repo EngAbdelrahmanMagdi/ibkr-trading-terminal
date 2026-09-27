@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/watchlist/add-watchlist-item-request.schema.json",
+  "title": "AddWatchlistItemRequest",
+  "description": "Adds a symbol to the watchlist.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol"
+  ],
+  "properties": {
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    }
+  }
+}

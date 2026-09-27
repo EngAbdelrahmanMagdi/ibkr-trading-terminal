@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/snapshot.schema.json",
+  "title": "Snapshot",
+  "description": "Server to client: full current quote for a symbol, sent after subscribe and after reconnect, before incremental quotes.",
+  "allOf": [
+    {
+      "$ref": "quote-fields.schema.json#/$defs/QuoteFields"
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "snapshot"
+        }
+      }
+    }
+  ]
+}

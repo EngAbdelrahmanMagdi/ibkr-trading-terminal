@@ -1,0 +1,9 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+# Justification: health/probe endpoints take no client input, so no 4XX response is possible.
+openapi/realtime-gateway-api.yaml:
+  operation-4xx-response:
+    - '#/paths/~1liveness/get/responses'
+    - '#/paths/~1readiness/get/responses'
+    - '#/paths/~1ready/get/responses'
+    - '#/paths/~1health/get/responses'

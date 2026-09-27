@@ -1,0 +1,13 @@
+{
+  "symbol": "BRK.B",
+  "name": "Berkshire Hathaway Inc. Class B",
+  "exchange": "NYSE",
+  "currency": "USD",
+  "assetType": "OPT",
+  "shortability": {
+    "status": "UNAVAILABLE",
+    "availableQuantity": null,
+    "borrowFeeRate": null,
+    "asOf": null
+  }
+}

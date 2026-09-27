@@ -1,0 +1,20 @@
+{
+  "symbol": "NVDA",
+  "quantity": "-10",
+  "averageCost": "185.10",
+  "marketValue": {
+    "available": true,
+    "value": "-1842.3000",
+    "currency": "USD"
+  },
+  "unrealizedPnl": {
+    "available": true,
+    "value": "-125.5000",
+    "currency": "USD"
+  },
+  "realizedPnl": {
+    "available": false,
+    "value": null,
+    "currency": null
+  }
+}

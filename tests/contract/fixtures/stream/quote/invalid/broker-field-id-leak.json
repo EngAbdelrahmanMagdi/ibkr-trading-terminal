@@ -1,0 +1,14 @@
+{
+  "type": "quote",
+  "symbol": "NVDA",
+  "bid": "184.21",
+  "ask": "184.24",
+  "last": "184.23",
+  "bidSize": 300,
+  "askSize": 200,
+  "volume": 48291822,
+  "sequence": 182735,
+  "timestamp": "2026-09-27T14:03:11.123Z",
+  "stale": false,
+  "31": "184.23"
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/news-enriched.schema.json",
+  "title": "NewsEnriched",
+  "description": "AI enrichment of an article (topic news.enriched.v1, key = the source article's primary symbol).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    },
+    {
+      "required": [
+        "symbol"
+      ],
+      "properties": {
+        "source": {
+          "const": "ai-insights"
+        },
+        "eventVersion": {
+          "const": 1
+        },
+        "eventType": {
+          "const": "NEWS_ARTICLE_ENRICHED"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "articleId",
+        "contentHash",
+        "enrichment"
+      ],
+      "properties": {
+        "articleId": {
+          "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "enrichment": {
+          "$ref": "../news/enrichment.schema.json"
+        }
+      }
+    }
+  }
+}

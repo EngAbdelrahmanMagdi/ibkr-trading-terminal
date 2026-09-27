@@ -1,0 +1,20 @@
+{
+  "id": "3f1c2a9e-4b7d-4c8e-9f0a-1b2c3d4e5f60",
+  "clientOrderId": "c-20260927-0001",
+  "brokerOrderId": "987654",
+  "symbol": "NVDA",
+  "intent": "SHORT",
+  "brokerSide": "SELL",
+  "orderType": "LIMIT",
+  "quantity": "10",
+  "filledQuantity": "4",
+  "limitPrice": 184.25,
+  "averageFillPrice": "184.26",
+  "timeInForce": "DAY",
+  "status": "PARTIALLY_FILLED",
+  "pendingConfirmation": null,
+  "rejectionReason": null,
+  "createdAt": "2026-09-27T14:03:11.123Z",
+  "submittedAt": "2026-09-27T14:03:11.123Z",
+  "updatedAt": "2026-09-27T14:03:11.123Z"
+}

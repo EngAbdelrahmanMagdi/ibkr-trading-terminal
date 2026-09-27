@@ -1,0 +1,208 @@
+asyncapi: 3.1.0
+info:
+  title: Trading Platform Kafka Events
+  version: 1.0.0
+  description: |
+    Durable asynchronous events exchanged over Kafka.
+
+    - Every record value uses the standard event envelope (`events/envelope.schema.json`). Every record carries the headers `correlationId`, `eventType` and `eventVersion`.
+    - Delivery is **at-least-once**. Consumers are idempotent by `eventId` and must tolerate unknown fields and unknown event types.
+    - Each event semantic has exactly one authoritative producer.
+    - Ordering is guaranteed per record key only.
+    - Prices and monetary values are decimal strings, and timestamps are UTC.
+    - Events never contain secrets, tokens, cookies, or raw broker responses.
+    - Compatibility: within a `.vN` topic only backward-compatible changes are made, such as new optional fields or new event types. Breaking changes use a new topic version.
+    - Market quotes are not published to Kafka. They are streamed directly over WebSocket.
+  license:
+    name: Proprietary
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:19092
+    protocol: kafka
+    description: Local single-node Kafka (KRaft). Topics are provisioned explicitly; auto-creation is disabled.
+
+channels:
+  tradingOrderEvents:
+    address: trading.order-events.v1
+    title: Order lifecycle events
+    description: |
+      Order lifecycle decisions. Producer: trading core, via a transactional outbox.
+      Consumers: the realtime gateway (browser notifications only) and audit/analytics.
+      Key: `accountId:orderId`, so that all events for one order are ordered.
+    messages:
+      orderEvent:
+        $ref: '#/components/messages/TradingOrderEvent'
+  tradingExecutionEvents:
+    address: trading.execution-events.v1
+    title: Execution events
+    description: |
+      Fills recorded for orders. Producer: trading core, via a transactional outbox.
+      Consumers: the realtime gateway (browser notifications only) and audit/analytics.
+      Key: `accountId:orderId`.
+    messages:
+      executionEvent:
+        $ref: '#/components/messages/TradingExecutionEvent'
+  brokerOrderUpdates:
+    address: broker.order-updates.v1
+    title: Broker order observations
+    description: |
+      Broker-neutral observations from the broker order stream. They are not domain decisions.
+      Producer: realtime gateway. Consumer: trading core, which reconciles them into order state.
+      Key: `accountId:brokerOrderId`. Missed observations are recovered by periodic reconciliation with the broker.
+    messages:
+      brokerOrderUpdate:
+        $ref: '#/components/messages/BrokerOrderUpdate'
+  newsRaw:
+    address: news.raw.v1
+    title: Normalized news
+    description: |
+      Deduplicated, normalized news articles. Producer: trading core, via a transactional outbox.
+      Consumer: the AI insights worker. Key: the article's primary symbol.
+    messages:
+      newsRaw:
+        $ref: '#/components/messages/NewsRaw'
+  newsEnriched:
+    address: news.enriched.v1
+    title: Enriched news
+    description: |
+      Structured AI enrichment of articles. Producer: AI insights worker. Consumer: trading core.
+      Key: the source article's primary symbol.
+    messages:
+      newsEnriched:
+        $ref: '#/components/messages/NewsEnriched'
+  newsEnrichedDlq:
+    address: news.enriched.v1.dlq
+    title: Dead letters for enriched news
+    description: |
+      Enriched events the trading core could not persist after bounded retries. Records keep the original key, value and headers,
+      plus `dlq.reason`, `dlq.consumer`, `dlq.failedAt`, `dlq.sourceTopic`, `dlq.partition` and `dlq.offset` headers.
+      They are replayed manually after inspection.
+    messages:
+      newsEnrichedDeadLetter:
+        $ref: '#/components/messages/NewsEnriched'
+
+operations:
+  publishOrderEvents:
+    action: send
+    channel:
+      $ref: '#/channels/tradingOrderEvents'
+    summary: The trading core publishes order lifecycle events.
+  consumeOrderEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/tradingOrderEvents'
+    summary: The realtime gateway consumes order events to notify browsers.
+  publishExecutionEvents:
+    action: send
+    channel:
+      $ref: '#/channels/tradingExecutionEvents'
+    summary: The trading core publishes execution events.
+  consumeExecutionEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/tradingExecutionEvents'
+    summary: The realtime gateway consumes execution events to notify browsers.
+  publishBrokerOrderUpdates:
+    action: send
+    channel:
+      $ref: '#/channels/brokerOrderUpdates'
+    summary: The realtime gateway publishes broker order observations.
+  consumeBrokerOrderUpdates:
+    action: receive
+    channel:
+      $ref: '#/channels/brokerOrderUpdates'
+    summary: The trading core applies broker observations idempotently.
+  publishNewsRaw:
+    action: send
+    channel:
+      $ref: '#/channels/newsRaw'
+    summary: The trading core publishes normalized news.
+  consumeNewsRaw:
+    action: receive
+    channel:
+      $ref: '#/channels/newsRaw'
+    summary: The AI insights worker enriches news asynchronously.
+  publishNewsEnriched:
+    action: send
+    channel:
+      $ref: '#/channels/newsEnriched'
+    summary: The AI insights worker publishes validated structured insights.
+  consumeNewsEnriched:
+    action: receive
+    channel:
+      $ref: '#/channels/newsEnriched'
+    summary: The trading core persists insights idempotently.
+  publishNewsEnrichedDeadLetters:
+    action: send
+    channel:
+      $ref: '#/channels/newsEnrichedDlq'
+    summary: The trading core routes permanently failing enriched events to the dead-letter topic.
+
+components:
+  messages:
+    TradingOrderEvent:
+      name: TradingOrderEvent
+      title: Order lifecycle event
+      headers:
+        $ref: '../schemas/events/kafka-headers.schema.json'
+      payload:
+        $ref: '../schemas/events/trading-order-event.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: accountId:orderId
+          bindingVersion: '0.5.0'
+    TradingExecutionEvent:
+      name: TradingExecutionEvent
+      title: Execution event
+      headers:
+        $ref: '../schemas/events/kafka-headers.schema.json'
+      payload:
+        $ref: '../schemas/events/trading-execution-event.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: accountId:orderId
+          bindingVersion: '0.5.0'
+    BrokerOrderUpdate:
+      name: BrokerOrderUpdate
+      title: Broker order observation
+      headers:
+        $ref: '../schemas/events/kafka-headers.schema.json'
+      payload:
+        $ref: '../schemas/events/broker-order-update.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: accountId:brokerOrderId
+          bindingVersion: '0.5.0'
+    NewsRaw:
+      name: NewsRaw
+      title: Normalized news article
+      headers:
+        $ref: '../schemas/events/kafka-headers.schema.json'
+      payload:
+        $ref: '../schemas/events/news-raw.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: primary symbol
+          bindingVersion: '0.5.0'
+    NewsEnriched:
+      name: NewsEnriched
+      title: Enriched news article
+      headers:
+        $ref: '../schemas/events/kafka-headers.schema.json'
+      payload:
+        $ref: '../schemas/events/news-enriched.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: primary symbol of the source article
+          bindingVersion: '0.5.0'

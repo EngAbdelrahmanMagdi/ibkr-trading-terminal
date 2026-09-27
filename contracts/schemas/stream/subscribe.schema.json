@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/subscribe.schema.json",
+  "title": "Subscribe",
+  "description": "Client to server: subscribe to symbols. The server enforces configurable limits (advertised in the connection message) and replies with an error when they are exceeded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "symbols"
+  ],
+  "properties": {
+    "type": {
+      "const": "subscribe"
+    },
+    "symbols": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+      }
+    }
+  }
+}

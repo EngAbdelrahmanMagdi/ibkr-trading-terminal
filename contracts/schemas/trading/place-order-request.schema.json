@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/trading/place-order-request.schema.json",
+  "title": "PlaceOrderRequest",
+  "description": "Order placement request. LIMIT orders require limitPrice; MARKET orders must not include it. Backend validation is authoritative (e.g. quantity > 0, tick size, configured limits).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol",
+    "intent",
+    "orderType",
+    "quantity",
+    "timeInForce"
+  ],
+  "properties": {
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "intent": {
+      "$ref": "enums.schema.json#/$defs/OrderIntent"
+    },
+    "orderType": {
+      "$ref": "enums.schema.json#/$defs/OrderType"
+    },
+    "quantity": {
+      "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+    },
+    "limitPrice": {
+      "$ref": "../common/primitives.schema.json#/$defs/Price"
+    },
+    "timeInForce": {
+      "$ref": "enums.schema.json#/$defs/TimeInForce"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "orderType": {
+            "const": "LIMIT"
+          }
+        },
+        "required": [
+          "orderType"
+        ]
+      },
+      "then": {
+        "required": [
+          "limitPrice"
+        ],
+        "properties": {
+          "limitPrice": {
+            "$ref": "../common/primitives.schema.json#/$defs/Price"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "orderType": {
+            "const": "MARKET"
+          }
+        },
+        "required": [
+          "orderType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "limitPrice": false
+        }
+      }
+    }
+  ]
+}

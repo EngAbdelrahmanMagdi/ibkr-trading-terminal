@@ -1,0 +1,17 @@
+{
+  "symbol": "NVDA",
+  "interval": "2m",
+  "range": "1d",
+  "source": "REPLAY",
+  "cached": true,
+  "bars": [
+    {
+      "time": "2026-09-27T14:03:00Z",
+      "open": "184.10",
+      "high": "184.40",
+      "low": "184.00",
+      "close": "184.23",
+      "volume": 48291822
+    }
+  ]
+}

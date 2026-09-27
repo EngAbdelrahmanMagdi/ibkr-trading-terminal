@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/common/primitives.schema.json",
+  "title": "Primitives",
+  "description": "Shared primitive types. Monetary values and prices are decimal strings; integers never exceed 2^53-1 so that every language (including JavaScript) represents them exactly; timestamps are UTC.",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "UtcTimestamp": {
+      "description": "RFC 3339 date-time in UTC with a trailing 'Z'.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "Symbol": {
+      "description": "Ticker symbol (upper case).",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9.-]{0,11}$"
+    },
+    "Price": {
+      "description": "Non-negative decimal string, up to 13 integer and 6 fractional digits.",
+      "type": "string",
+      "pattern": "^[0-9]{1,13}(\\.[0-9]{1,6})?$"
+    },
+    "Quantity": {
+      "description": "Non-negative decimal string, up to 15 integer and 4 fractional digits.",
+      "type": "string",
+      "pattern": "^[0-9]{1,15}(\\.[0-9]{1,4})?$"
+    },
+    "SignedQuantity": {
+      "description": "Signed decimal string (negative for short positions).",
+      "type": "string",
+      "pattern": "^-?[0-9]{1,15}(\\.[0-9]{1,4})?$"
+    },
+    "Money": {
+      "description": "Non-negative monetary decimal string, up to 15 integer and 4 fractional digits.",
+      "type": "string",
+      "pattern": "^[0-9]{1,15}(\\.[0-9]{1,4})?$"
+    },
+    "SignedMoney": {
+      "description": "Signed monetary decimal string (e.g. P&L).",
+      "type": "string",
+      "pattern": "^-?[0-9]{1,15}(\\.[0-9]{1,4})?$"
+    },
+    "Rate": {
+      "description": "Signed decimal rate in percent (e.g. an annualized borrow fee).",
+      "type": "string",
+      "pattern": "^-?[0-9]{1,6}(\\.[0-9]{1,6})?$"
+    },
+    "CurrencyCode": {
+      "description": "ISO 4217 currency code.",
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "SafeCount": {
+      "description": "Non-negative integer within the exactly representable range of IEEE-754 doubles.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "AccountId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "Identifier": {
+      "description": "Opaque identifier (e.g. broker order id, client order id).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$"
+    }
+  }
+}

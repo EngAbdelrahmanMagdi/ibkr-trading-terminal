@@ -1,0 +1,20 @@
+{
+  "id": "3f1c2a9e-4b7d-4c8e-9f0a-1b2c3d4e5f60",
+  "clientOrderId": "c-20260927-0001",
+  "brokerOrderId": null,
+  "symbol": "NVDA",
+  "intent": "BUY",
+  "brokerSide": "BUY",
+  "orderType": "MARKET",
+  "quantity": "10",
+  "filledQuantity": "0",
+  "limitPrice": null,
+  "averageFillPrice": null,
+  "timeInForce": "DAY",
+  "status": "CREATED",
+  "pendingConfirmation": null,
+  "rejectionReason": null,
+  "createdAt": "2026-09-27T14:03:11.123Z",
+  "submittedAt": null,
+  "updatedAt": "2026-09-27T14:03:11.123Z"
+}

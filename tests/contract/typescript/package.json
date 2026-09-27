@@ -1,0 +1,19 @@
+{
+  "name": "contract-tests-typescript",
+  "private": true,
+  "description": "Contract tests: canonical JSON Schemas vs. golden fixtures (TypeScript).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && node --test contract.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "typescript": "7.0.2"
+  }
+}

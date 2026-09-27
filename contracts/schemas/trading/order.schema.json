@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/trading/order.schema.json",
+  "title": "Order",
+  "description": "Order resource. A PENDING_CONFIRMATION order carries the broker's confirmation message.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "clientOrderId",
+    "brokerOrderId",
+    "symbol",
+    "intent",
+    "brokerSide",
+    "orderType",
+    "quantity",
+    "filledQuantity",
+    "limitPrice",
+    "averageFillPrice",
+    "timeInForce",
+    "status",
+    "pendingConfirmation",
+    "rejectionReason",
+    "createdAt",
+    "submittedAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "clientOrderId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+    },
+    "brokerOrderId": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "intent": {
+      "$ref": "enums.schema.json#/$defs/OrderIntent"
+    },
+    "brokerSide": {
+      "$ref": "enums.schema.json#/$defs/BrokerSide"
+    },
+    "orderType": {
+      "$ref": "enums.schema.json#/$defs/OrderType"
+    },
+    "quantity": {
+      "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+    },
+    "filledQuantity": {
+      "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+    },
+    "limitPrice": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "averageFillPrice": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timeInForce": {
+      "$ref": "enums.schema.json#/$defs/TimeInForce"
+    },
+    "status": {
+      "$ref": "enums.schema.json#/$defs/OrderStatus"
+    },
+    "pendingConfirmation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "message"
+          ],
+          "properties": {
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rejectionReason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    },
+    "createdAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "submittedAt": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "updatedAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PENDING_CONFIRMATION"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "pendingConfirmation": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "not-a-uuid",
+  "items": [
+    {
+      "symbol": "NVDA",
+      "position": 0
+    },
+    {
+      "symbol": "META",
+      "position": 1
+    }
+  ]
+}

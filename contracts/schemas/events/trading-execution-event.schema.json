@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/trading-execution-event.schema.json",
+  "title": "TradingExecutionEvent",
+  "description": "Execution (fill) recorded for an order (topic trading.execution-events.v1, key accountId:orderId).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    },
+    {
+      "required": [
+        "accountId",
+        "orderId",
+        "symbol"
+      ],
+      "properties": {
+        "source": {
+          "const": "trading-core"
+        },
+        "eventVersion": {
+          "const": 1
+        },
+        "eventType": {
+          "const": "EXECUTION_RECORDED"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executionId",
+        "brokerExecutionId",
+        "side",
+        "quantity",
+        "price",
+        "commission",
+        "currency",
+        "executedAt"
+      ],
+      "properties": {
+        "executionId": {
+          "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+        },
+        "brokerExecutionId": {
+          "$ref": "../common/primitives.schema.json#/$defs/Identifier"
+        },
+        "side": {
+          "$ref": "../trading/enums.schema.json#/$defs/BrokerSide"
+        },
+        "quantity": {
+          "$ref": "../common/primitives.schema.json#/$defs/Quantity"
+        },
+        "price": {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        "commission": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "currency": {
+          "$ref": "../common/primitives.schema.json#/$defs/CurrencyCode"
+        },
+        "executedAt": {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+        }
+      }
+    }
+  }
+}

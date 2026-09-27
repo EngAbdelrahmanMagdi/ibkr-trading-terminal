@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/order-update.schema.json",
+  "title": "OrderUpdate",
+  "description": "Server to client: lightweight order notification. A hint to refetch orders, executions, positions and portfolio over REST; not a source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "orderId",
+    "eventType",
+    "status",
+    "occurredAt"
+  ],
+  "properties": {
+    "type": {
+      "const": "order-update"
+    },
+    "orderId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "ORDER_CREATED",
+        "ORDER_SUBMISSION_PENDING",
+        "ORDER_CONFIRMATION_REQUIRED",
+        "ORDER_SUBMITTED",
+        "ORDER_PARTIALLY_FILLED",
+        "ORDER_FILLED",
+        "ORDER_CANCEL_REQUESTED",
+        "ORDER_CANCELLED",
+        "ORDER_REJECTED",
+        "ORDER_FAILED",
+        "ORDER_STATUS_UNKNOWN",
+        "EXECUTION_RECORDED"
+      ]
+    },
+    "status": {
+      "$ref": "../trading/enums.schema.json#/$defs/OrderStatus"
+    },
+    "occurredAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    }
+  }
+}

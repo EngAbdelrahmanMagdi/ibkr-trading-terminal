@@ -1,0 +1,8 @@
+{
+  "status": "DEGRADED",
+  "connectionState": "RECONNECTING",
+  "since": "2026-09-27T14:03:11.123Z",
+  "activeSymbols": 4,
+  "wsClients": 2,
+  "lastErrorCategory": "BROKER_UNAVAILABLE"
+}

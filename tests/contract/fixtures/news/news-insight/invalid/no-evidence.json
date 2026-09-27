@@ -1,0 +1,15 @@
+{
+  "summary": "Revenue beat expectations; guidance raised.",
+  "sentiment": "POSITIVE",
+  "sentimentScore": 0.72,
+  "relevanceScore": 0.91,
+  "catalysts": [
+    {
+      "type": "EARNINGS",
+      "description": "Quarterly revenue above consensus."
+    }
+  ],
+  "confidence": 0.86,
+  "evidence": [],
+  "flags": []
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/portfolio/optional-metric.schema.json",
+  "title": "OptionalMetric",
+  "description": "A metric that may be unavailable from the broker. Unavailable metrics are never estimated: available=false and value=null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "available",
+    "value",
+    "currency"
+  ],
+  "properties": {
+    "available": {
+      "type": "boolean"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/SignedMoney"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "currency": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/CurrencyCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "available": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "$ref": "../common/primitives.schema.json#/$defs/SignedMoney"
+          },
+          "currency": {
+            "$ref": "../common/primitives.schema.json#/$defs/CurrencyCode"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "available": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

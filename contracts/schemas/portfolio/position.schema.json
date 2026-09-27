@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/portfolio/position.schema.json",
+  "title": "Position",
+  "description": "Current position in an instrument. Negative quantity means short.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol",
+    "quantity",
+    "averageCost",
+    "marketValue",
+    "unrealizedPnl",
+    "realizedPnl"
+  ],
+  "properties": {
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "quantity": {
+      "$ref": "../common/primitives.schema.json#/$defs/SignedQuantity"
+    },
+    "averageCost": {
+      "$ref": "../common/primitives.schema.json#/$defs/Price"
+    },
+    "marketValue": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "unrealizedPnl": {
+      "$ref": "optional-metric.schema.json"
+    },
+    "realizedPnl": {
+      "$ref": "optional-metric.schema.json"
+    }
+  }
+}

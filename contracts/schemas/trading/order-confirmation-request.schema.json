@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/trading/order-confirmation-request.schema.json",
+  "title": "OrderConfirmationRequest",
+  "description": "Confirms or declines a pending broker confirmation message for an order in PENDING_CONFIRMATION.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "confirm"
+  ],
+  "properties": {
+    "confirm": {
+      "type": "boolean"
+    }
+  }
+}

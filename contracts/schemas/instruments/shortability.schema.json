@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/instruments/shortability.schema.json",
+  "title": "Shortability",
+  "description": "Shortability as reported by the broker; never invented. NOT_SHORTABLE: short orders are rejected before submission. UNAVAILABLE (no data, lookup failure, or stale data): short orders are allowed and the broker remains the final authority. Details are present only when the broker provides them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "availableQuantity",
+    "borrowFeeRate",
+    "asOf"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "SHORTABLE",
+        "NOT_SHORTABLE",
+        "UNAVAILABLE"
+      ]
+    },
+    "availableQuantity": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "borrowFeeRate": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/Rate"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "asOf": {
+      "anyOf": [
+        {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "UNAVAILABLE"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "availableQuantity": {
+            "type": "null"
+          },
+          "borrowFeeRate": {
+            "type": "null"
+          },
+          "asOf": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

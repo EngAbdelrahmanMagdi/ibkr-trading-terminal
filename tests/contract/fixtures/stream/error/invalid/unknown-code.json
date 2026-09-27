@@ -1,0 +1,8 @@
+{
+  "type": "error",
+  "code": "TEAPOT",
+  "message": "Subscription limit exceeded",
+  "symbols": [
+    "IONQ"
+  ]
+}

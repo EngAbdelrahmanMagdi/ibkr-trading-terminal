@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/news/news-insight.schema.json",
+  "title": "NewsInsight",
+  "description": "Structured AI analysis of a single article. Evidence references the analysed article. Scores are informational only and never drive trading actions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "sentiment",
+    "sentimentScore",
+    "relevanceScore",
+    "catalysts",
+    "confidence",
+    "evidence",
+    "flags"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "sentiment": {
+      "type": "string",
+      "enum": [
+        "POSITIVE",
+        "NEGATIVE",
+        "NEUTRAL",
+        "MIXED"
+      ]
+    },
+    "sentimentScore": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+    },
+    "relevanceScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "catalysts": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "description"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "EARNINGS",
+              "GUIDANCE",
+              "M_AND_A",
+              "ANALYST_RATING",
+              "REGULATORY",
+              "PRODUCT",
+              "MANAGEMENT",
+              "MACRO",
+              "OTHER"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+      }
+    },
+    "flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "LOW_CONFIDENCE",
+          "UNSUPPORTED_NUMBER",
+          "SYMBOL_MISMATCH"
+        ]
+      }
+    }
+  }
+}

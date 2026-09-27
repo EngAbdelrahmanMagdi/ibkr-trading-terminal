@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/quote-fields.schema.json",
+  "title": "QuoteFields",
+  "description": "Normalized quote as sent to browsers (definitions only). Missing values are null (not yet available), never 0.",
+  "$defs": {
+    "QuoteFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "symbol",
+        "bid",
+        "ask",
+        "last",
+        "bidSize",
+        "askSize",
+        "volume",
+        "sequence",
+        "timestamp",
+        "stale"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "snapshot",
+            "quote"
+          ]
+        },
+        "symbol": {
+          "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+        },
+        "bid": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ask": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/Price"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bidSize": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "askSize": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sequence": {
+          "$ref": "../common/primitives.schema.json#/$defs/SafeCount",
+          "description": "Monotonically increasing per symbol; clients drop older sequences."
+        },
+        "timestamp": {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp",
+          "description": "Source timestamp (UTC)."
+        },
+        "stale": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

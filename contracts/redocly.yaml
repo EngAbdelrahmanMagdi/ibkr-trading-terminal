@@ -1,0 +1,11 @@
+# Redocly CLI lint configuration for the OpenAPI contracts.
+# Deviations from the `recommended` ruleset are listed with their reason.
+extends:
+  - recommended
+rules:
+  # Local-development server URLs (localhost) are intentional in these contracts;
+  # environment-specific servers are injected at deploy time.
+  no-server-example.com: off
+  # Every operation must declare 4XX responses. The only exemptions are the input-less
+  # health/probe endpoints of the Realtime Gateway, recorded in .redocly.lint-ignore.yaml.
+  operation-4xx-response: error

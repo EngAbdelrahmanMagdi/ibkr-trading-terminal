@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/stream/quote.schema.json",
+  "title": "Quote",
+  "description": "Server to client: coalesced quote update (latest value wins).",
+  "allOf": [
+    {
+      "$ref": "quote-fields.schema.json#/$defs/QuoteFields"
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "quote"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+asyncapi: 3.1.0
+info:
+  title: Realtime Gateway WebSocket Protocol
+  version: 1.0.0
+  description: |
+    Browser ↔ realtime gateway protocol for market data, connection state and order notifications.
+
+    **Framing.** JSON text frames. Every message has a `type` discriminator. Clients must ignore unknown message types.
+
+    **Data.**
+    - Prices are decimal strings, integers never exceed 2^53-1, and timestamps are UTC.
+    - Broker-specific field identifiers never appear in messages.
+    - Quotes are coalesced: the latest value wins per symbol, and `sequence` increases monotonically per symbol, so clients drop older sequences.
+    - After every (re)subscription the server sends a `snapshot` before incremental `quote` messages.
+    - Symbols without fresh data are reported with `stale`, and clients must not display them as live.
+
+    **Limits.** Operational limits are server configuration, not protocol constants. The effective values for a connection are advertised in the `connection` message (`limits`). The defaults, which can be changed per deployment, are:
+
+    | Limit | Default | Rationale |
+    |---|---|---|
+    | `maxSymbolsPerSubscribe` | 50 | Keeps a subscribe message well under 1 KiB; larger watchlists use several messages |
+    | `maxSubscribedSymbols` | 100 | Matches the default number of simultaneous market-data lines of the upstream broker account |
+    | `maxInboundMessageBytes` | 4096 | Several times the largest valid client message |
+    | `heartbeatIntervalMs` | 15000 | Well below the common 60 s idle timeout of reverse proxies and load balancers; clients treat about three missed heartbeats as a dead connection |
+
+    Exceeding a limit produces an `error` message (`SUBSCRIPTION_LIMIT`, `MESSAGE_TOO_LARGE` or `RATE_LIMITED`). Persistent abuse closes the connection.
+
+    **Close codes (RFC 6455):**
+    - 1000: normal closure.
+    - 1001: server shutting down.
+    - 1008: policy violation (for example a disallowed origin).
+    - 1009: message too big.
+    - 1011: internal error.
+    - 1013: try again later (overload or a slow consumer).
+  license:
+    name: Proprietary
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:8090
+    pathname: /ws
+    protocol: ws
+    description: Local development (wss:// behind TLS elsewhere).
+
+channels:
+  marketStream:
+    address: /ws
+    title: Market stream
+    messages:
+      subscribe:
+        $ref: '#/components/messages/Subscribe'
+      unsubscribe:
+        $ref: '#/components/messages/Unsubscribe'
+      connection:
+        $ref: '#/components/messages/Connection'
+      snapshot:
+        $ref: '#/components/messages/Snapshot'
+      quote:
+        $ref: '#/components/messages/Quote'
+      stale:
+        $ref: '#/components/messages/Stale'
+      error:
+        $ref: '#/components/messages/Error'
+      heartbeat:
+        $ref: '#/components/messages/Heartbeat'
+      orderUpdate:
+        $ref: '#/components/messages/OrderUpdate'
+
+operations:
+  receiveClientMessages:
+    action: receive
+    channel:
+      $ref: '#/channels/marketStream'
+    summary: The gateway receives subscription commands from the browser.
+    messages:
+      - $ref: '#/channels/marketStream/messages/subscribe'
+      - $ref: '#/channels/marketStream/messages/unsubscribe'
+  sendServerMessages:
+    action: send
+    channel:
+      $ref: '#/channels/marketStream'
+    summary: The gateway sends connection state, market data and order notifications to the browser.
+    messages:
+      - $ref: '#/channels/marketStream/messages/connection'
+      - $ref: '#/channels/marketStream/messages/snapshot'
+      - $ref: '#/channels/marketStream/messages/quote'
+      - $ref: '#/channels/marketStream/messages/stale'
+      - $ref: '#/channels/marketStream/messages/error'
+      - $ref: '#/channels/marketStream/messages/heartbeat'
+      - $ref: '#/channels/marketStream/messages/orderUpdate'
+
+components:
+  messages:
+    Subscribe:
+      name: subscribe
+      summary: Client to server. Subscribe to symbols.
+      payload:
+        $ref: '../schemas/stream/subscribe.schema.json'
+    Unsubscribe:
+      name: unsubscribe
+      summary: Client to server. Unsubscribe from symbols.
+      payload:
+        $ref: '../schemas/stream/unsubscribe.schema.json'
+    Connection:
+      name: connection
+      summary: Server to client. Connection state and effective limits.
+      payload:
+        $ref: '../schemas/stream/connection.schema.json'
+    Snapshot:
+      name: snapshot
+      summary: Server to client. Full current quote for a symbol.
+      payload:
+        $ref: '../schemas/stream/snapshot.schema.json'
+    Quote:
+      name: quote
+      summary: Server to client. Coalesced quote update.
+      payload:
+        $ref: '../schemas/stream/quote.schema.json'
+    Stale:
+      name: stale
+      summary: Server to client. Symbols without fresh data.
+      payload:
+        $ref: '../schemas/stream/stale.schema.json'
+    Error:
+      name: error
+      summary: Server to client. Recoverable protocol or subscription error.
+      payload:
+        $ref: '../schemas/stream/error.schema.json'
+    Heartbeat:
+      name: heartbeat
+      summary: Server to client. Liveness signal.
+      payload:
+        $ref: '../schemas/stream/heartbeat.schema.json'
+    OrderUpdate:
+      name: order-update
+      summary: Server to client. Order notification; clients refetch from the REST API.
+      payload:
+        $ref: '../schemas/stream/order-update.schema.json'

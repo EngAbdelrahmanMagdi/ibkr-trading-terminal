@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "Standard envelope for every Kafka event. eventId is stable across redelivery and is the consumer idempotency key. Events never contain secrets, tokens, cookies, or raw broker responses. Producers validate strictly; consumers must tolerate unknown fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "source",
+    "correlationId",
+    "payload"
+  ],
+  "properties": {
+    "eventId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+    },
+    "eventVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "occurredAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "trading-core",
+        "realtime-gateway",
+        "ai-insights"
+      ]
+    },
+    "correlationId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "accountId": {
+      "$ref": "../common/primitives.schema.json#/$defs/AccountId"
+    },
+    "orderId": {
+      "$ref": "../common/primitives.schema.json#/$defs/Uuid"
+    },
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}

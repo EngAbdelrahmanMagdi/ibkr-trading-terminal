@@ -1,0 +1,8 @@
+{
+  "type": "error",
+  "code": "SUBSCRIPTION_LIMIT",
+  "message": "Subscription limit exceeded",
+  "symbols": [
+    "IONQ"
+  ]
+}

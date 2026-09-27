@@ -66,6 +66,15 @@ flowchart LR
 - **Bounded everything:** every queue, buffer, and retry has a limit. Every network call has a timeout, and every external provider is rate-limited.
 - **Ports and adapters:** broker and market-data integrations sit behind interfaces, so the simulator and IBKR paper adapters are interchangeable.
 
+## API and event contracts
+
+The REST APIs, the Kafka events and the WebSocket protocol are specified contract-first:
+- `contracts/schemas/` holds JSON Schema 2020-12 files, the single source of truth for every message.
+- The OpenAPI 3.1 and AsyncAPI 3.1 documents reference those files instead of repeating them.
+- Contract tests in Java, Go, Python and TypeScript check that every language accepts and rejects exactly the same golden fixtures, and that serialization keeps decimal prices and large integers exact.
+
+See [`contracts/README.md`](contracts/README.md) and [`tests/contract/README.md`](tests/contract/README.md).
+
 ## Technology
 
 Java · Spring Boot · Go · Python · TypeScript · Next.js · React · PostgreSQL · Redis · Apache Kafka (KRaft) · OpenTelemetry · Prometheus · Grafana · Docker Compose
@@ -129,8 +138,10 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|
 | `make up` / `make up-obs` | Start the core infrastructure, or add the observability stack |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
+| `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
+| `make test` | Run the contract tests, then the infrastructure verification |
 | `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
-| `make lint` | Validate the Compose configuration and run shellcheck |
+| `make lint` | Validate the Compose configuration, run shellcheck, and lint the API contracts |
 | `make security` | Scan git history and every file that would be committed for secrets (gitleaks) |
 | `make down` | Stop the containers and keep the data |
 | `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |

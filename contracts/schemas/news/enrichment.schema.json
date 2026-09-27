@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/news/enrichment.schema.json",
+  "title": "Enrichment",
+  "description": "AI enrichment of an article, with the prompt and model versions that produced it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "promptVersion",
+    "model",
+    "modelVersion",
+    "enrichedAt",
+    "insight"
+  ],
+  "properties": {
+    "promptVersion": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,64}$"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "modelVersion": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128
+    },
+    "enrichedAt": {
+      "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"
+    },
+    "insight": {
+      "$ref": "news-insight.schema.json"
+    }
+  }
+}

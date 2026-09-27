@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/market/bars-response.schema.json",
+  "title": "BarsResponse",
+  "description": "Historical OHLCV bars in ascending time order. Unsupported interval/range combinations are rejected with a VALIDATION problem.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol",
+    "interval",
+    "range",
+    "source",
+    "cached",
+    "bars"
+  ],
+  "properties": {
+    "symbol": {
+      "$ref": "../common/primitives.schema.json#/$defs/Symbol"
+    },
+    "interval": {
+      "$ref": "#/$defs/Interval"
+    },
+    "range": {
+      "$ref": "#/$defs/Range"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "IBKR",
+        "REPLAY"
+      ]
+    },
+    "cached": {
+      "type": "boolean"
+    },
+    "bars": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Bar"
+      }
+    }
+  },
+  "$defs": {
+    "Interval": {
+      "type": "string",
+      "enum": [
+        "1m",
+        "5m",
+        "15m",
+        "1h",
+        "1d"
+      ]
+    },
+    "Range": {
+      "type": "string",
+      "enum": [
+        "1d",
+        "5d",
+        "1mo",
+        "3mo",
+        "1y"
+      ]
+    },
+    "Bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume"
+      ],
+      "properties": {
+        "time": {
+          "$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp",
+          "description": "Bar open time (UTC)."
+        },
+        "open": {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        "high": {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        "low": {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        "close": {
+          "$ref": "../common/primitives.schema.json#/$defs/Price"
+        },
+        "volume": {
+          "$ref": "../common/primitives.schema.json#/$defs/SafeCount"
+        }
+      }
+    }
+  }
+}

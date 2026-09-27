@@ -1,0 +1,7 @@
+{
+  "symbol": "AAPL",
+  "intent": "SHORT",
+  "orderType": "MARKET",
+  "quantity": "5",
+  "timeInForce": "DAY"
+}

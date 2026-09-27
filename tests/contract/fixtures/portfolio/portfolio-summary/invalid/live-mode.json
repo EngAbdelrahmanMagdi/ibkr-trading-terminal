@@ -1,0 +1,39 @@
+{
+  "accountMode": "LIVE",
+  "netLiquidation": {
+    "available": true,
+    "value": "100000.0000",
+    "currency": "USD"
+  },
+  "cash": {
+    "available": true,
+    "value": "50000.0000",
+    "currency": "USD"
+  },
+  "buyingPower": {
+    "available": false,
+    "value": null,
+    "currency": null
+  },
+  "excessLiquidity": {
+    "available": false,
+    "value": null,
+    "currency": null
+  },
+  "dayPnl": {
+    "available": true,
+    "value": "-125.5000",
+    "currency": "USD"
+  },
+  "unrealizedPnl": {
+    "available": true,
+    "value": "-125.5000",
+    "currency": "USD"
+  },
+  "realizedPnl": {
+    "available": false,
+    "value": null,
+    "currency": null
+  },
+  "asOf": "2026-09-27T14:03:11.123Z"
+}

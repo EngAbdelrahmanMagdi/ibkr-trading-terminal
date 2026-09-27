@@ -1,0 +1,13 @@
+{
+  "type": "urn:problem-type:trading:validation",
+  "title": "Validation failed",
+  "status": 400,
+  "category": "VALIDATION",
+  "detail": "limitPrice is required for LIMIT orders",
+  "errors": [
+    {
+      "field": "limitPrice",
+      "message": "required"
+    }
+  ]
+}

@@ -1,0 +1,402 @@
+openapi: 3.1.0
+info:
+  title: Trading Core API
+  version: 1.0.0
+  summary: REST API for orders, portfolio, positions, executions, watchlist, instruments and news.
+  description: |
+    Conventions:
+    - Prices, quantities and monetary values are **decimal strings** (for example `"184.23"`). Integers never exceed 2^53-1.
+    - Timestamps are RFC 3339 in **UTC** with a trailing `Z`.
+    - Errors use the `Problem` body with a stable `category`. Stack traces and internal details are never returned.
+    - Clients may send `X-Correlation-Id` (UUID) per user action. It is echoed in error bodies and used for tracing only.
+    - All message shapes are defined once, as JSON Schema 2020-12 files under `contracts/schemas/`.
+
+    Order placement is idempotent: every `POST /api/v1/orders` carries an `Idempotency-Key` (UUID) that the client reuses when it retries the same order intent.
+    - Repeating a request with the same key and the same body returns the originally stored response and never creates a second order.
+    - Reusing a key with a different body returns `409 CONFLICT`.
+    - The server never retries a broker submission automatically.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:8080
+    description: Local development
+security: []
+tags:
+  - name: portfolio
+    description: Account metrics and positions. Metrics the broker does not provide are reported as unavailable, never estimated.
+  - name: orders
+    description: Order placement, broker confirmation and cancellation.
+  - name: executions
+    description: Fills recorded for orders.
+  - name: watchlist
+    description: The persisted watchlist.
+  - name: instruments
+    description: Instrument search and metadata, including shortability.
+  - name: news
+    description: Normalized news articles, with AI enrichment when available.
+paths:
+  /api/v1/portfolio:
+    get:
+      tags: [portfolio]
+      operationId: getPortfolio
+      summary: Portfolio summary and account metrics
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSummary'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/positions:
+    get:
+      tags: [portfolio]
+      operationId: listPositions
+      summary: Current positions
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Position'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/orders:
+    get:
+      tags: [orders]
+      operationId: listOrders
+      summary: List orders, newest first
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: status
+          in: query
+          required: false
+          description: Only return orders in these statuses.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/OrderStatus'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [orders]
+      operationId: placeOrder
+      summary: Place an order (idempotent)
+      description: |
+        Validates the request, records the order intent, and submits it to the broker once.
+        - `201`: the broker accepted or definitively rejected the order.
+        - `202`: the order is waiting for confirmation (`PENDING_CONFIRMATION`), or the broker outcome is being verified (`UNKNOWN`).
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '202':
+          description: Order awaiting confirmation or outcome verification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/orders/{id}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    delete:
+      tags: [orders]
+      operationId: cancelOrder
+      summary: Request cancellation of an open order
+      description: The order moves to `CANCEL_PENDING` until the broker confirms the cancellation. Fills that arrive before that are still applied.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: Cancellation requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/orders/{id}/confirmation:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    post:
+      tags: [orders]
+      operationId: confirmOrder
+      summary: Confirm or decline a pending broker confirmation message
+      description: Only valid while the order is `PENDING_CONFIRMATION`. The broker may respond with another confirmation message, and chains are bounded.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderConfirmationRequest'
+      responses:
+        '200':
+          description: Resulting order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/executions:
+    get:
+      tags: [executions]
+      operationId: listExecutions
+      summary: List executions, newest first
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            $ref: '../schemas/common/primitives.schema.json#/$defs/Uuid'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Execution'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/watchlist:
+    get:
+      tags: [watchlist]
+      operationId: getWatchlist
+      summary: Get the watchlist
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watchlist'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/watchlist/items:
+    post:
+      tags: [watchlist]
+      operationId: addWatchlistItem
+      summary: Add a symbol to the watchlist
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWatchlistItemRequest'
+      responses:
+        '201':
+          description: Updated watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watchlist'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/watchlist/items/{symbol}:
+    delete:
+      tags: [watchlist]
+      operationId: removeWatchlistItem
+      summary: Remove a symbol from the watchlist
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            $ref: '../schemas/common/primitives.schema.json#/$defs/Symbol'
+      responses:
+        '204':
+          description: Removed
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/instruments/search:
+    get:
+      tags: [instruments]
+      operationId: searchInstruments
+      summary: Search instruments by symbol or name
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Matching instruments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instrument'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+  /api/v1/news:
+    get:
+      tags: [news]
+      operationId: listNews
+      summary: Recent news for a symbol, newest first
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            $ref: '../schemas/common/primitives.schema.json#/$defs/Symbol'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: News articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsArticle'
+        '4XX':
+          $ref: '#/components/responses/Problem'
+        '5XX':
+          $ref: '#/components/responses/Problem'
+components:
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: UUID chosen by the client per user action. The server generates one if it is absent or malformed. Used for tracing only.
+      schema:
+        $ref: '../schemas/common/primitives.schema.json#/$defs/Uuid'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID identifying one order intent. Reuse it only when retrying the same request.
+      schema:
+        $ref: '../schemas/common/primitives.schema.json#/$defs/Uuid'
+    OrderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '../schemas/common/primitives.schema.json#/$defs/Uuid'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return. The server applies a configurable default and an upper bound (by default 100 and 500), and larger values are capped.
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      $ref: '../schemas/common/problem.schema.json'
+    OrderStatus:
+      $ref: '../schemas/trading/enums.schema.json#/$defs/OrderStatus'
+    PlaceOrderRequest:
+      $ref: '../schemas/trading/place-order-request.schema.json'
+    OrderConfirmationRequest:
+      $ref: '../schemas/trading/order-confirmation-request.schema.json'
+    Order:
+      $ref: '../schemas/trading/order.schema.json'
+    Execution:
+      $ref: '../schemas/trading/execution.schema.json'
+    Position:
+      $ref: '../schemas/portfolio/position.schema.json'
+    PortfolioSummary:
+      $ref: '../schemas/portfolio/portfolio-summary.schema.json'
+    Instrument:
+      $ref: '../schemas/instruments/instrument.schema.json'
+    Watchlist:
+      $ref: '../schemas/watchlist/watchlist.schema.json'
+    AddWatchlistItemRequest:
+      $ref: '../schemas/watchlist/add-watchlist-item-request.schema.json'
+    NewsArticle:
+      $ref: '../schemas/news/news-article.schema.json'

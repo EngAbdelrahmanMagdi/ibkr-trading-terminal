@@ -157,3 +157,22 @@ app:
     poll-interval: 5s
     shortability-ttl: 60s
     account-ttl: 10s
+  # Transactional outbox relay to Kafka. Events are always recorded with the state change; the relay publishes them.
+  outbox:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    publisher-enabled: ${APP_OUTBOX_PUBLISHER_ENABLED:true}
+    batch-size: 100
+    poll-interval: 500ms
+    lease: 60s
+    max-attempts: 10
+    record-backoff-base: 5s
+    record-backoff-max: 10m
+    outage-backoff-base: 1s
+    outage-backoff-max: 60s
+    request-timeout: 5s
+    delivery-timeout: 15s
+    max-block: 5s
+    retention: 7d
+    purge-interval: 1h
+    purge-batch-size: 1000
+    purge-max-batches: 20

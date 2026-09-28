@@ -162,6 +162,25 @@ func (s *Server) BroadcastState(state marketdata.SourceState, at time.Time) {
 	}
 }
 
+// BroadcastOrderUpdate queues an order notification for every connected client and returns how many received it.
+// It uses the bounded control queue, so a client that cannot keep up is evicted as for any control message.
+func (s *Server) BroadcastOrderUpdate(msg stream.OrderUpdate) int {
+	data, err := stream.Encode(msg)
+	if err != nil {
+		s.log.Error("order-update encoding failed", "error", err.Error())
+		return 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delivered := 0
+	for sess := range s.sessions {
+		if sess.enqueueControl(frame{data: data}) {
+			delivered++
+		}
+	}
+	return delivered
+}
+
 // Shutdown stops accepting connections, closes every session with 1001 (going away) and waits for all
 // sessions to end or ctx to expire.
 func (s *Server) Shutdown(ctx context.Context) error {

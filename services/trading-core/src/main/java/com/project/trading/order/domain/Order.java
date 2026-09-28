@@ -9,14 +9,21 @@ import com.project.trading.shared.domain.Quantity;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
  * The order aggregate. All state changes go through the lifecycle state machine ({@link OrderStatus}); an
- * invalid transition throws {@link InvalidTransitionException}. Filled quantity only increases.
+ * invalid transition throws {@link InvalidTransitionException}. Filled quantity only increases. Each transition is
+ * recorded as a {@link StatusChange} until the order is saved, so that every persisted change is published once.
  */
 public final class Order {
+
+    /** A status transition that has not been persisted yet. */
+    public record StatusChange(OrderStatus previous, OrderStatus next, Instant at) {
+    }
 
     /** Outcome of applying a broker update to the order. */
     public enum UpdateResult {
@@ -49,6 +56,7 @@ public final class Order {
     private Instant submittedAt;
     private Instant updatedAt;
     private final long version;
+    private final List<StatusChange> pendingChanges = new ArrayList<>();
 
     /** Rebuilds an order from persisted state (all fields). */
     public Order(UUID id, String clientOrderId, String brokerOrderId, String accountId, long conid, String symbol,
@@ -97,8 +105,16 @@ public final class Order {
         if (!status.canMoveTo(next)) {
             throw new InvalidTransitionException(status, next);
         }
+        pendingChanges.add(new StatusChange(status, next, now));
         status = next;
         updatedAt = now;
+    }
+
+    /** The transitions since the order was loaded or last saved, oldest first; the list is cleared. */
+    public List<StatusChange> drainStatusChanges() {
+        List<StatusChange> drained = List.copyOf(pendingChanges);
+        pendingChanges.clear();
+        return drained;
     }
 
     public void markSubmissionPending(Instant now) {

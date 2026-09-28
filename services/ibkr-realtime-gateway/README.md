@@ -107,6 +107,15 @@ Unresponsive peers are dropped without waiting for a close handshake.
   - At most `GATEWAY_MAX_BAR_COMPUTATIONS` run at once; further requests get a `RATE_LIMITED` problem (HTTP 429).
 - **Failure handling.** Every Redis call has a timeout. A failure pauses Redis use for `GATEWAY_REDIS_COOLDOWN`. Streaming, bars and readiness keep working without Redis.
 
+### Order notifications (optional, never critical)
+
+- The gateway consumes the order-events topic (`trading.order-events.v1`) in a Kafka consumer group and sends every connected client a small `order-update` message (`orderId`, `eventType`, `status`, `occurredAt`).
+- A notification is only a hint to refetch orders, executions, positions and the portfolio from the trading API, which stays the source of truth. The gateway keeps no order state.
+- Delivery is at least once and duplicates are harmless, so no deduplication store is kept. A new consumer group starts at the end of the topic, and offsets are committed after the records are handled.
+- Execution events are not fanned out: every fill commits together with an order event that already carries the new status.
+- Unknown, malformed or oversized records are counted and skipped. Kafka problems are logged, counted and retried with a capped backoff; quotes and readiness never depend on Kafka.
+- Memory is bounded by the poll size and fetch limits. Notifications use the bounded control queue, so a client that cannot keep up is evicted as usual.
+
 ### Protocol and connection handling
 
 - **WebSocket protocol:** see [`contracts/asyncapi/market-stream.yaml`](../../contracts/asyncapi/market-stream.yaml).
@@ -162,6 +171,7 @@ Every metric carries the `realtime_gateway_` prefix. The Go runtime and process 
 | `ibkr_requests_total{endpoint,code}`, `ibkr_request_seconds{endpoint}` | counter, histogram | IBKR requests |
 | `ibkr_limiter_wait_seconds`, `ibkr_limiter_rejected_total{endpoint,reason}`, `ibkr_rate_limited_total` | histogram, counter | IBKR pacing |
 | `ibkr_ws_messages_total{direction,topic}`, `ibkr_smd_renewals_total`, `ibkr_malformed_frames_total`, `ibkr_contract_lookups_total{result}` | counter | IBKR stream and lookups |
+| `order_notifications_total`, `order_events_skipped_total{reason}`, `kafka_consume_errors_total` | counter | Order notifications, skipped records (`unknown_type`, `malformed`, `invalid`, `too_large`) and Kafka errors |
 
 With the observability profile running, Grafana provisions a **Realtime Gateway** dashboard from these metrics.
 
@@ -198,6 +208,9 @@ Settings come from environment variables. Invalid values stop the service at sta
 | `GATEWAY_REDIS_TIMEOUT` | `100ms` | Timeout of every Redis call |
 | `GATEWAY_REDIS_COOLDOWN` | `5s` | Pause after a Redis failure |
 | `GATEWAY_QUOTE_CACHE_INTERVAL` / `GATEWAY_QUOTE_CACHE_TTL` | `1s` / `30s` | Latest-quote write interval and TTL |
+| `GATEWAY_KAFKA_BROKERS` | *(empty)* | Comma-separated Kafka brokers for order notifications; empty disables them |
+| `GATEWAY_ORDER_EVENTS_TOPIC` / `GATEWAY_ORDER_EVENTS_GROUP` | `trading.order-events.v1` / `realtime-gateway-order-notifications` | Topic and consumer group of the notifications |
+| `GATEWAY_KAFKA_MAX_POLL_RECORDS` | `500` | Records handled per poll |
 | `GATEWAY_MARKET_DATA_MODE` | `MOCK` | `MOCK`, `IBKR` or `AUTO` |
 | `GATEWAY_TRUSTED_ENVIRONMENT` | `false` | Must be `true` for `IBKR` and `AUTO` |
 | `GATEWAY_IBKR_BASE_URL` | `https://host.docker.internal:5000/v1/api` | Client Portal Gateway API base (https only) |

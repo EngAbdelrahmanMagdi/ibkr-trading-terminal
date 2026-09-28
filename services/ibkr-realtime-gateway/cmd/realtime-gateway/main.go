@@ -25,6 +25,7 @@ import (
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/modes"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/notify"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/registry"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/transport/ws"
 )
@@ -122,6 +123,27 @@ func serve() int {
 	if quoteWriter != nil {
 		go quoteWriter.Run() // owned by serve(); stopped by quoteWriter.Close during shutdown
 	}
+	// Order notifications from Kafka (optional, never critical: quotes and readiness do not depend on Kafka).
+	notifyCtx, stopNotify := context.WithCancel(context.Background())
+	defer stopNotify()
+	var notifier *notify.Consumer
+	notifierDone := make(chan struct{})
+	if len(cfg.KafkaBrokers) > 0 {
+		notifier, err = notify.NewConsumer(notify.Config{
+			Brokers: cfg.KafkaBrokers, Topic: cfg.OrderEventsTopic, Group: cfg.OrderEventsGroup,
+			MaxPollRecords: cfg.KafkaMaxPollRecords,
+		}, notify.NewProcessor(wsServer, gm, logger), gm, logger)
+		if err != nil {
+			logger.Error("order notification consumer setup failed", "error", err.Error())
+			return 2
+		}
+		go func() { // owned by serve(); returns once notifyCtx is cancelled
+			defer close(notifierDone)
+			notifier.Run(notifyCtx)
+		}()
+	} else {
+		close(notifierDone)
+	}
 	health := httpapi.NewHealth(reg, wsServer.Clients, gm.Handler())
 	bars := httpapi.NewBarsService(source, store, guard, httpapi.BarsConfig{
 		MaxConcurrent: cfg.MaxBarComputations, ComputeTimeout: cfg.BarsTimeout, MaxCacheTTL: cfg.BarsCacheMaxTTL,
@@ -157,7 +179,8 @@ func serve() int {
 		}()
 	}
 	logger.Info("realtime gateway started", "source", string(source.ID()), "mode", cfg.MarketDataMode,
-		"httpAddr", cfg.HTTPAddr, "healthAddr", cfg.HealthAddr, "redis", cfg.RedisAddr != "")
+		"httpAddr", cfg.HTTPAddr, "healthAddr", cfg.HealthAddr, "redis", cfg.RedisAddr != "",
+		"orderNotifications", len(cfg.KafkaBrokers) > 0)
 
 	exitCode := 0
 	select {
@@ -174,6 +197,16 @@ func serve() int {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	health.SetShuttingDown()
+	stopNotify()
+	select {
+	case <-notifierDone:
+	case <-shutdownCtx.Done():
+		logger.Error("order notification consumer did not stop in time")
+		exitCode = 1
+	}
+	if notifier != nil {
+		notifier.Close()
+	}
 	if err := wsServer.Shutdown(shutdownCtx); err != nil {
 		logger.Error("websocket shutdown incomplete", "error", err.Error())
 		exitCode = 1

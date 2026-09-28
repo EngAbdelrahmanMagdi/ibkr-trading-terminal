@@ -142,6 +142,27 @@ services:
           memory: 1g
     networks: [data]
 
+  # One-shot topic provisioning (idempotent); the broker never creates topics implicitly.
+  kafka-init:
+    <<: *defaults
+    image: apache/kafka:4.3.1
+    restart: "no"
+    entrypoint: ["/bin/sh", "/scripts/create-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      KAFKA_HEAP_OPTS: -Xmx128m
+    volumes:
+      - ./infrastructure/kafka:/scripts:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks: [data]
+
   # ---------------------------------------------------------------- observability (profile)
   prometheus:
     <<: *defaults
@@ -279,6 +300,8 @@ services:
       GATEWAY_STALE_AFTER: ${GATEWAY_STALE_AFTER:-5s}
       # Redis holds disposable hot state (latest quotes, bars cache); the gateway keeps working without it.
       GATEWAY_REDIS_ADDR: redis:6379
+      # Order notifications: order events from Kafka fanned out as refetch hints (optional; never affects quotes).
+      GATEWAY_KAFKA_BROKERS: kafka:29092
       GATEWAY_REDIS_USERNAME: ${REDIS_APP_USER:-app}
       GATEWAY_REDIS_PASSWORD_FILE: /run/secrets/redis_app_password
       GATEWAY_SHUTDOWN_TIMEOUT: 10s
@@ -326,6 +349,8 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: ${REDIS_APP_USER:-app}
       APP_CORS_ALLOWED_ORIGINS: ${TRADING_CORE_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # Domain events are recorded in PostgreSQL and relayed to Kafka; Kafka being down never blocks trading.
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     # Read through the config tree under /run/secrets: the migration role's password is used by Flyway only.
     secrets:
       - trading_app_password

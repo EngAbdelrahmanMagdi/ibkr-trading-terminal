@@ -1,10 +1,12 @@
 package com.project.trading.order.infrastructure;
 
 import com.project.trading.shared.domain.BrokerSide;
+import com.project.trading.order.application.OrderEventFactory;
 import com.project.trading.order.domain.Order;
 import com.project.trading.order.domain.OrderIntent;
 import com.project.trading.order.domain.OrderRepository;
 import com.project.trading.order.domain.OrderStatus;
+import com.project.trading.outbox.application.OutboxAppender;
 import com.project.trading.shared.domain.OrderType;
 import com.project.trading.shared.domain.TimeInForce;
 import com.project.trading.shared.domain.Price;
@@ -24,16 +26,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/** JPA adapter of the order repository port. */
+/**
+ * JPA adapter of the order repository port. Saving an order also records one event per status change in the outbox,
+ * in the same transaction, so that no committed change is ever left without its event (and no event without it).
+ */
 @Repository
 class JpaOrderRepository implements OrderRepository {
 
     private final OrderJpaRepository jpa;
     private final EntityManager entityManager;
+    private final OrderEventFactory events;
+    private final OutboxAppender outbox;
 
-    JpaOrderRepository(OrderJpaRepository jpa, EntityManager entityManager) {
+    JpaOrderRepository(OrderJpaRepository jpa, EntityManager entityManager, OrderEventFactory events,
+                       OutboxAppender outbox) {
         this.jpa = jpa;
         this.entityManager = entityManager;
+        this.events = events;
+        this.outbox = outbox;
     }
 
     @Override
@@ -51,6 +61,9 @@ class JpaOrderRepository implements OrderRepository {
             copy(order, entity);
         }
         entityManager.flush();
+        for (Order.StatusChange change : order.drainStatusChanges()) {
+            outbox.append(events.orderEvent(order, change));
+        }
         return toDomain(entity);
     }
 

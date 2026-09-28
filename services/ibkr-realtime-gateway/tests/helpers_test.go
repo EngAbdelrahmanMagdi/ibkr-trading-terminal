@@ -315,6 +315,10 @@ type serverMessage struct {
 	Halted    *bool    `json:"halted"`
 	Sequence  int64    `json:"sequence"`
 	Timestamp string   `json:"timestamp"`
+	OrderID   string   `json:"orderId"`
+	EventType string   `json:"eventType"`
+	Status    string   `json:"status"`
+	Occurred  string   `json:"occurredAt"`
 	Limits    struct {
 		MaxSymbolsPerSubscribe int   `json:"maxSymbolsPerSubscribe"`
 		MaxSubscribedSymbols   int   `json:"maxSubscribedSymbols"`

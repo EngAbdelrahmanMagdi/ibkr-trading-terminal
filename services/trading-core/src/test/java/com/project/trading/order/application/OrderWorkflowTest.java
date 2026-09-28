@@ -20,6 +20,7 @@ import com.project.trading.shared.domain.DomainException;
 import com.project.trading.shared.domain.Price;
 import com.project.trading.shared.domain.Quantity;
 import com.project.trading.support.InMemoryIdempotencyStore;
+import com.project.trading.outbox.application.OutboxAppender;
 import com.project.trading.support.InMemoryOrderRepository;
 import com.project.trading.support.MutableClock;
 import com.project.trading.support.NoopTransactionManager;
@@ -80,7 +81,8 @@ class OrderWorkflowTest {
         AppProperties props = TestProperties.app(maxReplyDepth);
         NoopTransactionManager tm = new NoopTransactionManager();
         OrderMetrics metrics = new OrderMetrics(new SimpleMeterRegistry(), orders);
-        updates = new OrderUpdateService(orders, executions, positions, metrics, tm);
+        updates = new OrderUpdateService(orders, executions, positions, metrics, tm, new OrderEventFactory(),
+                new OutboxAppender((message, at) -> { }, clock));
         SubmissionOutcomes outcomes = new SubmissionOutcomes(orders, updates, metrics, tm, clock, props);
         IdempotencyService idempotency = new IdempotencyService(new InMemoryIdempotencyStore(),
                 JsonMapper.builder().build(), clock, props);

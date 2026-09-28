@@ -58,6 +58,11 @@ type Gateway struct {
 	IBKRSMDRenewals     prometheus.Counter
 	IBKRMalformedFrames prometheus.Counter
 	IBKRContractLookups *prometheus.CounterVec
+
+	// Order notifications from Kafka.
+	OrderNotifications prometheus.Counter
+	OrderEventsSkipped *prometheus.CounterVec
+	KafkaConsumeErrors prometheus.Counter
 }
 
 // New creates the metrics, registered on a new registry together with the Go runtime and process collectors.
@@ -120,6 +125,12 @@ func New() *Gateway {
 			Help: "IBKR messages or fields that could not be mapped (dropped, never guessed)."}),
 		IBKRContractLookups: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "ibkr_contract_lookups_total",
 			Help: "Symbol to contract resolutions by result."}, []string{"result"}),
+		OrderNotifications: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "order_notifications_total",
+			Help: "Order events fanned out to WebSocket clients as order-update notifications."}),
+		OrderEventsSkipped: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "order_events_skipped_total",
+			Help: "Order-topic records not fanned out, by reason (unknown type, malformed, invalid, too large)."}, []string{"reason"}),
+		KafkaConsumeErrors: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "kafka_consume_errors_total",
+			Help: "Kafka fetch or offset-commit errors of the order-notification consumer."}),
 	}
 	g.registry.MustRegister(
 		collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
@@ -129,6 +140,7 @@ func New() *Gateway {
 		g.SourceInfo, g.UnrepresentablePrices,
 		g.IBKRRequests, g.IBKRRequestSeconds, g.IBKRLimiterWait, g.IBKRLimiterRejected, g.IBKRRateLimited,
 		g.IBKRWSMessages, g.IBKRSMDRenewals, g.IBKRMalformedFrames, g.IBKRContractLookups,
+		g.OrderNotifications, g.OrderEventsSkipped, g.KafkaConsumeErrors,
 	)
 	for _, reason := range []string{EvictWriteTimeout, EvictControlQueue, EvictLaggingFlushes, EvictPongTimeout} {
 		g.Evictions.WithLabelValues(reason)

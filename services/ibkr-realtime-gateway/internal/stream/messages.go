@@ -19,6 +19,7 @@ const (
 	TypeStale       = "stale"
 	TypeError       = "error"
 	TypeHeartbeat   = "heartbeat"
+	TypeOrderUpdate = "order-update"
 )
 
 // Error codes.
@@ -47,6 +48,16 @@ type Limits struct {
 	MaxSubscribedSymbols   int   `json:"maxSubscribedSymbols"`
 	MaxInboundMessageBytes int64 `json:"maxInboundMessageBytes"`
 	HeartbeatIntervalMs    int64 `json:"heartbeatIntervalMs"`
+}
+
+// OrderUpdate is a lightweight order notification: a hint for clients to refetch order state from the trading
+// API, never a source of truth.
+type OrderUpdate struct {
+	Type       string `json:"type"`
+	OrderID    string `json:"orderId"`
+	EventType  string `json:"eventType"`
+	Status     string `json:"status"`
+	OccurredAt string `json:"occurredAt"`
 }
 
 // Connection is sent on connect and on every state change.

@@ -153,7 +153,7 @@ To check that everything works:
 make verify
 ```
 
-It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache. With Trading Core running, it checks health, migrations, CORS and error handling, that paper mode fails closed outside a trusted environment, and that market orders fill from the live simulated quotes.
+It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache. With Trading Core running, it checks health, migrations, CORS and error handling, that paper mode fails closed outside a trusted environment, and that market orders fill from the live simulated quotes and their domain events reach Kafka and the gateway.
 
 ### Services
 
@@ -165,7 +165,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|---|
 | PostgreSQL 18 | `127.0.0.1:15432` | Database `trading`, schema `trading`. Roles: `trading_owner` for schema migrations and `trading_app` for data access only. |
 | Redis 8 | `127.0.0.1:16379` | ACL user `app`. No persistence (cache and hot state only). |
-| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled |
+| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled; `kafka-init` provisions `trading.order-events.v1` and `trading.execution-events.v1` |
 | Grafana | <http://127.0.0.1:13000> | User `admin`. The password is in `secrets/grafana_admin_password`. |
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
@@ -181,7 +181,7 @@ Application processes run as non-root where supported. Some official images may 
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
 | `make up-ibkr` / `make up-ibkr-paper` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, add Trading Core on the IBKR paper account, or run the gateway on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
 | `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
-| `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
+| `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't, and that events committed while Kafka is stopped are published once it restarts. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
 | `make test-unit` | Run the Go unit and integration tests of the realtime gateway with the race detector |
 | `make test-core` | Run the Trading Core tests: domain, application and architecture tests, and an integration suite against real PostgreSQL and Redis (Testcontainers) that validates every response against the contracts |

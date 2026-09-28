@@ -22,6 +22,9 @@
     <!-- Overrides the Boot-managed 11.0.24, which has critical advisories fixed in 11.0.25+ (no newer Boot patch
          release yet). Remove when Spring Boot manages 11.0.26 or later. -->
     <tomcat.version>11.0.26</tomcat.version>
+    <!-- kafka-clients (Boot-managed and latest) depends on lz4-java 1.10.x, affected by GHSA-xx22-p4ch-683r (fixed in
+         1.11.1). Remove when kafka-clients depends on a fixed version. -->
+    <lz4-java.version>1.11.4</lz4-java.version>
     <archunit.version>1.5.1</archunit.version>
     <json-schema-validator.version>3.0.7</json-schema-validator.version>
     <wiremock.version>3.13.2</wiremock.version>
@@ -30,6 +33,16 @@
     <!-- Infrastructure directory: the integration tests start PostgreSQL with the same role setup script. -->
     <infrastructure.dir>${project.basedir}/../../infrastructure</infrastructure.dir>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>${lz4-java.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -69,6 +82,10 @@
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -88,6 +105,11 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-kafka</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

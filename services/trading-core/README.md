@@ -101,6 +101,31 @@ In `MOCK` the portfolio is a simulated cash account:
 
 In `IBKR_PAPER`, `cash` (the ledger cash balance), `netLiquidation`, `excessLiquidity` and `dayPnl` come from the paper account when its base currency matches, refreshed at most every 10 seconds. `buyingPower` is unavailable. Positions and P&L are computed from the executions recorded here.
 
+## Domain events (transactional outbox)
+
+Every persisted order status change emits one event on `trading.order-events.v1`, and every recorded fill emits `EXECUTION_RECORDED` on `trading.execution-events.v1`. Events use the standard envelope from the event contracts and are keyed `accountId:orderId`.
+
+- **Atomic:** the event row (`outbox_events`) is inserted in the same PostgreSQL transaction as the state change, so there is never a committed change without its event, or an event without its change. Placing an order never waits for Kafka.
+- **Relay:** a background relay publishes the rows with an idempotent producer (`acks=all`). Each round:
+  1. claims a bounded batch in one short transaction, as a lease;
+  2. sends it with no transaction open;
+  3. records the results in a second short transaction, fenced by the claim.
+
+  An abandoned claim becomes claimable again when its lease expires.
+- **Ordering:** an event is published only after every earlier event of the same key, so the events of one order arrive in order.
+- **At least once:** a crash between Kafka's acknowledgement and the result update publishes the event again, with the same `eventId`. Consumers deduplicate by `eventId`.
+- **Kafka unavailable or misconfigured** (unreachable, timeouts, authentication or authorization, missing metadata or topics):
+  - events stay pending and their attempts are not counted;
+  - the relay pauses with capped exponential backoff (1 s → 60 s), then probes once per interval;
+  - everything drains automatically once Kafka is back, including after a restart.
+- **An event Kafka refuses for itself** (serialization, too large) is retried with backoff and becomes `FAILED` after 10 attempts. That holds back only the later events of the same order, and the event stays visible in metrics until an operator requeues it.
+- **Retention:** published events are deleted after 7 days by a bounded hourly job. Pending and failed events are never deleted.
+- **Metrics:**
+  - `outbox_pending`, `outbox_failed` and `outbox_oldest_pending_age_seconds`;
+  - `outbox_published_total` and `outbox_publish_failure_total{kind=infrastructure|bad_record}`;
+  - `outbox_publisher_backoff_seconds`, `outbox_claims_expired_total` and `outbox_publish_latency_seconds`.
+- Kafka never affects startup or readiness.
+
 ## Persistence
 
 Flyway migrations (`src/main/resources/db/migration`) create the schema: `NUMERIC` for money, prices and quantities; `timestamptz` for time; CHECK constraints for every enumerated column. Migrations run as the schema owner role. The application connects as a role with data access only, and Hibernate only validates the schema. Orders use optimistic locking plus a row lock while broker updates are applied.
@@ -116,7 +141,7 @@ make test-core      # domain, application, architecture and integration tests
 make lint-java      # compile with warnings as errors, Maven enforcer rules, architecture rules
 ```
 
-The integration suite runs against real PostgreSQL (initialized with the same role setup as the local stack) and Redis (with an ACL user) through Testcontainers. It drives the complete workflow over HTTP and validates every response against the contract schemas.
+The integration suite runs against real PostgreSQL (initialized with the same role setup as the local stack), Redis (with an ACL user) and Kafka through Testcontainers. It drives the complete workflow over HTTP, validates every response and published event against the contract schemas, and pauses Kafka to show that committed events are published once it is back.
 
 ## Configuration
 
@@ -129,6 +154,8 @@ Settings are in `src/main/resources/application.yml`. The main environment varia
 | `APP_ACCOUNT_ID` | `MOCK-ACCOUNT` | The account the database is bound to; in `IBKR_PAPER`, the paper account ID |
 | `APP_IBKR_BASE_URL`, `APP_IBKR_CA_FILE` | `https://host.docker.internal:5000/v1/api`, `/run/secrets/ibkr_ca` | The Client Portal Gateway and the CA that signed its certificate (`IBKR_PAPER`) |
 | `APP_IBKR_ALLOCATION` | `4` | This service's share (requests per second) of the IBKR session limit |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:19092` | Kafka brokers for the outbox relay |
+| `APP_OUTBOX_PUBLISHER_ENABLED` | `true` | Whether this instance relays outbox events (events are always recorded) |
 | `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `15432`, `trading` | PostgreSQL |
 | `DB_APP_USER`, `DB_OWNER_USER` | `trading_app`, `trading_owner` | Runtime role and migration role |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_USER` | `localhost`, `16379`, `app` | Redis |

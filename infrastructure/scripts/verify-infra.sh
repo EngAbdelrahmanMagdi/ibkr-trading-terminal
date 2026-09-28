@@ -193,6 +193,14 @@ check_kafka_no_auto_create_config() {
   [[ "$out" == *"auto.create.topics.enable=false"* ]] || { echo "auto.create.topics.enable=false not found"; return 1; }
 }
 
+check_kafka_trading_topics() {
+  local topic out
+  for topic in trading.order-events.v1 trading.execution-events.v1; do
+    out="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic "$topic")" || return 1
+    [[ "$out" == *"PartitionCount: 3"* && "$out" == *"retention.ms=604800000"* ]] || { echo "$topic: $(head -n 1 <<< "$out")"; return 1; }
+  done
+}
+
 topic_absent() {
   local topics
   topics="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --list | tr -d '\r')" || return 1
@@ -453,6 +461,57 @@ check_core_market_order_fills_from_live_quotes() {
     || { echo "execution not recorded"; return 1; }
 }
 
+# Order events go through the outbox: a MOCK market order (filled at once) and its outbox rows, published to Kafka.
+place_mock_buy() { # prints the order id
+  docker exec -d "$(cid realtime-gateway)" /usr/local/bin/stream-probe -url ws://127.0.0.1:8090/ws \
+    -symbols NVDA -quotes 30 || return 1
+  retry 15 1 mock_quote_fresh > /dev/null || { mock_quote_fresh; return 1; }
+  core_order "$(new_uuid)" '{"symbol":"NVDA","intent":"BUY","orderType":"MARKET","quantity":"1","timeInForce":"DAY"}' \
+    | json_field id
+}
+
+outbox_published() { # outbox_published <order-id>: the order has events and all of them are published
+  local total pending
+  total="$(app_sql "SELECT count(*) FROM outbox_events WHERE aggregate_id = '$1'")" || return 1
+  pending="$(app_sql "SELECT count(*) FROM outbox_events WHERE aggregate_id = '$1' AND status <> 'PUBLISHED'")" || return 1
+  [[ "$total" != "0" && "$pending" == "0" ]]
+}
+
+kafka_has_order_filled() { # kafka_has_order_filled <order-id>
+  local out
+  out="$(kafka_tool kafka-console-consumer.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --topic trading.order-events.v1 \
+    --from-beginning --timeout-ms 15000 2> /dev/null | tr -d '\r' | grep -E "\"orderId\": ?\"$1\"")"
+  grep -Eq '"eventType": ?"ORDER_FILLED"' <<< "$out"
+}
+
+gateway_notifications() {
+  curl -s --max-time 5 "${GATEWAY_HEALTH_URL}/metrics" | awk '/^realtime_gateway_order_notifications_total /{print int($2)}'
+}
+
+notifications_above() { (( $(gateway_notifications) > $1 )); }
+
+check_core_events_published_and_fanned_out() {
+  local id before
+  before="$(gateway_notifications)"
+  id="$(place_mock_buy)"
+  [[ -n "$id" ]] || { echo "order not placed"; return 1; }
+  retry 20 1 outbox_published "$id" || { echo "outbox events of $id not published"; return 1; }
+  kafka_has_order_filled "$id" || { echo "ORDER_FILLED for $id not found on trading.order-events.v1"; return 1; }
+  retry 10 1 notifications_above "${before:-0}" || { echo "the gateway fanned out no order-update notification"; return 1; }
+}
+
+check_outbox_survives_kafka_restart() {
+  local id status
+  docker compose stop kafka > /dev/null 2>&1 || return 1
+  id="$(place_mock_buy)"
+  status="$(app_sql "SELECT string_agg(DISTINCT status, ',') FROM outbox_events WHERE aggregate_id = '$id'")"
+  docker compose start kafka > /dev/null 2>&1 || return 1
+  [[ -n "$id" && "$status" == "PENDING" ]] || { echo "order '$id' placed while Kafka was down: outbox status '$status'"; return 1; }
+  retry 30 2 wait_healthy kafka > /dev/null || { echo "kafka not healthy after restart"; return 1; }
+  retry 45 2 outbox_published "$id" || { echo "events of $id not published after Kafka returned"; return 1; }
+  kafka_has_order_filled "$id" || { echo "ORDER_FILLED for $id not found after the restart"; return 1; }
+}
+
 # ------------------------------------------------------------------ checks: restarts (opt-in)
 check_pg_durable_across_restart() {
   local tbl="${TRADING_SCHEMA}.verify_durable_$$"
@@ -509,6 +568,7 @@ if running kafka; then
   check "smoke topic: create -> produce -> consume -> delete" check_kafka_smoke_roundtrip
   check "producing to a missing topic fails and creates nothing" check_kafka_missing_topic_rejected
   check "host listener reachable on 127.0.0.1:${KAFKA_HOST_PORT}" check_kafka_host_listener
+  check "trading topics provisioned: 3 partitions, 7-day retention" check_kafka_trading_topics
 else skip "kafka checks (not running)"; fi
 
 echo "[observability]"
@@ -543,6 +603,7 @@ if running trading-core; then
   check "IBKR_PAPER mode fails closed without a trusted environment" check_core_fails_closed_in_paper_mode
   if running realtime-gateway && running redis; then
     check "market BUY and SELL fill immediately from live MOCK quotes; idempotent retry" check_core_market_order_fills_from_live_quotes
+    check "order events reach Kafka through the outbox; the gateway fans them out" check_core_events_published_and_fanned_out
   else skip "trading core order check (needs the realtime gateway and redis)"; fi
 else skip "trading core checks (core profile not running; use 'make up-mock')"; fi
 
@@ -550,6 +611,9 @@ echo "[restarts]"
 if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then
   check "postgresql data survives a restart" check_pg_durable_across_restart
   check "redis data does not survive a restart (disposable)" check_redis_disposable_across_restart
+  if running trading-core && running realtime-gateway; then
+    check "kafka stop/start: events committed while Kafka is down are published after it returns" check_outbox_survives_kafka_restart
+  else skip "outbox kafka restart check (needs make up-mock)"; fi
 else skip "restart checks (set VERIFY_RESTARTS=1)"; fi
 
 echo

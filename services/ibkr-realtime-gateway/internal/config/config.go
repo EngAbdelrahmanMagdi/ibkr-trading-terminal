@@ -45,6 +45,12 @@ type Config struct {
 	ShutdownTimeout        time.Duration
 	LogLevel               slog.Level
 
+	// Order notifications (empty KafkaBrokers disables them).
+	KafkaBrokers        []string
+	OrderEventsTopic    string
+	OrderEventsGroup    string
+	KafkaMaxPollRecords int
+
 	MarketDataMode     string // MOCK, IBKR or AUTO
 	TrustedEnvironment bool
 	IBKR               IBKR
@@ -116,6 +122,9 @@ const (
 	DefaultRedisUsername          = "app"
 	DefaultRedisTimeout           = "100ms"
 	DefaultRedisCooldown          = "5s"
+	DefaultOrderEventsTopic       = "trading.order-events.v1"
+	DefaultOrderEventsGroup       = "realtime-gateway-order-notifications"
+	DefaultKafkaMaxPollRecords    = "500"
 	DefaultQuoteCacheInterval     = "1s"
 	DefaultQuoteCacheTTL          = "30s"
 	DefaultShutdownTimeout        = "10s"
@@ -235,6 +244,10 @@ func Load(getenv func(string) string) (Config, error) {
 		QuoteCacheTTL:          durationVar("GATEWAY_QUOTE_CACHE_TTL", DefaultQuoteCacheTTL, time.Second, time.Hour),
 		ShutdownTimeout:        durationVar("GATEWAY_SHUTDOWN_TIMEOUT", DefaultShutdownTimeout, time.Second, 2*time.Minute),
 	}
+	c.KafkaBrokers = splitList(get("GATEWAY_KAFKA_BROKERS", ""))
+	c.OrderEventsTopic = get("GATEWAY_ORDER_EVENTS_TOPIC", DefaultOrderEventsTopic)
+	c.OrderEventsGroup = get("GATEWAY_ORDER_EVENTS_GROUP", DefaultOrderEventsGroup)
+	c.KafkaMaxPollRecords = int(intVar("GATEWAY_KAFKA_MAX_POLL_RECORDS", DefaultKafkaMaxPollRecords, 1, 10_000))
 
 	seed, err := strconv.ParseUint(get("GATEWAY_SEED", DefaultSeed), 10, 64)
 	if err != nil {
@@ -346,4 +359,15 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, errors.Join(errs...)
 	}
 	return c, nil
+}
+
+// splitList splits a comma-separated list, dropping blank entries.
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

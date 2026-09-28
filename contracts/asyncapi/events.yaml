@@ -27,8 +27,8 @@ channels:
     address: trading.order-events.v1
     title: Order lifecycle events
     description: |
-      Order lifecycle decisions. Producer: trading core, via a transactional outbox.
-      Consumers: the realtime gateway (browser notifications only) and audit/analytics.
+      Order lifecycle decisions, one event per persisted status change. Producer: trading core, via a transactional outbox.
+      Consumers: the realtime gateway (browser `order-update` notifications only) and audit/analytics.
       Key: `accountId:orderId`, so that all events for one order are ordered.
     messages:
       orderEvent:
@@ -38,7 +38,8 @@ channels:
     title: Execution events
     description: |
       Fills recorded for orders. Producer: trading core, via a transactional outbox.
-      Consumers: the realtime gateway (browser notifications only) and audit/analytics.
+      Consumers: audit/analytics and replay. Browsers are notified of fills through the order event committed with
+      each fill, so the realtime gateway does not consume this topic.
       Key: `accountId:orderId`.
     messages:
       executionEvent:

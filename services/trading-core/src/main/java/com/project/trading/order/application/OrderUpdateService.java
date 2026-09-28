@@ -11,6 +11,7 @@ import com.project.trading.order.domain.InvalidTransitionException;
 import com.project.trading.order.domain.Order;
 import com.project.trading.order.domain.OrderRepository;
 import com.project.trading.order.domain.OrderStatus;
+import com.project.trading.outbox.application.OutboxAppender;
 import com.project.trading.position.application.PositionLedger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +27,8 @@ import java.util.UUID;
 
 /**
  * The single path for broker order updates (fills, confirmed cancellations, rejections of working orders).
- * One transaction per update: the execution, the order transition and the position change commit together.
+ * One transaction per update: the execution, the order transition, the position change and their events commit
+ * together.
  * Duplicate and out-of-date updates are ignored, so redelivery is harmless.
  */
 @Service
@@ -46,10 +48,15 @@ public class OrderUpdateService implements BrokerOrderUpdateHandler, OpenOrderSo
     private final PositionLedger positions;
     private final OrderMetrics metrics;
     private final TransactionTemplate tx;
+    private final OrderEventFactory events;
+    private final OutboxAppender outbox;
 
     public OrderUpdateService(OrderRepository orders, ExecutionLedger executions, PositionLedger positions,
-                              OrderMetrics metrics, PlatformTransactionManager transactionManager) {
+                              OrderMetrics metrics, PlatformTransactionManager transactionManager,
+                              OrderEventFactory events, OutboxAppender outbox) {
         this.orders = orders;
+        this.events = events;
+        this.outbox = outbox;
         this.executions = executions;
         this.positions = positions;
         this.metrics = metrics;
@@ -108,8 +115,10 @@ public class OrderUpdateService implements BrokerOrderUpdateHandler, OpenOrderSo
             return Outcome.IGNORED;
         }
         orders.save(order);
-        executions.record(new Execution(UUID.randomUUID(), order.id(), fill.brokerExecutionId(), order.symbol(),
-                fill.side(), fill.quantity(), fill.price(), fill.commission(), fill.currency(), fill.executedAt()));
+        Execution execution = new Execution(UUID.randomUUID(), order.id(), fill.brokerExecutionId(), order.symbol(),
+                fill.side(), fill.quantity(), fill.price(), fill.commission(), fill.currency(), fill.executedAt());
+        executions.record(execution);
+        outbox.append(events.executionRecorded(order, execution));
         positions.applyFill(order.symbol(), fill.currency(), fill.side(), fill.quantity(), fill.price(),
                 fill.executedAt());
         return Outcome.APPLIED;

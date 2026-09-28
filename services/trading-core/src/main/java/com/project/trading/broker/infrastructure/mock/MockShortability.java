@@ -1,5 +1,6 @@
 package com.project.trading.broker.infrastructure.mock;
 
+import com.project.trading.instrument.domain.Instrument;
 import com.project.trading.instrument.domain.Shortability;
 import com.project.trading.instrument.domain.ShortabilityPort;
 import com.project.trading.instrument.domain.ShortabilityStatus;
@@ -22,8 +23,8 @@ public class MockShortability implements ShortabilityPort {
     }
 
     @Override
-    public Shortability shortability(String symbol) {
-        ShortabilityStatus status = configured.getOrDefault(symbol, ShortabilityStatus.SHORTABLE);
+    public Shortability shortability(Instrument instrument) {
+        ShortabilityStatus status = configured.getOrDefault(instrument.symbol(), ShortabilityStatus.SHORTABLE);
         if (status == ShortabilityStatus.UNAVAILABLE) {
             return Shortability.unavailable();
         }

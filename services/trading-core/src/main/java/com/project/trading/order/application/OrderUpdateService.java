@@ -4,6 +4,7 @@ import com.project.trading.broker.domain.BrokerOrderUpdate;
 import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
 import com.project.trading.broker.domain.OpenBrokerOrder;
 import com.project.trading.broker.domain.OpenOrderSource;
+import com.project.trading.broker.domain.WorkingBrokerOrder;
 import com.project.trading.execution.application.ExecutionLedger;
 import com.project.trading.execution.domain.Execution;
 import com.project.trading.order.domain.InvalidTransitionException;
@@ -120,6 +121,14 @@ public class OrderUpdateService implements BrokerOrderUpdateHandler, OpenOrderSo
         }
         orders.save(order);
         return Outcome.APPLIED;
+    }
+
+    @Override
+    public List<WorkingBrokerOrder> workingOrders(int limit) {
+        return orders.findWorkingOrders(Math.min(limit, MAX_OPEN_ORDERS)).stream()
+                .map(o -> new WorkingBrokerOrder(o.brokerOrderId(), o.clientOrderId(), o.symbol(), o.brokerSide(),
+                        o.quantity(), o.filledQuantity()))
+                .toList();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.project.trading.order.application;
 
+import com.project.trading.broker.domain.BrokerConnectionState;
 import com.project.trading.broker.domain.BrokerOrderUpdate;
 import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
 import com.project.trading.broker.domain.BrokerTradingPort;
@@ -20,6 +21,7 @@ import com.project.trading.shared.domain.Price;
 import com.project.trading.shared.domain.Quantity;
 import com.project.trading.support.InMemoryIdempotencyStore;
 import com.project.trading.support.InMemoryOrderRepository;
+import com.project.trading.support.MutableClock;
 import com.project.trading.support.NoopTransactionManager;
 import com.project.trading.support.TestProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -28,9 +30,8 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
-import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -51,7 +52,7 @@ class OrderWorkflowTest {
 
     private static final Instrument NVDA = new Instrument("NVDA", 1, "NVIDIA", "MOCK", "USD", "STK", 2);
 
-    private final Clock clock = Clock.fixed(Instant.parse("2026-09-28T10:00:00Z"), ZoneOffset.UTC);
+    private final MutableClock clock = new MutableClock(Instant.parse("2026-09-28T10:00:00Z"));
     private final InMemoryOrderRepository orders = new InMemoryOrderRepository();
     private final BrokerTradingPort broker = mock(BrokerTradingPort.class);
     private final OrderValidator validator = mock(OrderValidator.class);
@@ -62,10 +63,12 @@ class OrderWorkflowTest {
     private PlaceOrderService place;
     private ConfirmOrderService confirm;
     private CancelOrderService cancel;
+    private ConfirmationExpiry expiry;
 
     @BeforeEach
     void setUp() {
         build(3);
+        when(broker.connectionState()).thenReturn(BrokerConnectionState.READY);
         when(validator.validate(any())).thenAnswer(inv -> {
             PlaceOrderCommand c = inv.getArgument(0);
             return new OrderValidator.ValidatedOrder(NVDA, c.intent(), c.orderType(), new Quantity(c.quantity()),
@@ -82,7 +85,8 @@ class OrderWorkflowTest {
         IdempotencyService idempotency = new IdempotencyService(new InMemoryIdempotencyStore(),
                 JsonMapper.builder().build(), clock, props);
         place = new PlaceOrderService(idempotency, validator, orders, broker, outcomes, metrics, tm, clock, props);
-        confirm = new ConfirmOrderService(orders, broker, outcomes);
+        expiry = new ConfirmationExpiry(orders, tm, clock, props);
+        confirm = new ConfirmOrderService(orders, broker, outcomes, expiry, clock);
         cancel = new CancelOrderService(orders, broker, tm, clock);
     }
 
@@ -175,6 +179,35 @@ class OrderWorkflowTest {
         assertThat(filled.averageFillPrice()).isEqualTo(Price.of("99.50"));
         verify(positions).applyFill("NVDA", "USD", BrokerSide.BUY, Quantity.of("10"), Price.of("99.50"),
                 Instant.parse("2026-09-28T10:00:01Z"));
+    }
+
+    @Test
+    void anExpiredConfirmationIsRejectedLocallyAndTheBrokerIsNotCalled() {
+        when(broker.submit(any())).thenReturn(new SubmitResult.ConfirmationRequired("R1", "confirm?"));
+        Order order = place.place(UUID.randomUUID(), limitBuy("10")).order();
+
+        clock.advance(Duration.ofSeconds(31));
+
+        assertThatThrownBy(() -> confirm.confirm(order.id(), true))
+                .isInstanceOf(DomainException.class).extracting("status").isEqualTo(409);
+        assertThat(orders.findById(order.id()).orElseThrow().status()).isEqualTo(OrderStatus.REJECTED);
+        verify(broker, never()).confirmReply(anyString(), anyBoolean());
+    }
+
+    @Test
+    void theBackgroundSweepWaitsForTheGracePeriodSoItNeverRacesAnInFlightAnswer() {
+        when(broker.submit(any())).thenReturn(new SubmitResult.ConfirmationRequired("R1", "confirm?"));
+        Order order = place.place(UUID.randomUUID(), limitBuy("10")).order();
+
+        clock.advance(Duration.ofSeconds(59));
+        expiry.sweep();
+        assertThat(orders.findById(order.id()).orElseThrow().status()).isEqualTo(OrderStatus.PENDING_CONFIRMATION);
+
+        clock.advance(Duration.ofSeconds(2));
+        expiry.sweep();
+        Order expired = orders.findById(order.id()).orElseThrow();
+        assertThat(expired.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(expired.rejectionReason()).isEqualTo(ConfirmationExpiry.REASON);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.project.trading.order.application;
 
+import com.project.trading.broker.domain.BrokerConnectionState;
 import com.project.trading.broker.domain.BrokerTradingPort;
 import com.project.trading.broker.domain.CancelResult;
 import com.project.trading.order.domain.Order;
@@ -44,6 +45,9 @@ public class CancelOrderService {
         }
         if (order.status() != OrderStatus.SUBMITTED && order.status() != OrderStatus.PARTIALLY_FILLED) {
             throw DomainException.conflict("the order is not open (status " + order.status() + ")");
+        }
+        if (broker.connectionState() != BrokerConnectionState.READY) {
+            throw DomainException.brokerUnavailable("the broker is not available for cancellations");
         }
 
         CancelResult result;

@@ -2,6 +2,7 @@ package com.project.trading.broker.infrastructure.mock;
 
 import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
 import com.project.trading.broker.domain.OpenOrderSource;
+import com.project.trading.execution.application.ExecutionLedger;
 import com.project.trading.instrument.domain.Instrument;
 import com.project.trading.marketdata.domain.QuoteReferencePort;
 import com.project.trading.shared.config.AppProperties;
@@ -27,6 +28,11 @@ public class MockBrokerConfiguration {
     @Bean
     MockShortability mockShortability(MockBrokerProperties properties, Clock clock) {
         return new MockShortability(properties.shortability(), clock);
+    }
+
+    @Bean
+    MockBrokerAccount mockBrokerAccount(ExecutionLedger executions, AppProperties app, Clock clock) {
+        return new MockBrokerAccount(executions, app.portfolio().startingCash(), clock);
     }
 
     @Bean

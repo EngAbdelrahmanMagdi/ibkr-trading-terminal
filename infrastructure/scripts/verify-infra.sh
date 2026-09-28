@@ -417,7 +417,7 @@ check_core_fails_closed_in_paper_mode() {
   if out="$(docker run --rm --network none -e APP_RUNTIME_MODE=IBKR_PAPER trading-terminal/trading-core:local 2>&1)"; then
     echo "trading core started in IBKR_PAPER mode"; return 1
   fi
-  [[ "$out" == *"Unsupported runtime mode"* ]] || { echo "$out" | tail -n 3; return 1; }
+  [[ "$out" == *"IBKR_PAPER startup refused"* ]] || { echo "$out" | tail -n 3; return 1; }
 }
 
 core_order() { # core_order <idempotency-key> <json>
@@ -540,7 +540,7 @@ if running trading-core; then
   check "liveness, readiness and metrics on the management port only" check_core_health
   check "schema migrations applied; the application role cannot alter the schema" check_core_migrations
   check "correlation id echoed; CORS allowlist enforced; problem body without internals" check_core_api_posture
-  check "IBKR_PAPER mode fails closed at startup" check_core_fails_closed_in_paper_mode
+  check "IBKR_PAPER mode fails closed without a trusted environment" check_core_fails_closed_in_paper_mode
   if running realtime-gateway && running redis; then
     check "market BUY and SELL fill immediately from live MOCK quotes; idempotent retry" check_core_market_order_fills_from_live_quotes
   else skip "trading core order check (needs the realtime gateway and redis)"; fi

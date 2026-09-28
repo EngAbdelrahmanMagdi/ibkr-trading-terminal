@@ -61,8 +61,8 @@ public class InstrumentService {
      * Shortability with stale or undated data downgraded to UNAVAILABLE. Unavailable data carries no details:
      * nothing is invented.
      */
-    public Shortability shortability(String symbol) {
-        Shortability raw = shortabilityPort.shortability(symbol);
+    public Shortability shortability(Instrument instrument) {
+        Shortability raw = shortabilityPort.shortability(instrument);
         if (raw.effectiveStatus(clock.instant(), shortabilityMaxAge) != raw.status()) {
             return Shortability.unavailable();
         }
@@ -71,7 +71,7 @@ public class InstrumentService {
 
     public List<InstrumentDetails> search(String query, int limit) {
         return catalog.search(query.trim().toUpperCase(Locale.ROOT), limit).stream()
-                .map(i -> new InstrumentDetails(i, shortability(i.symbol())))
+                .map(i -> new InstrumentDetails(i, shortability(i)))
                 .toList();
     }
 

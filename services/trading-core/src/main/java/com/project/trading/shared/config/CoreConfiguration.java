@@ -8,6 +8,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -15,17 +17,16 @@ import java.time.Clock;
 public class CoreConfiguration {
 
     /**
-     * Fails startup before any bean is created unless the runtime mode is supported. Only the simulated broker
-     * exists in this version; IBKR_PAPER fails closed instead of starting without a broker.
+     * Fails startup before any bean is created when the runtime mode's deployment rules are not met: IBKR_PAPER
+     * trades a broker account and runs only in an explicitly trusted, private environment.
      */
     @Bean
     static BeanFactoryPostProcessor runtimeModeGuard(Environment environment) {
         return beanFactory -> {
-            String mode = environment.getProperty("app.runtime-mode", "");
-            if (!RuntimeMode.MOCK.name().equals(mode)) {
-                throw new IllegalStateException("Unsupported runtime mode '" + mode
-                        + "': this version supports only APP_RUNTIME_MODE=MOCK (the IBKR paper trading adapter is not available yet)");
-            }
+            List<String> origins = Arrays.stream(environment.getProperty("app.http.cors-allowed-origins", String[].class,
+                    new String[0])).map(String::trim).toList();
+            RuntimeModeGuard.check(environment.getProperty("app.runtime-mode", ""),
+                    environment.getProperty("app.trusted-environment", Boolean.class, false), origins);
         };
     }
 

@@ -92,6 +92,8 @@ logging:
 
 app:
   runtime-mode: ${APP_RUNTIME_MODE:MOCK}
+  # Required for IBKR_PAPER: the deployment is private and trusted (the API has no login).
+  trusted-environment: ${APP_TRUSTED_ENVIRONMENT:false}
   account-id: ${APP_ACCOUNT_ID:MOCK-ACCOUNT}
   currency: USD
   orders:
@@ -100,6 +102,10 @@ app:
     quote-max-age: 10s
     max-reply-depth: 3
     shortability-max-age: 1h
+    # An application default for how long a broker confirmation request may be answered (verify against the
+    # broker); the background sweep adds the grace period, which must exceed the broker request timeout.
+    confirmation-ttl: 30s
+    confirmation-sweep-grace: 30s
   portfolio:
     starting-cash: 100000.00
   watchlist:
@@ -132,3 +138,22 @@ app:
     shortability:
       IONQ: NOT_SHORTABLE
       TSLA: UNAVAILABLE
+  # IBKR Client Portal Gateway (IBKR_PAPER mode only). The allocation is this service's share of the session
+  # request limit: realtime gateway allocation + this allocation + headroom must not exceed the limit.
+  ibkr:
+    base-url: ${APP_IBKR_BASE_URL:https://host.docker.internal:5000/v1/api}
+    ca-file: ${APP_IBKR_CA_FILE:/run/secrets/ibkr_ca}
+    connect-timeout: 3s
+    request-timeout: 10s
+    max-response-bytes: 4194304
+    session-limit: ${APP_IBKR_SESSION_LIMIT:10}
+    allocation: ${APP_IBKR_ALLOCATION:4}
+    headroom: ${APP_IBKR_HEADROOM:1}
+    limiter-queue: 32
+    limiter-timeout: 5s
+    penalty-cooldown: 15m
+    readiness-ttl: 5s
+    order-lock-timeout: 5s
+    poll-interval: 5s
+    shortability-ttl: 60s
+    account-ttl: 10s

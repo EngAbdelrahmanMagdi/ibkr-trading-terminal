@@ -90,6 +90,11 @@ class JpaOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<Order> findWorkingOrders(int limit) {
+        return jpa.findWorkingOrders(PageRequest.of(0, limit)).stream().map(JpaOrderRepository::toDomain).toList();
+    }
+
+    @Override
     public BigDecimal openSellQuantity(String symbol) {
         return jpa.openSellQuantity(symbol);
     }

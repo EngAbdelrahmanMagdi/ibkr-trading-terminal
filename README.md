@@ -132,6 +132,7 @@ To run the gateway on real IBKR **paper** market data through the Client Portal 
 ```bash
 make ibkr-certs     # per-machine CA and CP Gateway certificate in ./secrets/ibkr
 make up-ibkr        # after installing the certificate and logging in to the CP Gateway
+make up-ibkr-paper  # also Trading Core on the paper account (set IBKR_PAPER_ACCOUNT_ID in .env; clean database)
 make up-ibkr-fake   # the same code path against a fake gateway (no account needed)
 ```
 
@@ -152,7 +153,7 @@ To check that everything works:
 make verify
 ```
 
-It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache. With Trading Core running, it checks health, migrations, CORS and error handling, that paper mode fails closed, and that market orders fill from the live simulated quotes.
+It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache. With Trading Core running, it checks health, migrations, CORS and error handling, that paper mode fails closed outside a trusted environment, and that market orders fill from the live simulated quotes.
 
 ### Services
 
@@ -170,7 +171,7 @@ Application processes run as non-root where supported. Some official images may 
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
 | Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `gateway` profile (`MOCK` by default). Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
-| Trading Core | `http://127.0.0.1:18080/api/v1` | `core` profile (`MOCK`: simulated broker). Health and Prometheus metrics on `127.0.0.1:18081`. See [the service README](services/trading-core/README.md). |
+| Trading Core | `http://127.0.0.1:18080/api/v1` | `core` profile (`MOCK`: simulated broker; `IBKR_PAPER` with `make up-ibkr-paper`). Health and Prometheus metrics on `127.0.0.1:18081`. See [the service README](services/trading-core/README.md). |
 
 ### Commands
 
@@ -178,7 +179,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|
 | `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or start the complete `MOCK` application (realtime gateway and Trading Core) |
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
-| `make up-ibkr` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, or on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
+| `make up-ibkr` / `make up-ibkr-paper` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, add Trading Core on the IBKR paper account, or run the gateway on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
 | `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |

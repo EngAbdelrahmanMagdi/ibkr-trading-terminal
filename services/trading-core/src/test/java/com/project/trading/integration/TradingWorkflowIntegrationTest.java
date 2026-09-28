@@ -2,6 +2,7 @@ package com.project.trading.integration;
 
 import com.project.trading.broker.infrastructure.mock.MockMatcher;
 import com.project.trading.support.ContractSchemas;
+import com.project.trading.support.TradingInfrastructure;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,10 +10,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.MountableFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,7 +18,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,42 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         "SECRETS_DIR=/nonexistent/"})
 class TradingWorkflowIntegrationTest {
 
-    private static final String OWNER_PASSWORD = "test-owner-password";
-    private static final String APP_PASSWORD = "test-app-password";
-    private static final String REDIS_PASSWORD = "test-redis-password";
-
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6")
-            .withEnv(Map.of("TRADING_OWNER_ROLE", "trading_owner", "TRADING_APP_ROLE", "trading_app",
-                    "TRADING_SCHEMA", "trading"))
-            .withCopyToContainer(MountableFile.forHostPath(Path.of(System.getProperty("infrastructure.dir",
-                    "../../infrastructure"), "postgres", "init", "10-create-roles.sh"), 0755),
-                    "/docker-entrypoint-initdb.d/10-create-roles.sh")
-            .withCopyToContainer(Transferable.of(OWNER_PASSWORD), "/run/secrets/trading_owner_password")
-            .withCopyToContainer(Transferable.of(APP_PASSWORD), "/run/secrets/trading_app_password");
-
-    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:8.10.2")
-            .withExposedPorts(6379)
-            .withCopyToContainer(Transferable.of("protected-mode no\nuser default off\nuser app on >" + REDIS_PASSWORD
-                    + " ~* &* +@all\n"), "/usr/local/etc/redis/redis.conf")
-            .withCommand("redis-server", "/usr/local/etc/redis/redis.conf");
-
-    static {
-        POSTGRES.start();
-        REDIS.start();
-    }
+    static final TradingInfrastructure INFRASTRUCTURE = TradingInfrastructure.start();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + POSTGRES.getHost() + ":"
-                + POSTGRES.getMappedPort(5432) + "/" + POSTGRES.getDatabaseName() + "?currentSchema=trading");
-        registry.add("spring.datasource.username", () -> "trading_app");
-        registry.add("spring.datasource.password", () -> APP_PASSWORD);
-        registry.add("spring.flyway.user", () -> "trading_owner");
-        registry.add("spring.flyway.password", () -> OWNER_PASSWORD);
-        registry.add("spring.data.redis.host", REDIS::getHost);
-        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
-        registry.add("spring.data.redis.username", () -> "app");
-        registry.add("spring.data.redis.password", () -> REDIS_PASSWORD);
+        INFRASTRUCTURE.register(registry);
     }
 
     private static final ObjectMapper JSON = JsonMapper.builder().build();

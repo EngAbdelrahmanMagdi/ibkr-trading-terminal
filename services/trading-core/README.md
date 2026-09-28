@@ -2,7 +2,7 @@
 
 This Spring Boot service is the system of record for trading. It owns order validation and the order lifecycle, idempotent order submission, executions, positions and P&L, the portfolio summary, the watchlist and instrument resolution. It is the only service that writes to PostgreSQL.
 
-The broker sits behind a port (`BrokerTradingPort`). In `MOCK` mode a simulated broker implements it, so the complete trading workflow runs without any brokerage account.
+The broker sits behind a port (`BrokerTradingPort`). In `MOCK` mode a simulated broker implements it, so the complete trading workflow runs without any brokerage account. In `IBKR_PAPER` mode an adapter trades an Interactive Brokers **paper** account through the Client Portal Gateway running on the developer's machine.
 
 ## Runtime modes
 
@@ -11,9 +11,11 @@ The broker sits behind a port (`BrokerTradingPort`). In `MOCK` mode a simulated 
 | Mode | Broker | Quotes used for fills and valuation |
 |---|---|---|
 | `MOCK` (default) | The simulated broker described below | `quote:MOCK:{SYMBOL}` in Redis, written by the realtime gateway's simulator |
-| `IBKR_PAPER` | Not available in this version: startup **fails closed** with a clear message | |
+| `IBKR_PAPER` | The IBKR paper account, described below. Trusted, private environments only | `quote:IBKR:{SYMBOL}` in Redis, written by the realtime gateway from IBKR market data |
 
 There is no live-money mode.
+
+A database belongs to one runtime mode and account. Trading Core records both on first start and refuses to start when they differ, so simulated instruments, orders and positions can never be traded against the paper account. Switching modes needs a separate or clean database.
 
 ## API
 
@@ -70,6 +72,20 @@ Fills, confirmed cancellations and rejections of working orders all go through o
 - **Instruments:** NVDA, AAPL, META, AMD, IONQ, MSFT, TSLA and SPY, matching the market simulator. For demonstration, IONQ is configured as not shortable and TSLA's shortability as unavailable. Borrow availability and fees are never invented (reported as null).
 - **Quotes are demand-driven.** The realtime gateway streams, and caches in Redis, only the symbols that a client is subscribed to. A market order for a symbol nobody is watching is refused with `STALE_MARKET_DATA`, and resting limit orders fill only while their symbol is streaming.
 
+## IBKR paper broker (`IBKR_PAPER`)
+
+- **Deployment guard:** startup is refused unless `APP_TRUSTED_ENVIRONMENT=true` is set and every CORS origin is loopback or on a private network. The API has no login, so it must never be reachable publicly in this mode.
+- **Session:** Trading Core never logs in and never keeps the IBKR session alive (the realtime gateway does). Before order commands it checks the session status and `/iserver/accounts`: the session must be established and not competing, report a paper account, and include the configured account. The check is reused for a few seconds.
+- **TLS:** the gateway certificate must chain to the local CA in `secrets/ibkr/ca.pem` (`make ibkr-certs`); the host name is verified.
+- **Orders:** a market order is sent as `MKT` and a limit order as `LMT`, with the client order ID as the order reference. `SHORT` is sent as a `SELL`. Order commands are serialized, and a new order is refused while a broker confirmation request is outstanding.
+- **Confirmations:** IBKR may answer with a confirmation request (for example a price or size warning). It must be confirmed explicitly through the API, can chain (bounded depth), and expires after `app.orders.confirmation-ttl` (30 s by default): an expired or declined request is rejected locally and nothing is sent. The timeout is an application default; IBKR expects replies to be answered promptly.
+- **Uncertain outcomes:** a submission that may have reached IBKR but got no readable answer (a timeout, a reset or a server error) becomes `UNKNOWN` and is never sent again.
+- **Cancellation:** IBKR only acknowledges that the request was received; the order stays `CANCEL_PENDING` until IBKR reports it cancelled. Fills received in between are applied.
+- **Order progress:** while this application has working IBKR orders it polls IBKR at most every 5 seconds (the documented limit of the live-orders and trades endpoints). Executions are applied once each, by their IBKR execution ID; a cancellation is applied only after every reported fill. An order missing from the broker's list is never assumed cancelled, and orders placed elsewhere are ignored.
+- **Instruments:** a symbol resolves to exactly one US stock in USD (ambiguous matches are refused), with the price increment from the contract rules. It is stored and never resolved again.
+- **Shortability:** from the shortable-shares market data field. 0 is `NOT_SHORTABLE` (the order is blocked locally). A positive count is `SHORTABLE`, with the fee rate when IBKR provides it. Anything else is `UNAVAILABLE`: the order is allowed and IBKR decides.
+- **Pacing:** Trading Core uses its configured share of the IBKR session budget (`APP_IBKR_ALLOCATION`, 4 requests per second by default), with the documented per-endpoint limits, a bounded wait queue and a timeout. After a `429`, all requests pause for 15 minutes.
+
 ## Positions and portfolio
 
 Positions use the average-cost method for longs and shorts. Reductions realize P&L against the average cost, and crossing zero opens the new side at the fill price. Commissions are part of cash, not of the average cost.
@@ -83,6 +99,8 @@ In `MOCK` the portfolio is a simulated cash account:
 | `unrealizedPnl`, `netLiquidation`, position `marketValue` | From fresh quotes (last price). Unavailable while any open position has no fresh quote. |
 | `excessLiquidity`, `dayPnl` | Always unavailable: they can't be derived honestly from the simulation |
 
+In `IBKR_PAPER`, `cash` (the ledger cash balance), `netLiquidation`, `excessLiquidity` and `dayPnl` come from the paper account when its base currency matches, refreshed at most every 10 seconds. `buyingPower` is unavailable. Positions and P&L are computed from the executions recorded here.
+
 ## Persistence
 
 Flyway migrations (`src/main/resources/db/migration`) create the schema: `NUMERIC` for money, prices and quantities; `timestamptz` for time; CHECK constraints for every enumerated column. Migrations run as the schema owner role. The application connects as a role with data access only, and Hibernate only validates the schema. Orders use optimistic locking plus a row lock while broker updates are applied.
@@ -92,9 +110,10 @@ Flyway migrations (`src/main/resources/db/migration`) create the schema: `NUMERI
 From the repository root:
 
 ```bash
-make up-mock     # PostgreSQL, Redis, Kafka, the realtime gateway and Trading Core
-make test-core   # domain, application, architecture and integration tests
-make lint-java   # compile with warnings as errors, Maven enforcer rules, architecture rules
+make up-mock        # PostgreSQL, Redis, Kafka, the realtime gateway and Trading Core
+make up-ibkr-paper  # the same on the IBKR paper account (trusted private environments; clean database)
+make test-core      # domain, application, architecture and integration tests
+make lint-java      # compile with warnings as errors, Maven enforcer rules, architecture rules
 ```
 
 The integration suite runs against real PostgreSQL (initialized with the same role setup as the local stack) and Redis (with an ACL user) through Testcontainers. It drives the complete workflow over HTTP and validates every response against the contract schemas.
@@ -106,6 +125,10 @@ Settings are in `src/main/resources/application.yml`. The main environment varia
 | Variable | Default | Purpose |
 |---|---|---|
 | `APP_RUNTIME_MODE` | `MOCK` | Selects the broker adapter |
+| `APP_TRUSTED_ENVIRONMENT` | `false` | Must be `true` for `IBKR_PAPER` |
+| `APP_ACCOUNT_ID` | `MOCK-ACCOUNT` | The account the database is bound to; in `IBKR_PAPER`, the paper account ID |
+| `APP_IBKR_BASE_URL`, `APP_IBKR_CA_FILE` | `https://host.docker.internal:5000/v1/api`, `/run/secrets/ibkr_ca` | The Client Portal Gateway and the CA that signed its certificate (`IBKR_PAPER`) |
+| `APP_IBKR_ALLOCATION` | `4` | This service's share (requests per second) of the IBKR session limit |
 | `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `15432`, `trading` | PostgreSQL |
 | `DB_APP_USER`, `DB_OWNER_USER` | `trading_app`, `trading_owner` | Runtime role and migration role |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_USER` | `localhost`, `16379`, `app` | Redis |

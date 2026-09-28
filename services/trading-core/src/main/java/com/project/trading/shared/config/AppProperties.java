@@ -15,11 +15,16 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 
-/** Application settings (prefix {@code app}). Defaults are in application.yml. */
+/**
+ * Application settings (prefix {@code app}). Defaults are in application.yml.
+ *
+ * @param trustedEnvironment must be set explicitly for the IBKR_PAPER mode (a private, trusted deployment)
+ */
 @Validated
 @ConfigurationProperties("app")
 public record AppProperties(
         @NotNull RuntimeMode runtimeMode,
+        boolean trustedEnvironment,
         @NotNull @Pattern(regexp = "^[A-Za-z0-9_-]{1,64}$") String accountId,
         @NotNull @Pattern(regexp = "^[A-Z]{3}$") String currency,
         @Valid @NotNull Orders orders,
@@ -29,10 +34,19 @@ public record AppProperties(
         @Valid @NotNull Http http,
         @Valid @NotNull Idempotency idempotency) {
 
-    /** Order limits enforced before submission. */
+    /**
+     * Order limits enforced before submission.
+     *
+     * @param confirmationTtl        how long a broker confirmation request may be answered; afterwards the order
+     *                               is rejected locally and the broker is not called (an application default, not
+     *                               a broker guarantee)
+     * @param confirmationSweepGrace extra time before an unanswered confirmation is expired in the background; it
+     *                               must exceed the broker request timeout so it never races an in-flight answer
+     */
     public record Orders(@NotNull @Positive BigDecimal maxQuantity, @NotNull @Positive BigDecimal maxNotional,
                          @NotNull Duration quoteMaxAge, @Min(1) @Max(10) int maxReplyDepth,
-                         @NotNull Duration shortabilityMaxAge) {
+                         @NotNull Duration shortabilityMaxAge, @NotNull Duration confirmationTtl,
+                         @NotNull Duration confirmationSweepGrace) {
     }
 
     /** The simulated cash account. */

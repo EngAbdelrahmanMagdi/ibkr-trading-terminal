@@ -85,7 +85,7 @@ public class OrderValidator {
             OrderPolicy.checkPosition(c.intent(), quantity, held);
         }
         if (c.intent() == OrderIntent.SHORT) {
-            OrderPolicy.checkShortability(c.intent(), instruments.shortability(c.symbol()).status());
+            OrderPolicy.checkShortability(c.intent(), instruments.shortability(instrument).status());
         }
 
         BigDecimal referencePrice = limitPrice != null ? limitPrice.value() : marketReference(c.symbol(), c.intent());

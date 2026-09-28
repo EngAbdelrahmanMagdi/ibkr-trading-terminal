@@ -1,6 +1,7 @@
 package com.project.trading.portfolio.application;
 
-import com.project.trading.execution.application.ExecutionLedger;
+import com.project.trading.broker.domain.AccountMetrics;
+import com.project.trading.broker.domain.BrokerAccountPort;
 import com.project.trading.marketdata.domain.QuoteReferencePort;
 import com.project.trading.marketdata.domain.ReferenceQuote;
 import com.project.trading.position.application.PositionLedger;
@@ -19,9 +20,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Positions and account metrics of the simulated cash account. Values that need a mark price use fresh
- * reference quotes only; when a quote is missing or stale the metric is reported as unavailable, never
- * estimated. Metrics that cannot be derived honestly (excess liquidity, day P&L) are always unavailable.
+ * Positions and account metrics. Position values that need a mark price use fresh reference quotes only; when a
+ * quote is missing or stale the metric is reported as unavailable, never estimated. Account metrics (cash, buying
+ * power, excess liquidity, day P&L) come from the broker account; any the broker does not report is unavailable.
+ * Net liquidation is the broker value, or else cash plus the marked positions when every position is priced.
  */
 @Service
 public class PortfolioService {
@@ -48,16 +50,16 @@ public class PortfolioService {
     }
 
     private final PositionLedger positions;
-    private final ExecutionLedger executions;
+    private final BrokerAccountPort account;
     private final QuoteReferencePort quotes;
     private final Clock clock;
     private final AppProperties properties;
     private final Duration quoteMaxAge;
 
-    public PortfolioService(PositionLedger positions, ExecutionLedger executions, QuoteReferencePort quotes,
+    public PortfolioService(PositionLedger positions, BrokerAccountPort account, QuoteReferencePort quotes,
                             Clock clock, AppProperties properties) {
         this.positions = positions;
-        this.executions = executions;
+        this.account = account;
         this.quotes = quotes;
         this.clock = clock;
         this.properties = properties;
@@ -98,17 +100,23 @@ public class PortfolioService {
             unrealized = unrealized.add(p.unrealizedPnl(mark.get()));
             marketValue = marketValue.add(p.marketValue(mark.get()));
         }
-        BigDecimal cash = properties.portfolio().startingCash().add(executions.netCashFlow());
+        AccountMetrics broker = account.metrics();
+        BigDecimal netLiquidation = broker.netLiquidation() != null ? broker.netLiquidation()
+                : broker.cash() != null && allPriced ? broker.cash().add(marketValue) : null;
 
         return new Summary(properties.runtimeMode().name(),
-                allPriced ? Metric.of(cash.add(marketValue), currency) : Metric.unavailable(currency),
-                Metric.of(cash, currency),
-                Metric.of(cash, currency),
-                Metric.unavailable(currency),
-                Metric.unavailable(currency),
+                metric(netLiquidation, currency),
+                metric(broker.cash(), currency),
+                metric(broker.buyingPower(), currency),
+                metric(broker.excessLiquidity(), currency),
+                metric(broker.dayPnl(), currency),
                 allPriced ? Metric.of(unrealized, currency) : Metric.unavailable(currency),
                 Metric.of(realized, currency),
                 now);
+    }
+
+    private static Metric metric(BigDecimal value, String currency) {
+        return value == null ? Metric.unavailable(currency) : Metric.of(value, currency);
     }
 
     private PositionView view(Position p, Instant now) {

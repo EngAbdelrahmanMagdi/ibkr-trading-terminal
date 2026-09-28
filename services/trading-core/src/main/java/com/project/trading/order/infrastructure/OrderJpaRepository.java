@@ -37,6 +37,10 @@ interface OrderJpaRepository extends JpaRepository<OrderEntity, UUID> {
             + " and o.status in ('SUBMITTED', 'PARTIALLY_FILLED', 'CANCEL_PENDING') order by o.createdAt asc, o.id asc")
     List<OrderEntity> findWorkingLimitOrders(Pageable page);
 
+    @Query("select o from OrderEntity o where o.brokerOrderId is not null"
+            + " and o.status in ('SUBMITTED', 'PARTIALLY_FILLED', 'CANCEL_PENDING') order by o.createdAt asc, o.id asc")
+    List<OrderEntity> findWorkingOrders(Pageable page);
+
     @Query("select coalesce(sum(o.quantity - o.filledQuantity), 0) from OrderEntity o where o.symbol = :symbol"
             + " and o.brokerSide = 'SELL' and o.status not in ('FILLED', 'CANCELLED', 'REJECTED', 'FAILED')")
     BigDecimal openSellQuantity(@Param("symbol") String symbol);

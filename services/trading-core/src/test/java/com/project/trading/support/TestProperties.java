@@ -14,9 +14,9 @@ public final class TestProperties {
     }
 
     public static AppProperties app(int maxReplyDepth) {
-        return new AppProperties(RuntimeMode.MOCK, "TEST-ACCOUNT", "USD",
+        return new AppProperties(RuntimeMode.MOCK, false, "TEST-ACCOUNT", "USD",
                 new AppProperties.Orders(new BigDecimal("10000"), new BigDecimal("1000000"), Duration.ofSeconds(10),
-                        maxReplyDepth, Duration.ofHours(1)),
+                        maxReplyDepth, Duration.ofHours(1), Duration.ofSeconds(30), Duration.ofSeconds(30)),
                 new AppProperties.Portfolio(new BigDecimal("100000")),
                 new AppProperties.Watchlist(List.of(), 200),
                 new AppProperties.Queries(100, 500),

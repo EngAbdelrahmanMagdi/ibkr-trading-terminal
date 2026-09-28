@@ -32,6 +32,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +53,7 @@ class OrderValidatorTest {
                 TestProperties.app(3), Clock.fixed(NOW, ZoneOffset.UTC));
         when(broker.connectionState()).thenReturn(BrokerConnectionState.READY);
         when(instruments.resolve("NVDA")).thenReturn(new Instrument("NVDA", 1, "NVIDIA", "MOCK", "USD", "STK", 2));
-        when(instruments.shortability("NVDA")).thenReturn(Shortability.unavailable());
+        when(instruments.shortability(any(Instrument.class))).thenReturn(Shortability.unavailable());
         when(positions.signedQuantity("NVDA")).thenReturn(BigDecimal.ZERO);
         quote(NOW.minusSeconds(1), false);
     }
@@ -119,7 +120,7 @@ class OrderValidatorTest {
 
     @Test
     void shortIsBlockedOnlyWhenNotShortable() {
-        when(instruments.shortability("NVDA")).thenReturn(new Shortability(ShortabilityStatus.NOT_SHORTABLE, null, null, NOW));
+        when(instruments.shortability(any(Instrument.class))).thenReturn(new Shortability(ShortabilityStatus.NOT_SHORTABLE, null, null, NOW));
         assertRejected(() -> validator.validate(order(OrderIntent.SHORT, OrderType.LIMIT, "1", "180")), 422, ErrorCategory.VALIDATION, null);
     }
 

@@ -29,6 +29,9 @@ public interface OrderRepository {
     /** Working LIMIT orders that have a broker order ID, oldest first. */
     List<Order> findWorkingLimitOrders(int limit);
 
+    /** Working orders of any type that have a broker order ID, oldest first. */
+    List<Order> findWorkingOrders(int limit);
+
     /** Remaining quantity of non-terminal SELL-side orders in a symbol (reserved against the long position). */
     BigDecimal openSellQuantity(String symbol);
 

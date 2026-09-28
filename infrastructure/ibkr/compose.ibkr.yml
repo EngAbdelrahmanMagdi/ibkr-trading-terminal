@@ -1,10 +1,11 @@
 # Override: the realtime gateway on IBKR market data through the Client Portal Gateway running on this
-# machine (make up-ibkr). Trusted, private environments only; public deployments use MOCK.
+# machine (make up-ibkr), and Trading Core on the IBKR paper account (make up-ibkr-paper). Trusted, private
+# environments only; public deployments use MOCK.
 #
 # Prerequisites:
 #   1. make ibkr-certs, then install secrets/ibkr/cpgw.jks in the CP Gateway (see the service README);
 #   2. start the CP Gateway and log in with your paper-trading username in a browser on this machine.
-# The gateway trusts only the local CA in secrets/ibkr/ca.pem, with hostname verification on.
+# Both services trust only the local CA in secrets/ibkr/ca.pem, with hostname verification on.
 services:
   realtime-gateway:
     environment:
@@ -17,6 +18,24 @@ services:
     secrets:
       - redis_app_password
       - ibkr_ca
+
+  # Trading Core on the IBKR paper account (make up-ibkr-paper). It starts only on a database that is clean or
+  # already bound to IBKR_PAPER and the same account: a database holding MOCK data is refused.
+  trading-core:
+    environment:
+      APP_RUNTIME_MODE: IBKR_PAPER
+      APP_TRUSTED_ENVIRONMENT: "true"
+      APP_ACCOUNT_ID: ${IBKR_PAPER_ACCOUNT_ID:-}
+      APP_IBKR_BASE_URL: ${TRADING_CORE_IBKR_BASE_URL:-https://host.docker.internal:5000/v1/api}
+      APP_IBKR_CA_FILE: /run/secrets/ibkr_ca
+      APP_IBKR_ALLOCATION: ${TRADING_CORE_IBKR_ALLOCATION:-4}
+    secrets:
+      - trading_app_password
+      - trading_owner_password
+      - redis_app_password
+      - ibkr_ca
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 secrets:
   ibkr_ca:

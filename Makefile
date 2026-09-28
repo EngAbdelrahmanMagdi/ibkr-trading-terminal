@@ -12,6 +12,7 @@ COMPOSE_MOCK := $(COMPOSE) --profile gateway --profile core
 IBKR_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr.yml
 IBKR_FAKE_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr-fake.yml
 COMPOSE_IBKR := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway
+COMPOSE_IBKR_PAPER := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway --profile core
 COMPOSE_IBKR_FAKE := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile gateway
 COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway --profile core
 WAIT_TIMEOUT := 240
@@ -61,7 +62,7 @@ TESTCONTAINERS_RUN := $(MAVEN_RUN) -v /var/run/docker.sock:/var/run/docker.sock 
 	-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
 GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
 
-.PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract \
+.PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-paper up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract \
         contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts security clean
 
 help: ## Show available targets
@@ -82,6 +83,11 @@ up-mock: bootstrap ## Start the MOCK application: core infrastructure, the realt
 up-ibkr: bootstrap ## Start the realtime gateway on IBKR market data (needs make ibkr-certs and a CP Gateway login)
 	@test -s secrets/ibkr/ca.pem || { echo "up-ibkr: secrets/ibkr/ca.pem is missing - run 'make ibkr-certs' and install the certificate in the CP Gateway first"; exit 1; }
 	$(COMPOSE_IBKR) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
+
+up-ibkr-paper: bootstrap ## Start the gateway on IBKR market data and Trading Core on the IBKR paper account (clean database; see .env)
+	@test -s secrets/ibkr/ca.pem || { echo "up-ibkr-paper: secrets/ibkr/ca.pem is missing - run 'make ibkr-certs' and install the certificate in the CP Gateway first"; exit 1; }
+	@grep -Eq '^IBKR_PAPER_ACCOUNT_ID=[A-Za-z0-9_-]+' .env || { echo "up-ibkr-paper: set IBKR_PAPER_ACCOUNT_ID in .env (your paper trading account ID)"; exit 1; }
+	$(COMPOSE_IBKR_PAPER) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
 
 up-ibkr-fake: bootstrap ## Start the gateway's IBKR code path against a FAKE CP Gateway (tests; no IBKR account)
 	$(COMPOSE_IBKR_FAKE) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)

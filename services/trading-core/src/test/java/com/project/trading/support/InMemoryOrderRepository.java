@@ -71,6 +71,14 @@ public class InMemoryOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<Order> findWorkingOrders(int limit) {
+        return rows.values().stream()
+                .filter(o -> o.brokerOrderId() != null && o.status().isWorking())
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
     public BigDecimal openSellQuantity(String symbol) {
         return rows.values().stream()
                 .filter(o -> o.symbol().equals(symbol) && o.brokerSide() == BrokerSide.SELL && !o.status().isTerminal())

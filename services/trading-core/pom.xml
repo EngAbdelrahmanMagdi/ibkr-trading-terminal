@@ -24,6 +24,7 @@
     <tomcat.version>11.0.26</tomcat.version>
     <archunit.version>1.5.1</archunit.version>
     <json-schema-validator.version>3.0.7</json-schema-validator.version>
+    <wiremock.version>3.13.2</wiremock.version>
     <!-- Contracts directory used by the contract-conformance tests. -->
     <contracts.dir>${project.basedir}/../../contracts</contracts.dir>
     <!-- Infrastructure directory: the integration tests start PostgreSQL with the same role setup script. -->
@@ -93,6 +94,12 @@
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
       <version>${archunit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <version>${wiremock.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

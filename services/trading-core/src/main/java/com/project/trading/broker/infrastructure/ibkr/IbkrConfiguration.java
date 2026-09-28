@@ -1,9 +1,9 @@
 package com.project.trading.broker.infrastructure.ibkr;
 
-import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
-import com.project.trading.broker.domain.OpenOrderSource;
+import com.project.trading.broker.domain.ReconciliationRequests;
 import com.project.trading.shared.config.AppProperties;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -41,9 +41,13 @@ public class IbkrConfiguration {
     }
 
     @Bean
-    IbkrSession ibkrSession(IbkrHttp http, ReplyGate replies, IbkrProperties ibkr, AppProperties app) {
-        return new IbkrSession(http, app.accountId(), replies, ibkr.readinessTtl(), ibkr.requestTimeout(),
+    IbkrSession ibkrSession(IbkrHttp http, ReplyGate replies, IbkrProperties ibkr, AppProperties app,
+                            ObjectProvider<ReconciliationRequests> reconciliation) {
+        IbkrSession session = new IbkrSession(http, app.accountId(), replies, ibkr.readinessTtl(), ibkr.requestTimeout(),
                 System::nanoTime);
+        // Resolved lazily: reconciliation itself depends on this session.
+        session.onReady(() -> reconciliation.ifAvailable(r -> r.requestReconciliation("broker session ready")));
+        return session;
     }
 
     @Bean
@@ -58,10 +62,8 @@ public class IbkrConfiguration {
     }
 
     @Bean
-    IbkrOrderPoller ibkrOrderPoller(IbkrHttp http, IbkrSession session, ReplyGate replies, OpenOrderSource orders,
-                                    BrokerOrderUpdateHandler updates, IbkrProperties ibkr, AppProperties app,
-                                    Clock clock) {
-        return new IbkrOrderPoller(http, session, replies, orders, updates, app.currency(), ibkr.pollInterval(), clock);
+    IbkrBrokerTruth ibkrBrokerTruth(IbkrHttp http, IbkrSession session, ReplyGate replies, AppProperties app, Clock clock) {
+        return new IbkrBrokerTruth(http, session, replies, app.accountId(), clock);
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package com.project.trading.broker.infrastructure.mock;
 
 import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
+import com.project.trading.broker.domain.BrokerTruthPort;
 import com.project.trading.broker.domain.OpenOrderSource;
 import com.project.trading.execution.application.ExecutionLedger;
 import com.project.trading.instrument.domain.Instrument;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
+import java.util.Optional;
 import java.util.function.Function;
 
 /** Wires the simulated broker; selected only in MOCK mode. */
@@ -33,6 +35,12 @@ public class MockBrokerConfiguration {
     @Bean
     MockBrokerAccount mockBrokerAccount(ExecutionLedger executions, AppProperties app, Clock clock) {
         return new MockBrokerAccount(executions, app.portfolio().startingCash(), clock);
+    }
+
+    /** The simulated broker delivers its updates in-process; there is nothing to reconcile against. */
+    @Bean
+    BrokerTruthPort mockBrokerTruth() {
+        return Optional::empty;
     }
 
     @Bean

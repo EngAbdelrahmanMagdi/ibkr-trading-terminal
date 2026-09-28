@@ -50,7 +50,7 @@ flowchart LR
 |---|---|
 | **Web Terminal** (Next.js) | The trading UI. It never talks to the broker and holds no secrets. |
 | **Trading Core** (Spring Boot) | The system of record for trading: order validation and lifecycle, idempotent order submission, positions and P&L, watchlist, news ingestion, transactional outbox, and reconciliation against the broker |
-| **Realtime Gateway** (Go) | Broker session and streaming, quote normalization, per-symbol coalescing and backpressure, browser WebSocket fanout, historical bars |
+| **Realtime Gateway** (Go) | Broker session and streaming, quote normalization, per-symbol coalescing and backpressure, browser WebSocket fanout, historical bars, and publishing the broker's order stream to Kafka |
 | **AI Insights Worker** (Python) | Asynchronous news enrichment with schema-validated LLM output. It is isolated from trading and cannot place, modify, or cancel orders. |
 | **PostgreSQL** | Durable application state |
 | **Redis** | Disposable hot state and caches, all with TTLs |

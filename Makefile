@@ -186,7 +186,9 @@ security: ## Scan for secrets (git history + every commit candidate) and known G
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/repo:ro" --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner'
 	@echo "gitleaks: files that would be committed"
-	@git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | \
+	@git ls-files -z --cached --others --exclude-standard | \
+		while IFS= read -r -d '' f; do if [ -e "$$f" ] || [ -L "$$f" ]; then printf '%s\0' "$$f"; fi; done | \
+		tar --null -T - -cf - | \
 		$(DOCKER_RUN) -i --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'mkdir -p /scan && tar -xf - -C /scan && gitleaks dir /scan --redact --no-banner'
 	@echo "govulncheck: realtime gateway and Go contract tests"

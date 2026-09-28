@@ -8,8 +8,10 @@ public interface BrokerOrderUpdateHandler {
         APPLIED,
         /** A duplicate or out-of-date update. */
         IGNORED,
-        /** The order is not known locally or not acknowledged yet; deliver the update again later (bounded). */
-        NOT_READY
+        /** The order is not acknowledged locally yet; deliver the update again later (bounded). */
+        NOT_READY,
+        /** No local order matches: an order placed outside this application. Logged and counted, never imported. */
+        UNKNOWN_ORDER
     }
 
     Outcome handle(BrokerOrderUpdate update);

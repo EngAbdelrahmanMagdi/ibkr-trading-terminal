@@ -49,6 +49,23 @@ public class InMemoryOrderRepository implements OrderRepository {
     }
 
     @Override
+    public Optional<Order> lockByClientOrderId(String clientOrderId) {
+        return findByClientOrderId(clientOrderId);
+    }
+
+    @Override
+    public Optional<Order> findByClientOrderId(String clientOrderId) {
+        return rows.values().stream().filter(o -> clientOrderId.equals(o.clientOrderId())).findFirst()
+                .map(o -> copy(o, o.version()));
+    }
+
+    @Override
+    public Optional<Order> findByBrokerOrderId(String brokerOrderId) {
+        return rows.values().stream().filter(o -> brokerOrderId.equals(o.brokerOrderId())).findFirst()
+                .map(o -> copy(o, o.version()));
+    }
+
+    @Override
     public List<Order> findRecent(Collection<OrderStatus> statuses, int limit) {
         return rows.values().stream()
                 .filter(o -> statuses.isEmpty() || statuses.contains(o.status()))

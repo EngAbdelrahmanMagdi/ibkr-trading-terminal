@@ -5,6 +5,7 @@ import com.project.trading.broker.domain.BrokerOrderUpdate;
 import com.project.trading.broker.domain.BrokerOrderUpdateHandler;
 import com.project.trading.broker.domain.BrokerTradingPort;
 import com.project.trading.broker.domain.CancelResult;
+import com.project.trading.broker.domain.ObservedStatus;
 import com.project.trading.broker.domain.SubmitResult;
 import com.project.trading.execution.application.ExecutionLedger;
 import com.project.trading.instrument.domain.Instrument;
@@ -65,6 +66,7 @@ class OrderWorkflowTest {
     private ConfirmOrderService confirm;
     private CancelOrderService cancel;
     private ConfirmationExpiry expiry;
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
     @BeforeEach
     void setUp() {
@@ -82,7 +84,7 @@ class OrderWorkflowTest {
         NoopTransactionManager tm = new NoopTransactionManager();
         OrderMetrics metrics = new OrderMetrics(new SimpleMeterRegistry(), orders);
         updates = new OrderUpdateService(orders, executions, positions, metrics, tm, new OrderEventFactory(),
-                new OutboxAppender((message, at) -> { }, clock));
+                new OutboxAppender((message, at) -> { }, clock), new DriftReporter(registry), clock, registry);
         SubmissionOutcomes outcomes = new SubmissionOutcomes(orders, updates, metrics, tm, clock, props);
         IdempotencyService idempotency = new IdempotencyService(new InMemoryIdempotencyStore(),
                 JsonMapper.builder().build(), clock, props);
@@ -259,6 +261,71 @@ class OrderWorkflowTest {
         verify(executions, times(1)).record(any());
         assertThatThrownBy(() -> cancel.cancel(order.id()))
                 .isInstanceOf(DomainException.class).extracting("status").isEqualTo(409);
+    }
+
+    private double drift(String severity) {
+        var counter = registry.find("reconciliation.drift").tag("entity", "execution").tag("severity", severity).counter();
+        return counter == null ? 0 : counter.count();
+    }
+
+    @Test
+    void aLateExecutionOnACancelledOrderIsRecordedAndTheOrderStaysCancelled() {
+        when(broker.submit(any())).thenReturn(new SubmitResult.Accepted("B-1", List.of()));
+        when(broker.cancel("B-1")).thenReturn(new CancelResult.Requested());
+        Order order = place.place(UUID.randomUUID(), limitBuy("10")).order();
+        cancel.cancel(order.id());
+        updates.handle(new BrokerOrderUpdate.Cancelled("B-1", Instant.parse("2026-09-28T10:00:02Z")));
+
+        assertThat(updates.handle(fill("B-1", "E-1", "4"))).isEqualTo(BrokerOrderUpdateHandler.Outcome.APPLIED);
+
+        Order late = orders.findById(order.id()).orElseThrow();
+        assertThat(late.status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(late.filledQuantity()).isEqualTo(Quantity.of("4"));
+        verify(executions, times(1)).record(any());
+        verify(positions, times(1)).applyFill(any(), any(), any(), any(), any(), any());
+        assertThat(drift("info")).isEqualTo(1);
+    }
+
+    @Test
+    void aRealExecutionOnARejectedOrderIsRecordedAsSeriousDriftWithinTheOrderQuantityOnly() {
+        when(broker.submit(any())).thenReturn(new SubmitResult.Accepted("B-2", List.of()));
+        when(executions.isRecorded("E-3")).thenReturn(false, true);
+        Order order = place.place(UUID.randomUUID(), limitBuy("10")).order();
+        updates.handle(new BrokerOrderUpdate.Rejected("B-2", "rejected", Instant.parse("2026-09-28T10:00:01Z")));
+
+        assertThat(updates.handle(fill("B-2", "E-2", "6"))).isEqualTo(BrokerOrderUpdateHandler.Outcome.APPLIED);
+        assertThat(updates.handle(fill("B-2", "E-3", "5"))).isEqualTo(BrokerOrderUpdateHandler.Outcome.APPLIED);
+        assertThat(updates.handle(fill("B-2", "E-3", "5"))).isEqualTo(BrokerOrderUpdateHandler.Outcome.IGNORED);
+
+        Order late = orders.findById(order.id()).orElseThrow();
+        assertThat(late.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(late.filledQuantity()).as("advanced only while within the order quantity").isEqualTo(Quantity.of("6"));
+        verify(executions, times(2)).record(any());
+        verify(positions, times(2)).applyFill(any(), any(), any(), any(), any(), any());
+        assertThat(drift("serious")).isEqualTo(2);
+    }
+
+    @Test
+    void anUnknownOrderIsResolvedByItsClientReferenceAndExternalOrdersAreNotImported() {
+        when(broker.submit(any())).thenReturn(new SubmitResult.Unknown("timeout"));
+        Order order = place.place(UUID.randomUUID(), limitBuy("10")).order();
+        assertThat(order.status()).isEqualTo(OrderStatus.UNKNOWN);
+
+        assertThat(updates.handle(new BrokerOrderUpdate.Observed("B-77", order.clientOrderId(),
+                ObservedStatus.WORKING, Quantity.ZERO, "Submitted", Instant.parse("2026-09-28T10:00:03Z"))))
+                .isEqualTo(BrokerOrderUpdateHandler.Outcome.APPLIED);
+        Order resolved = orders.findById(order.id()).orElseThrow();
+        assertThat(resolved.status()).isEqualTo(OrderStatus.SUBMITTED);
+        assertThat(resolved.brokerOrderId()).isEqualTo("B-77");
+
+        // A cancellation waits until the fills the broker reports are recorded.
+        assertThat(updates.handle(new BrokerOrderUpdate.Observed("B-77", order.clientOrderId(), ObservedStatus.CANCELLED,
+                Quantity.of("3"), "Cancelled", Instant.parse("2026-09-28T10:00:04Z"))))
+                .isEqualTo(BrokerOrderUpdateHandler.Outcome.NOT_READY);
+        assertThat(updates.handle(new BrokerOrderUpdate.Observed("X-1", "placed-elsewhere", ObservedStatus.FILLED,
+                Quantity.of("1"), "Filled", Instant.parse("2026-09-28T10:00:04Z"))))
+                .isEqualTo(BrokerOrderUpdateHandler.Outcome.UNKNOWN_ORDER);
+        assertThat(orders.findById(order.id()).orElseThrow().status()).isEqualTo(OrderStatus.SUBMITTED);
     }
 
     @Test

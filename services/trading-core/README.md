@@ -81,10 +81,33 @@ Fills, confirmed cancellations and rejections of working orders all go through o
 - **Confirmations:** IBKR may answer with a confirmation request (for example a price or size warning). It must be confirmed explicitly through the API, can chain (bounded depth), and expires after `app.orders.confirmation-ttl` (30 s by default): an expired or declined request is rejected locally and nothing is sent. The timeout is an application default; IBKR expects replies to be answered promptly.
 - **Uncertain outcomes:** a submission that may have reached IBKR but got no readable answer (a timeout, a reset or a server error) becomes `UNKNOWN` and is never sent again.
 - **Cancellation:** IBKR only acknowledges that the request was received; the order stays `CANCEL_PENDING` until IBKR reports it cancelled. Fills received in between are applied.
-- **Order progress:** while this application has working IBKR orders it polls IBKR at most every 5 seconds (the documented limit of the live-orders and trades endpoints). Executions are applied once each, by their IBKR execution ID; a cancellation is applied only after every reported fill. An order missing from the broker's list is never assumed cancelled, and orders placed elsewhere are ignored.
+- **Order progress:** streamed by the realtime gateway through Kafka and backed by periodic reconciliation (see below). Nothing polls IBKR per order.
 - **Instruments:** a symbol resolves to exactly one US stock in USD (ambiguous matches are refused), with the price increment from the contract rules. It is stored and never resolved again.
 - **Shortability:** from the shortable-shares market data field. 0 is `NOT_SHORTABLE` (the order is blocked locally). A positive count is `SHORTABLE`, with the fee rate when IBKR provides it. Anything else is `UNAVAILABLE`: the order is allowed and IBKR decides.
 - **Pacing:** Trading Core uses its configured share of the IBKR session budget (`APP_IBKR_ALLOCATION`, 4 requests per second by default), with the documented per-endpoint limits, a bounded wait queue and a timeout. After a `429`, all requests pause for 15 minutes.
+
+## Broker order updates and reconciliation (`IBKR_PAPER`)
+
+The realtime gateway owns the IBKR WebSocket. It publishes neutral order and execution observations on `broker.order-updates.v1`, keyed `accountId:brokerOrderId`. Trading Core consumes them and applies them through the same update path as every other broker update, so executions, positions and outbox events are recorded identically. In `MOCK` the simulated broker delivers its updates in-process and none of this runs.
+
+- **Consumer:** one thread, group `trading-core-broker-updates`, at most 100 records per poll, offsets committed only after the records were handled. A new group starts at the earliest retained record, which is safe because processing is idempotent.
+- **Idempotent processing (delivery is at least once):** each event ID is inserted into `processed_events` in the same transaction as its changes; a redelivered event changes nothing. Executions are also unique by their IBKR execution ID, so an execution seen through the stream, reconciliation and a replay is recorded once. Processed IDs are purged after 14 days, longer than the topic's retention.
+- **Matching:** an update is matched to its order by IBKR order ID, then by the client order reference. Orders placed outside this application are counted and never imported.
+- **Updates that are not applicable yet** (the order is not acknowledged locally, or a cancellation arrives before its reported fills) are retried a few times with backoff within 30 seconds, then left to reconciliation.
+- **Unreadable events,** events for another account and unknown event types are counted and skipped. There is no dead-letter topic; reconciliation against the broker is the recovery path.
+- **Kafka or database errors:** the consumer goes back to its last committed offsets and retries with a capped backoff (up to 30 s). Kafka never affects startup or readiness.
+
+**Reconciliation** compares the broker's current-day orders, recent executions and positions with the local state. It runs every 30 seconds, at startup, when the IBKR session becomes ready again, and when the consumer is assigned partitions or recovers from errors (at most one run every 10 seconds). It is skipped while the session is not ready or a confirmation request is outstanding, and it holds no database transaction while IBKR is called.
+
+- **Missing executions** of this application's orders are applied through the normal update path.
+- **Orders** the broker reports in a different state are moved through the allowed transitions only; a cancellation is applied only after every reported fill.
+- **Uncertain outcomes (`UNKNOWN`)** are resolved when the broker reports the order by its reference: it becomes `SUBMITTED` with its IBKR order ID, then follows the broker. Absence never resolves it. When the broker still doesn't know the order after 15 minutes of ready session time (`app.reconciliation.unknown-order-alert-after`), a warning is logged and `orders_unknown_unresolved` is raised for manual resolution; the order stays `UNKNOWN`.
+- **Positions** are only ever changed by real executions. A remaining difference from the broker is reported as serious drift, never overwritten.
+- **A working order missing from the broker's list** is reported, not cancelled: the list covers the current day only.
+- **Late executions:** an execution that arrives after its order reached a final state is still recorded and applied to the position. The status never moves backward. Filled quantity and average price advance only while they stay within the order quantity. An execution on a rejected or failed order, or one that would exceed the order quantity, is reported as serious drift.
+- **Metrics:** `reconciliation_drift_total{entity,severity}` (with a structured `reconciliation_drift` log), `reconciliation_external_total`, `reconciliation_runs_total`, `reconciliation_failures_total`, `orders_unknown_unresolved`, `broker_updates_consumed_total{outcome}` and `broker_updates_unknown_orders_total`.
+
+The IBKR execution stream carries no commission, so executions recorded from it have none; in this mode cash comes from the paper account itself.
 
 ## Positions and portfolio
 
@@ -141,7 +164,7 @@ make test-core      # domain, application, architecture and integration tests
 make lint-java      # compile with warnings as errors, Maven enforcer rules, architecture rules
 ```
 
-The integration suite runs against real PostgreSQL (initialized with the same role setup as the local stack), Redis (with an ACL user) and Kafka through Testcontainers. It drives the complete workflow over HTTP, validates every response and published event against the contract schemas, and pauses Kafka to show that committed events are published once it is back.
+The integration suite runs against real PostgreSQL (initialized with the same role setup as the local stack), Redis (with an ACL user) and Kafka through Testcontainers. It drives the complete workflow over HTTP, validates every response and published event against the contract schemas, and pauses Kafka to show that committed events are published once it is back. The `IBKR_PAPER` workflow runs against a scripted IBKR Client Portal API: fills arrive as broker update events on Kafka (duplicates change nothing), a lost update is recovered by reconciliation, and an order with an uncertain outcome is resolved by its reference.
 
 ## Configuration
 
@@ -154,7 +177,9 @@ Settings are in `src/main/resources/application.yml`. The main environment varia
 | `APP_ACCOUNT_ID` | `MOCK-ACCOUNT` | The account the database is bound to; in `IBKR_PAPER`, the paper account ID |
 | `APP_IBKR_BASE_URL`, `APP_IBKR_CA_FILE` | `https://host.docker.internal:5000/v1/api`, `/run/secrets/ibkr_ca` | The Client Portal Gateway and the CA that signed its certificate (`IBKR_PAPER`) |
 | `APP_IBKR_ALLOCATION` | `4` | This service's share (requests per second) of the IBKR session limit |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:19092` | Kafka brokers for the outbox relay |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:19092` | Kafka brokers for the outbox relay and the broker update consumer |
+| `APP_RECONCILIATION_INTERVAL` | `30s` | Time between reconciliation runs (`IBKR_PAPER`) |
+| `APP_RECONCILIATION_UNKNOWN_ORDER_ALERT_AFTER` | `15m` | Ready session time before an unresolved `UNKNOWN` order is reported |
 | `APP_OUTBOX_PUBLISHER_ENABLED` | `true` | Whether this instance relays outbox events (events are always recorded) |
 | `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `15432`, `trading` | PostgreSQL |
 | `DB_APP_USER`, `DB_OWNER_USER` | `trading_app`, `trading_owner` | Runtime role and migration role |

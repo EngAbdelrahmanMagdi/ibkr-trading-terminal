@@ -51,6 +51,9 @@ channels:
       Broker-neutral observations from the broker order stream. They are not domain decisions.
       Producer: realtime gateway. Consumer: trading core, which reconciles them into order state.
       Key: `accountId:brokerOrderId`. Missed observations are recovered by periodic reconciliation with the broker.
+      An execution carries the broker order ID even when the broker's execution feed reports only the client
+      order reference: the gateway correlates the two within a bounded time and drops (and counts) executions
+      it cannot correlate. Consumers deduplicate by `eventId` and by `execution.brokerExecutionId`.
     messages:
       brokerOrderUpdate:
         $ref: '#/components/messages/BrokerOrderUpdate'

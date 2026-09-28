@@ -47,6 +47,8 @@ final class IbkrSession {
     private final ReentrantLock refresh = new ReentrantLock();
     private volatile Snapshot cached;
     private volatile AccountCheck lastAccountCheck = AccountCheck.OK;
+    private volatile Runnable onReady = () -> { };
+    private BrokerConnectionState lastState = BrokerConnectionState.UNAVAILABLE;
 
     IbkrSession(IbkrHttp http, String accountId, ReplyGate replies, Duration readinessTtl, Duration lockWait,
                 LongSupplier ticker) {
@@ -80,10 +82,20 @@ final class IbkrSession {
             }
             BrokerConnectionState state = check();
             cached = new Snapshot(state, ticker.getAsLong());
+            boolean becameReady = state == BrokerConnectionState.READY && lastState != BrokerConnectionState.READY;
+            lastState = state;
+            if (becameReady) {
+                onReady.run();
+            }
             return state;
         } finally {
             refresh.unlock();
         }
+    }
+
+    /** Called each time the session becomes ready (for example to reconcile after an outage). Must not block. */
+    void onReady(Runnable listener) {
+        this.onReady = listener;
     }
 
     /** Forces the next state() call to check the broker again (for example after a 401). */

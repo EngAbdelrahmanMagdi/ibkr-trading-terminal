@@ -22,6 +22,10 @@ var errQueueFull = errors.New("ibkr websocket: outbound queue full")
 // frameHandler receives the market-data frames of one connection.
 type frameHandler func(conid int64, fields map[string]json.RawMessage)
 
+// orderHandler receives the order-stream messages of one connection: topic "sor" (order updates) or "str"
+// (executions) with their raw args. It may be nil.
+type orderHandler func(topic string, args json.RawMessage)
+
 // wsConn is one websocket connection to the CP Gateway (wss://…/v1/api/ws, cookie api=<session>).
 // Goroutines: one reader and one writer, both ending when the connection closes.
 type wsConn struct {
@@ -42,7 +46,7 @@ type wsConn struct {
 }
 
 // dialWS opens the websocket with the session token as the api cookie. The token is never logged.
-func (c *Client) dialWS(ctx context.Context, token string, sendRate float64, onFrame frameHandler) (*wsConn, error) {
+func (c *Client) dialWS(ctx context.Context, token string, sendRate float64, onFrame frameHandler, onOrders orderHandler) (*wsConn, error) {
 	u := *c.base
 	u.Scheme = "wss"
 	u = *u.JoinPath("/ws")
@@ -72,8 +76,8 @@ func (c *Client) dialWS(ctx context.Context, token string, sendRate float64, onF
 		done: make(chan struct{}), authLost: make(chan struct{}), authed: make(chan struct{}),
 		writerEnd: make(chan struct{}),
 	}
-	go w.readLoop(onFrame) // owned by the connection; ends when it closes
-	go w.writeLoop()       // owned by the connection; ends when out is closed or the connection fails
+	go w.readLoop(onFrame, onOrders) // owned by the connection; ends when it closes
+	go w.writeLoop()                 // owned by the connection; ends when out is closed or the connection fails
 	return w, nil
 }
 
@@ -113,7 +117,7 @@ func (w *wsConn) writeLoop() {
 	}
 }
 
-func (w *wsConn) readLoop(onFrame frameHandler) {
+func (w *wsConn) readLoop(onFrame frameHandler, onOrders orderHandler) {
 	defer close(w.done)
 	for {
 		_, data, err := w.c.Read(context.Background())
@@ -154,6 +158,8 @@ func (w *wsConn) readLoop(onFrame frameHandler) {
 				continue
 			}
 			onFrame(conid, fields)
+		case (msg.Topic == "sor" || msg.Topic == "str") && onOrders != nil:
+			onOrders(msg.Topic, msg.Args)
 		}
 	}
 }
@@ -182,6 +188,8 @@ func topicClass(topic string) string {
 		return "smd"
 	case strings.HasPrefix(topic, "umd"):
 		return "umd"
+	case topic == "sor", topic == "str":
+		return topic
 	case topic == "sts", topic == "tic", topic == "system":
 		return topic
 	default:

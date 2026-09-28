@@ -27,7 +27,7 @@ class ArchitectureTest {
     @Test
     void modulesDoNotReachIntoEachOthersInfrastructureOrApi() {
         for (String module : new String[]{"instrument", "order", "execution", "position", "portfolio", "watchlist",
-                "broker", "marketdata", "outbox"}) {
+                "broker", "marketdata", "outbox", "inbox"}) {
             noClasses().that().resideOutsideOfPackage("com.project.trading." + module + "..")
                     .should().dependOnClassesThat().resideInAnyPackage(
                             "com.project.trading." + module + ".infrastructure..",

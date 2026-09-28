@@ -184,12 +184,47 @@ public final class Order {
         }
         OrderStatus next = newFilled.compareTo(quantity) == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
         moveTo(next, now);
+        addFill(fillQuantity, fillPrice);
+        return UpdateResult.APPLIED;
+    }
+
+    /** Outcome of recording an execution on an order that already ended. */
+    public enum LateFillResult {
+        /** Filled quantity and average price were advanced; the status is unchanged. */
+        FILL_RECORDED,
+        /** The execution would exceed the order quantity: the order was left unchanged. */
+        EXCEEDS_ORDER_QUANTITY
+    }
+
+    /**
+     * Records an execution the broker reports for an order that is already terminal (for example a fill that happened
+     * just before a cancellation took effect). The status never changes; filled quantity and average price advance
+     * only while the cumulative fill stays within the order quantity.
+     */
+    public LateFillResult recordLateFill(Quantity fillQuantity, Price fillPrice, Instant now) {
+        if (!status.isTerminal()) {
+            throw new IllegalStateException("only terminal orders take late fills; use applyFill");
+        }
+        if (!fits(fillQuantity)) {
+            return LateFillResult.EXCEEDS_ORDER_QUANTITY;
+        }
+        addFill(fillQuantity, fillPrice);
+        updatedAt = now;
+        return LateFillResult.FILL_RECORDED;
+    }
+
+    /** True when the fill is positive and the cumulative fill stays within the order quantity. */
+    public boolean fits(Quantity fillQuantity) {
+        return !fillQuantity.isZero() && filledQuantity.plus(fillQuantity).compareTo(quantity) <= 0;
+    }
+
+    private void addFill(Quantity fillQuantity, Price fillPrice) {
+        Quantity newFilled = filledQuantity.plus(fillQuantity);
         BigDecimal previousNotional = averageFillPrice == null ? BigDecimal.ZERO
                 : averageFillPrice.value().multiply(filledQuantity.value());
         BigDecimal notional = previousNotional.add(fillPrice.value().multiply(fillQuantity.value()));
         averageFillPrice = new Price(notional.divide(newFilled.value(), Decimals.PRICE_SCALE, Decimals.ROUNDING));
         filledQuantity = newFilled;
-        return UpdateResult.APPLIED;
     }
 
     /** The broker confirmed the cancellation. Ignored when the order is already terminal. */

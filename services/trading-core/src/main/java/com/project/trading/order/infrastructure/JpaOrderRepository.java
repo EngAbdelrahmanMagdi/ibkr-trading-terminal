@@ -85,6 +85,22 @@ class JpaOrderRepository implements OrderRepository {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<Order> lockByClientOrderId(String clientOrderId) {
+        return jpa.lockByClientOrderId(clientOrderId).map(JpaOrderRepository::toDomain);
+    }
+
+    @Override
+    public Optional<Order> findByClientOrderId(String clientOrderId) {
+        return jpa.findByClientOrderId(clientOrderId).map(JpaOrderRepository::toDomain);
+    }
+
+    @Override
+    public Optional<Order> findByBrokerOrderId(String brokerOrderId) {
+        return jpa.findByBrokerOrderId(brokerOrderId).map(JpaOrderRepository::toDomain);
+    }
+
+    @Override
     public List<Order> findRecent(Collection<OrderStatus> statuses, int limit) {
         PageRequest page = PageRequest.of(0, limit);
         List<OrderEntity> rows = statuses.isEmpty() ? jpa.findAllByOrderByCreatedAtDescIdDesc(page)

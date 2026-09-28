@@ -18,10 +18,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/brokerupdates"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/config"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/ibkr"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/modes"
@@ -85,6 +87,36 @@ func serve() int {
 		return 2
 	}
 	source := sel.Source
+
+	// Broker order stream to Kafka: only when the selected source is IBKR (IBKR, or AUTO resolved to IBKR; both
+	// require a trusted environment). The gateway only normalizes; the trading core interprets.
+	brokerCtx, stopBroker := context.WithCancel(context.Background())
+	defer stopBroker()
+	var brokerProducer *brokerupdates.KafkaProducer
+	var brokerPublisher *brokerupdates.Publisher
+	brokerDone := make(chan struct{})
+	if ibkrSource, ok := source.(*ibkr.Source); ok && brokerupdates.Enabled(source.ID(), cfg.KafkaBrokers) {
+		brokerProducer, err = brokerupdates.NewKafkaProducer(cfg.KafkaBrokers, cfg.BrokerUpdatesTopic)
+		if err != nil {
+			logger.Error("broker update producer setup failed", "error", err.Error())
+			return 2
+		}
+		brokerPublisher = brokerupdates.NewPublisher(brokerProducer, cfg.BrokerUpdatesBuffer, 20*time.Second, gm, logger)
+		normalizer := brokerupdates.NewNormalizer(brokerPublisher, clk, gm, logger)
+		ibkrSource.SetOrderSink(normalizer)
+		go func() { // owned by serve(); returns once brokerCtx is cancelled
+			defer close(brokerDone)
+			done := make(chan struct{})
+			go func() { // owned by the goroutine above; ends with brokerCtx
+				defer close(done)
+				normalizer.RunExpiry(brokerCtx, 5*time.Second)
+			}()
+			brokerPublisher.Run(brokerCtx)
+			<-done
+		}()
+	} else {
+		close(brokerDone)
+	}
 	if store != nil {
 		quoteWriter = hotcache.NewQuoteWriter(source.ID(), store, guard, clk, cfg.QuoteCacheInterval, cfg.QuoteCacheTTL, gm)
 	}
@@ -215,6 +247,19 @@ func serve() int {
 	if err := source.Close(shutdownCtx); err != nil {
 		logger.Error("market data source shutdown incomplete", "error", err.Error())
 		exitCode = 1
+	}
+	stopBroker()
+	select {
+	case <-brokerDone:
+	case <-shutdownCtx.Done():
+		logger.Error("broker update publisher did not stop in time")
+		exitCode = 1
+	}
+	if brokerPublisher != nil {
+		if queued := brokerPublisher.Queued(); queued > 0 {
+			logger.Warn("broker updates not published before shutdown; reconciliation recovers them", "count", queued)
+		}
+		brokerProducer.Close()
 	}
 	if quoteWriter != nil {
 		if err := quoteWriter.Close(shutdownCtx); err != nil {

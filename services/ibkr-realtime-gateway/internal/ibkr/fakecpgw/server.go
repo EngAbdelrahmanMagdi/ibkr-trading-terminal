@@ -40,6 +40,7 @@ type Server struct {
 	conns        map[*conn]struct{}
 	autoStop     chan struct{}
 	autoInterval time.Duration
+	liveOrders   json.RawMessage // GET /iserver/account/orders "orders"
 }
 
 type conn struct {
@@ -176,6 +177,23 @@ func (s *Server) Push(conid int64, fields map[string]string) {
 	}
 }
 
+// SetLiveOrders sets the "orders" array returned by GET /iserver/account/orders.
+func (s *Server) SetLiveOrders(orders string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.liveOrders = json.RawMessage(orders)
+}
+
+// PushRaw sends one raw websocket message (for example an order-stream "sor" or "str" message) to every client.
+func (s *Server) PushRaw(msg string) {
+	s.mu.Lock()
+	conns := s.connList()
+	s.mu.Unlock()
+	for _, c := range conns {
+		c.write(msg)
+	}
+}
+
 // Requests returns how many requests path has received.
 func (s *Server) Requests(path string) int {
 	s.mu.Lock()
@@ -290,6 +308,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/api/trsrv/stocks", s.handleStocks)
 	mux.HandleFunc("GET /v1/api/trsrv/secdef", s.handleSecdef)
 	mux.HandleFunc("GET /v1/api/iserver/marketdata/history", s.handleHistory)
+	mux.HandleFunc("GET /v1/api/iserver/account/orders", s.handleLiveOrders)
 	mux.HandleFunc("GET /v1/api/ws", s.handleWS)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/v1/api")
@@ -389,6 +408,16 @@ func (s *Server) handleSecdef(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, map[string]any{"secdef": list})
+}
+
+func (s *Server) handleLiveOrders(w http.ResponseWriter, _ *http.Request) {
+	s.mu.Lock()
+	orders := s.liveOrders
+	s.mu.Unlock()
+	if orders == nil {
+		orders = json.RawMessage("[]")
+	}
+	writeJSON(w, map[string]any{"orders": orders, "snapshot": true})
 }
 
 func (s *Server) handleHistory(w http.ResponseWriter, _ *http.Request) {

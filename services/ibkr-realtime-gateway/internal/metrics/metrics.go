@@ -63,6 +63,11 @@ type Gateway struct {
 	OrderNotifications prometheus.Counter
 	OrderEventsSkipped *prometheus.CounterVec
 	KafkaConsumeErrors prometheus.Counter
+
+	// Broker order stream to Kafka.
+	BrokerUpdatesPublished prometheus.Counter
+	BrokerUpdatesDropped   *prometheus.CounterVec
+	KafkaProduceErrors     prometheus.Counter
 }
 
 // New creates the metrics, registered on a new registry together with the Go runtime and process collectors.
@@ -131,6 +136,12 @@ func New() *Gateway {
 			Help: "Order-topic records not fanned out, by reason (unknown type, malformed, invalid, too large)."}, []string{"reason"}),
 		KafkaConsumeErrors: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "kafka_consume_errors_total",
 			Help: "Kafka fetch or offset-commit errors of the order-notification consumer."}),
+		BrokerUpdatesPublished: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "broker_updates_published_total",
+			Help: "Broker order observations published to Kafka."}),
+		BrokerUpdatesDropped: prometheus.NewCounterVec(prometheus.CounterOpts{Namespace: ns, Name: "broker_updates_dropped_total",
+			Help: "Broker order observations not published, by reason (reconciliation recovers them)."}, []string{"reason"}),
+		KafkaProduceErrors: prometheus.NewCounter(prometheus.CounterOpts{Namespace: ns, Name: "kafka_produce_errors_total",
+			Help: "Failed attempts to publish broker order observations (retried)."}),
 	}
 	g.registry.MustRegister(
 		collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
@@ -141,6 +152,7 @@ func New() *Gateway {
 		g.IBKRRequests, g.IBKRRequestSeconds, g.IBKRLimiterWait, g.IBKRLimiterRejected, g.IBKRRateLimited,
 		g.IBKRWSMessages, g.IBKRSMDRenewals, g.IBKRMalformedFrames, g.IBKRContractLookups,
 		g.OrderNotifications, g.OrderEventsSkipped, g.KafkaConsumeErrors,
+		g.BrokerUpdatesPublished, g.BrokerUpdatesDropped, g.KafkaProduceErrors,
 	)
 	for _, reason := range []string{EvictWriteTimeout, EvictControlQueue, EvictLaggingFlushes, EvictPongTimeout} {
 		g.Evictions.WithLabelValues(reason)

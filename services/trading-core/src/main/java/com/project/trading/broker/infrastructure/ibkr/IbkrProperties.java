@@ -25,7 +25,6 @@ import java.util.List;
  * @param penaltyCooldown  after a 429 from IBKR, all requests stop for this long
  * @param readinessTtl     how long a broker readiness check is reused
  * @param orderLockTimeout how long an order command waits for another in-flight order command
- * @param pollInterval     order status polling interval (IBKR allows one live-orders request per 5 s)
  * @param shortabilityTtl  how long shortability data is reused
  * @param accountTtl       how long account metrics are reused
  */
@@ -45,12 +44,8 @@ public record IbkrProperties(
         @NotNull Duration penaltyCooldown,
         @NotNull Duration readinessTtl,
         @NotNull Duration orderLockTimeout,
-        @NotNull Duration pollInterval,
         @NotNull Duration shortabilityTtl,
         @NotNull Duration accountTtl) {
-
-    /** IBKR allows one live-orders or trades request per 5 seconds. */
-    static final Duration MIN_POLL_INTERVAL = Duration.ofSeconds(5);
 
     /**
      * Cross-field rules, checked at startup. confirmationSweepGrace is the order module's grace period, which must
@@ -63,9 +58,6 @@ public record IbkrProperties(
         }
         if (headroom <= 0 || allocation + headroom > sessionLimit) {
             errors.add("app.ibkr.allocation + app.ibkr.headroom must not exceed app.ibkr.session-limit (headroom > 0)");
-        }
-        if (pollInterval.compareTo(MIN_POLL_INTERVAL) < 0) {
-            errors.add("app.ibkr.poll-interval must be at least 5s");
         }
         if (requestTimeout.plus(orderLockTimeout).compareTo(confirmationSweepGrace) >= 0) {
             errors.add("app.orders.confirmation-sweep-grace must exceed app.ibkr.request-timeout + app.ibkr.order-lock-timeout");

@@ -50,6 +50,8 @@ type Config struct {
 	OrderEventsTopic    string
 	OrderEventsGroup    string
 	KafkaMaxPollRecords int
+	BrokerUpdatesTopic  string
+	BrokerUpdatesBuffer int
 
 	MarketDataMode     string // MOCK, IBKR or AUTO
 	TrustedEnvironment bool
@@ -125,6 +127,8 @@ const (
 	DefaultOrderEventsTopic       = "trading.order-events.v1"
 	DefaultOrderEventsGroup       = "realtime-gateway-order-notifications"
 	DefaultKafkaMaxPollRecords    = "500"
+	DefaultBrokerUpdatesTopic     = "broker.order-updates.v1"
+	DefaultBrokerUpdatesBuffer    = "10000"
 	DefaultQuoteCacheInterval     = "1s"
 	DefaultQuoteCacheTTL          = "30s"
 	DefaultShutdownTimeout        = "10s"
@@ -248,6 +252,8 @@ func Load(getenv func(string) string) (Config, error) {
 	c.OrderEventsTopic = get("GATEWAY_ORDER_EVENTS_TOPIC", DefaultOrderEventsTopic)
 	c.OrderEventsGroup = get("GATEWAY_ORDER_EVENTS_GROUP", DefaultOrderEventsGroup)
 	c.KafkaMaxPollRecords = int(intVar("GATEWAY_KAFKA_MAX_POLL_RECORDS", DefaultKafkaMaxPollRecords, 1, 10_000))
+	c.BrokerUpdatesTopic = get("GATEWAY_BROKER_UPDATES_TOPIC", DefaultBrokerUpdatesTopic)
+	c.BrokerUpdatesBuffer = int(intVar("GATEWAY_BROKER_UPDATES_BUFFER", DefaultBrokerUpdatesBuffer, 100, 100_000))
 
 	seed, err := strconv.ParseUint(get("GATEWAY_SEED", DefaultSeed), 10, 64)
 	if err != nil {

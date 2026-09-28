@@ -208,7 +208,7 @@ public class MockMatcher implements SmartLifecycle {
             return;
         }
         switch (outcome) {
-            case APPLIED, IGNORED -> remove(entry.brokerOrderId);
+            case APPLIED, IGNORED, UNKNOWN_ORDER -> remove(entry.brokerOrderId);
             case NOT_READY -> notReady(entry);
         }
     }

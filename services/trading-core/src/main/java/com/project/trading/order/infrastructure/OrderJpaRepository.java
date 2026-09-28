@@ -27,6 +27,15 @@ interface OrderJpaRepository extends JpaRepository<OrderEntity, UUID> {
     @Query("select o from OrderEntity o where o.brokerOrderId = :brokerOrderId")
     Optional<OrderEntity> lockByBrokerOrderId(@Param("brokerOrderId") String brokerOrderId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
+    @Query("select o from OrderEntity o where o.clientOrderId = :clientOrderId")
+    Optional<OrderEntity> lockByClientOrderId(@Param("clientOrderId") String clientOrderId);
+
+    Optional<OrderEntity> findByClientOrderId(String clientOrderId);
+
+    Optional<OrderEntity> findByBrokerOrderId(String brokerOrderId);
+
     List<OrderEntity> findAllByOrderByCreatedAtDescIdDesc(Pageable page);
 
     List<OrderEntity> findByStatusInOrderByCreatedAtDescIdDesc(Collection<String> statuses, Pageable page);

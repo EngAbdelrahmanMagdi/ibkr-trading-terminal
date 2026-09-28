@@ -29,6 +29,13 @@ public interface OrderRepository {
     /** Working LIMIT orders that have a broker order ID, oldest first. */
     List<Order> findWorkingLimitOrders(int limit);
 
+    /** Takes a row lock on the order with this client order ID (the reference echoed by the broker). */
+    Optional<Order> lockByClientOrderId(String clientOrderId);
+
+    Optional<Order> findByClientOrderId(String clientOrderId);
+
+    Optional<Order> findByBrokerOrderId(String brokerOrderId);
+
     /** Working orders of any type that have a broker order ID, oldest first. */
     List<Order> findWorkingOrders(int limit);
 

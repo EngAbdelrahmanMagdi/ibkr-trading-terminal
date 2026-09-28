@@ -24,15 +24,13 @@ class IbkrRateLimiterTest {
 
     @Test
     void theAllocationMustLeaveHeadroomWithinTheSessionLimit() {
-        IbkrProperties valid = properties(10, 4, 1, "https://localhost:5000/v1/api", Duration.ofSeconds(5));
+        IbkrProperties valid = properties(10, 4, 1, "https://localhost:5000/v1/api");
         assertThat(valid.violations(Duration.ofSeconds(30))).isEmpty();
 
-        assertThat(properties(10, 10, 1, "https://localhost:5000/v1/api", Duration.ofSeconds(5))
+        assertThat(properties(10, 10, 1, "https://localhost:5000/v1/api")
                 .violations(Duration.ofSeconds(30))).anyMatch(v -> v.contains("headroom"));
-        assertThat(properties(10, 4, 1, "http://localhost:5000/v1/api", Duration.ofSeconds(5))
+        assertThat(properties(10, 4, 1, "http://localhost:5000/v1/api")
                 .violations(Duration.ofSeconds(30))).anyMatch(v -> v.contains("https"));
-        assertThat(properties(10, 4, 1, "https://localhost:5000/v1/api", Duration.ofSeconds(1))
-                .violations(Duration.ofSeconds(30))).anyMatch(v -> v.contains("poll-interval"));
         assertThat(valid.violations(Duration.ofSeconds(10))).anyMatch(v -> v.contains("sweep-grace"));
     }
 
@@ -81,9 +79,9 @@ class IbkrRateLimiterTest {
         assertThatCode(() -> limiter.acquire(IbkrEndpoint.AUTH_STATUS)).doesNotThrowAnyException();
     }
 
-    private static IbkrProperties properties(int limit, int allocation, int headroom, String url, Duration poll) {
+    private static IbkrProperties properties(int limit, int allocation, int headroom, String url) {
         return new IbkrProperties(URI.create(url), "/run/secrets/ibkr_ca", Duration.ofSeconds(3), Duration.ofSeconds(10),
                 1 << 20, limit, allocation, headroom, 32, Duration.ofSeconds(5), Duration.ofMinutes(15),
-                Duration.ofSeconds(5), Duration.ofSeconds(5), poll, Duration.ofMinutes(1), Duration.ofSeconds(10));
+                Duration.ofSeconds(5), Duration.ofSeconds(5), Duration.ofMinutes(1), Duration.ofSeconds(10));
     }
 }

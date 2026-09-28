@@ -39,13 +39,15 @@ const (
 	epStocks     = "contracts"
 	epSecdef     = "contracts"
 	epHistory    = "history"
+	epLiveOrders = "live_orders"
 )
 
 // Endpoints returns the documented per-endpoint limits (docs, 2026-09-27; history per changelog 2026-09-09).
 func Endpoints() map[string]pacing.Endpoint {
 	return map[string]pacing.Endpoint{
-		epTickle:  {PerSecond: 1},
-		epHistory: {PerSecond: 10, PerMinute: 50},
+		epTickle:     {PerSecond: 1},
+		epHistory:    {PerSecond: 10, PerMinute: 50},
+		epLiveOrders: {PerSecond: 0.2}, // one request per 5 s
 	}
 }
 
@@ -314,6 +316,17 @@ func (c *Client) accountsReady(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return len(resp.Accounts) > 0, nil
+}
+
+// liveOrders returns the current day's orders (GET /iserver/account/orders), used to correlate the order stream.
+func (c *Client) liveOrders(ctx context.Context) (json.RawMessage, error) {
+	var resp struct {
+		Orders json.RawMessage `json:"orders"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/iserver/account/orders", nil, nil, epLiveOrders, false, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Orders, nil
 }
 
 // tickleResponse carries the session token for the websocket; the token is a secret.

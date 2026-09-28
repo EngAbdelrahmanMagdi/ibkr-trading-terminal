@@ -116,6 +116,16 @@ Unresponsive peers are dropped without waiting for a close handshake.
 - Unknown, malformed or oversized records are counted and skipped. Kafka problems are logged, counted and retried with a capped backoff; quotes and readiness never depend on Kafka.
 - Memory is bounded by the poll size and fetch limits. Notifications use the bounded control queue, so a client that cannot keep up is evicted as usual.
 
+### Broker order stream (IBKR source only)
+
+When the selected market-data source is IBKR (`IBKR` mode, or `AUTO` when it resolves to IBKR at startup) and Kafka brokers are configured, the gateway also publishes the account's order progress to `broker.order-updates.v1`. It only normalizes; Trading Core decides what an observation means. With the simulator there is no order stream.
+
+- **Subscriptions:** after every (re)connect of the IBKR websocket, the gateway reads the live orders once (paced like every other request), then subscribes to live order updates and to trades (`sor` and `str`, the trades topic replaying the current day's executions). Replayed executions are duplicates that Trading Core ignores.
+- **Normalization:** IBKR order states map to neutral statuses (`WORKING`, `PARTIALLY_FILLED`, `FILLED`, `CANCELLED`, `INACTIVE`, `OTHER`), with the raw label kept for diagnostics. Quantities and prices stay exact decimal strings. Events follow the broker order update contract and are keyed `accountId:brokerOrderId`; no raw broker payload is forwarded.
+- **Correlation:** IBKR's trade messages carry the order reference but not the order ID. The gateway keeps a bounded map from reference to order ID (10,000 entries), filled from the live-orders read and order updates. An execution whose order isn't known yet waits in a bounded buffer (1,000 entries, 10 seconds); after that it is dropped and counted, and Trading Core's reconciliation recovers it from IBKR.
+- **Publishing:** an idempotent producer (`acks=all`) fed by a bounded queue (`GATEWAY_BROKER_UPDATES_BUFFER`). While Kafka is unavailable the head is retried with a capped backoff; when the queue is full the oldest observation is dropped and counted. Quotes and readiness never depend on Kafka.
+- **Trust:** the stream exists only in the trusted, private deployments that IBKR and `AUTO` modes already require.
+
 ### Protocol and connection handling
 
 - **WebSocket protocol:** see [`contracts/asyncapi/market-stream.yaml`](../../contracts/asyncapi/market-stream.yaml).
@@ -172,6 +182,7 @@ Every metric carries the `realtime_gateway_` prefix. The Go runtime and process 
 | `ibkr_limiter_wait_seconds`, `ibkr_limiter_rejected_total{endpoint,reason}`, `ibkr_rate_limited_total` | histogram, counter | IBKR pacing |
 | `ibkr_ws_messages_total{direction,topic}`, `ibkr_smd_renewals_total`, `ibkr_malformed_frames_total`, `ibkr_contract_lookups_total{result}` | counter | IBKR stream and lookups |
 | `order_notifications_total`, `order_events_skipped_total{reason}`, `kafka_consume_errors_total` | counter | Order notifications, skipped records (`unknown_type`, `malformed`, `invalid`, `too_large`) and Kafka errors |
+| `broker_updates_published_total`, `broker_updates_dropped_total{reason}`, `kafka_produce_errors_total` | counter | Broker order observations published, dropped (`invalid`, `uncorrelated`, `expired`, `pending_full`, `buffer_full`) and failed publish attempts |
 
 With the observability profile running, Grafana provisions a **Realtime Gateway** dashboard from these metrics.
 
@@ -208,7 +219,8 @@ Settings come from environment variables. Invalid values stop the service at sta
 | `GATEWAY_REDIS_TIMEOUT` | `100ms` | Timeout of every Redis call |
 | `GATEWAY_REDIS_COOLDOWN` | `5s` | Pause after a Redis failure |
 | `GATEWAY_QUOTE_CACHE_INTERVAL` / `GATEWAY_QUOTE_CACHE_TTL` | `1s` / `30s` | Latest-quote write interval and TTL |
-| `GATEWAY_KAFKA_BROKERS` | *(empty)* | Comma-separated Kafka brokers for order notifications; empty disables them |
+| `GATEWAY_KAFKA_BROKERS` | *(empty)* | Comma-separated Kafka brokers for order notifications and the broker order stream; empty disables both |
+| `GATEWAY_BROKER_UPDATES_TOPIC` / `GATEWAY_BROKER_UPDATES_BUFFER` | `broker.order-updates.v1` / `10000` | Topic and bounded publish queue of the broker order stream (IBKR source only) |
 | `GATEWAY_ORDER_EVENTS_TOPIC` / `GATEWAY_ORDER_EVENTS_GROUP` | `trading.order-events.v1` / `realtime-gateway-order-notifications` | Topic and consumer group of the notifications |
 | `GATEWAY_KAFKA_MAX_POLL_RECORDS` | `500` | Records handled per poll |
 | `GATEWAY_MARKET_DATA_MODE` | `MOCK` | `MOCK`, `IBKR` or `AUTO` |

@@ -61,6 +61,13 @@ type Config struct {
 	Seed           map[string]int64 // optional symbol -> conid
 }
 
+// OrderStreamSink receives the broker order stream of the session: the current day's orders when the stream starts
+// (for correlation) and every "sor"/"str" message. The source only transports them; it never interprets orders.
+type OrderStreamSink interface {
+	Seed(orders json.RawMessage)
+	Observe(topic string, args json.RawMessage)
+}
+
 // Source is the IBKRMarketDataSource.
 type Source struct {
 	cfg      Config
@@ -87,6 +94,8 @@ type Source struct {
 	conn    *wsConn
 	gen     uint64 // connection generation; smd topics are tied to one connection
 	streams map[int64]*streamEntry
+
+	orders OrderStreamSink // optional; set before Start
 }
 
 type streamEntry struct {
@@ -132,6 +141,9 @@ func New(cfg Config, store hotcache.Store, guard *hotcache.Guard, clk clock.Cloc
 	client.OnRateLimited(s.onRateLimited)
 	return s, nil
 }
+
+// SetOrderSink enables the broker order stream (call before Start). Without a sink the stream is not requested.
+func (s *Source) SetOrderSink(sink OrderStreamSink) { s.orders = sink }
 
 // Start runs the session lifecycle until Close.
 func (s *Source) Start() {
@@ -343,9 +355,13 @@ func (s *Source) connect(ctx context.Context) error {
 	s.mu.Lock()
 	gen := s.gen + 1
 	s.mu.Unlock()
+	var onOrders orderHandler
+	if s.orders != nil {
+		onOrders = s.orders.Observe
+	}
 	conn, err := s.client.dialWS(ctx, token, s.cfg.WSSendRate, func(conid int64, fields map[string]json.RawMessage) {
 		s.onFrame(gen, conid, fields)
-	})
+	}, onOrders)
 	if err != nil {
 		return err
 	}
@@ -366,7 +382,28 @@ func (s *Source) connect(ctx context.Context) error {
 	s.mu.Lock()
 	s.conn, s.gen = conn, gen
 	s.mu.Unlock()
+	s.startOrderStream(ctx, conn)
 	return nil
+}
+
+// startOrderStream seeds the correlation of the order stream with the current day's orders (IBKR advises reading
+// them before subscribing), then subscribes to order updates ("sor") and executions ("str", replaying the day's
+// executions after every connect; duplicates are harmless downstream). Failures are logged: missed updates are
+// recovered by reconciliation.
+func (s *Source) startOrderStream(ctx context.Context, conn *wsConn) {
+	if s.orders == nil {
+		return
+	}
+	if orders, err := s.client.liveOrders(ctx); err != nil {
+		s.log.Warn("order stream: current orders unavailable; correlation starts from live updates", "error", err.Error())
+	} else {
+		s.orders.Seed(orders)
+	}
+	for _, topic := range []string{"sor+{}", `str+{"realtimeUpdatesOnly":false,"days":1}`} {
+		if err := conn.send(topic); err != nil {
+			s.log.Warn("order stream subscription not sent", "error", err.Error())
+		}
+	}
 }
 
 func (s *Source) sleep(ctx context.Context, d time.Duration) error {

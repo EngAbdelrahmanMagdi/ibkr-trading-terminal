@@ -167,8 +167,9 @@ func TestAutoModeFallsBackToMockVisibly(t *testing.T) {
 
 func TestIBKRModeNeverFallsBackToMock(t *testing.T) {
 	g := startGatewayWith(t, options{mode: modeConfig(config.ModeIBKR, closedPort(t), writeCA(t, mustPKI(t).CAPEM))})
+	// The source also starts out DISCONNECTED, so wait until a reconnect cycle ran before checking the final state.
 	waitUntil(t, "DISCONNECTED after the bounded cycle", func() bool {
-		return g.reg.State().State == marketdata.StateDisconnected
+		return testutil.ToFloat64(g.metrics.ReconnectTotal) > 0 && g.reg.State().State == marketdata.StateDisconnected
 	})
 	if g.reg.SourceID() != marketdata.SourceIBKR || g.sim != nil {
 		t.Fatal("IBKR mode must keep the IBKR source")

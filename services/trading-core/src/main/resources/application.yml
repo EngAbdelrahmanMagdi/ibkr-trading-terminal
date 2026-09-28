@@ -154,7 +154,6 @@ app:
     penalty-cooldown: 15m
     readiness-ttl: 5s
     order-lock-timeout: 5s
-    poll-interval: 5s
     shortability-ttl: 60s
     account-ttl: 10s
   # Transactional outbox relay to Kafka. Events are always recorded with the state change; the relay publishes them.
@@ -176,3 +175,21 @@ app:
     purge-interval: 1h
     purge-batch-size: 1000
     purge-max-batches: 20
+  # Idempotent consumers: processed event IDs are kept longer than the topics' retention.
+  inbox:
+    retention: 14d
+    purge-interval: 6h
+  # Reconciliation with broker truth (runs only where the broker supports it).
+  reconciliation:
+    interval: 30s
+    min-spacing: 10s
+    initial-delay: 10s
+    unknown-order-alert-after: 15m
+  # Broker order updates from the realtime gateway (IBKR_PAPER only).
+  broker-updates:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    topic: broker.order-updates.v1
+    group: trading-core-broker-updates
+    max-poll-records: 100
+    not-ready-attempts: 5
+    not-ready-max-wait: 30s

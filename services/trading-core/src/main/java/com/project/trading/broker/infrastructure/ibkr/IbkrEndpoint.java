@@ -18,6 +18,7 @@ enum IbkrEndpoint {
     PORTFOLIO_ACCOUNTS("portfolio_accounts", Duration.ofSeconds(5)),
     LEDGER("ledger", null),
     PNL("pnl", Duration.ofSeconds(5)),
+    POSITIONS("positions", null),
     STOCKS("stocks", null),
     SECDEF("secdef", null),
     CONTRACT_RULES("contract_rules", null),

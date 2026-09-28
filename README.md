@@ -81,7 +81,7 @@ Java · Spring Boot · Go · Python · TypeScript · Next.js · React · Postgre
 
 ## Getting started
 
-Everything runs with Docker Compose: the local infrastructure (PostgreSQL, Redis, Kafka, the observability stack) and the application services that are available so far. Currently that's the realtime gateway, with a simulated market feed.
+Everything runs with Docker Compose: the local infrastructure (PostgreSQL, Redis, Kafka, the observability stack) and the application services that are available so far: the realtime gateway with a simulated market feed, and Trading Core with a simulated broker.
 
 ### Prerequisites
 
@@ -108,7 +108,7 @@ To also start Prometheus, Grafana, Tempo and the OpenTelemetry Collector:
 make up-obs
 ```
 
-To start the realtime gateway with the simulated (MOCK) market feed, and connect a test client to it:
+To start the complete `MOCK` application (the realtime gateway with the simulated market feed, and Trading Core with the simulated broker) and connect a test client to the feed:
 
 ```bash
 make up-mock
@@ -116,6 +116,16 @@ make probe
 ```
 
 The WebSocket endpoint is `ws://127.0.0.1:18090/ws`. For example, send `{"type":"subscribe","symbols":["NVDA","AAPL"]}` from any WebSocket client. Historical bars are at `http://127.0.0.1:18090/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d`.
+
+The Trading Core REST API is at `http://127.0.0.1:18080/api/v1`: orders, confirmations, cancellation, executions, positions, portfolio, watchlist and instrument search. Market orders fill immediately at the live simulated quote, so the symbol must be streaming: keep a WebSocket client subscribed to it, as the terminal does for the symbols on screen. Use a new `Idempotency-Key` UUID for each order, and reuse it only to retry that same order. For example:
+
+```bash
+curl -s -X POST http://127.0.0.1:18080/api/v1/orders \
+  -H 'Content-Type: application/json' -H "Idempotency-Key: 00000000-0000-4000-8000-000000000001" \
+  -d '{"symbol":"NVDA","intent":"BUY","orderType":"LIMIT","quantity":"10","limitPrice":"150.00","timeInForce":"GTC"}'
+```
+
+See [the Trading Core README](services/trading-core/README.md) for the order lifecycle and the simulated broker's rules.
 
 To run the gateway on real IBKR **paper** market data through the Client Portal Gateway on your machine (trusted, private environments only), see [the service README](services/ibkr-realtime-gateway/README.md#ibkr-setup-paper-account):
 
@@ -142,7 +152,7 @@ To check that everything works:
 make verify
 ```
 
-It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache.
+It tests connectivity, credentials and least-privilege access, Redis ACLs, Kafka produce and consume, and trace ingestion end to end. With the gateway running, it also checks the stream, the metrics endpoint, and the gateway's Redis hot state and bars cache. With Trading Core running, it checks health, migrations, CORS and error handling, that paper mode fails closed, and that market orders fill from the live simulated quotes.
 
 ### Services
 
@@ -160,22 +170,24 @@ Application processes run as non-root where supported. Some official images may 
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
 | Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `gateway` profile (`MOCK` by default). Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
+| Trading Core | `http://127.0.0.1:18080/api/v1` | `core` profile (`MOCK`: simulated broker). Health and Prometheus metrics on `127.0.0.1:18081`. See [the service README](services/trading-core/README.md). |
 
 ### Commands
 
 | Command | Description |
 |---|---|
-| `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or add the realtime gateway with the simulated market feed |
+| `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or start the complete `MOCK` application (realtime gateway and Trading Core) |
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
 | `make up-ibkr` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, or on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
 | `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
 | `make verify` | Run the verification checks. `VERIFY_RESTARTS=1 make verify` also proves that PostgreSQL data survives restarts and Redis data doesn't. |
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
 | `make test-unit` | Run the Go unit and integration tests of the realtime gateway with the race detector |
-| `make test` | Run the contract tests, the Go tests, then the infrastructure verification |
+| `make test-core` | Run the Trading Core tests: domain, application and architecture tests, and an integration suite against real PostgreSQL and Redis (Testcontainers) that validates every response against the contracts |
+| `make test` | Run the contract tests, the Go and Java tests, then the infrastructure verification |
 | `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
-| `make lint` | Validate the Compose configuration, run shellcheck, lint the Go code (gofmt, go vet, golangci-lint), and lint the API contracts |
-| `make security` | Scan git history and every file that would be committed for secrets (gitleaks), and check the Go modules for known vulnerabilities (govulncheck) |
+| `make lint` | Validate the Compose configuration, run shellcheck, lint the Go code (gofmt, go vet, golangci-lint), compile the Java code with warnings as errors and check its architecture rules, and lint the API contracts |
+| `make security` | Scan git history and every file that would be committed for secrets (gitleaks), and check the Go modules (govulncheck) and the Java dependencies (OSV-Scanner) for known vulnerabilities |
 | `make down` | Stop the containers and keep the data |
 | `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |
 

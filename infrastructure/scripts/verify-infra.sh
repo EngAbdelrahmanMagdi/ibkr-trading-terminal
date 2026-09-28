@@ -11,7 +11,7 @@ set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 2
 # Resolve services of every profile (checks for services that are not running are skipped).
-export COMPOSE_PROFILES=observability,gateway
+export COMPOSE_PROFILES=observability,gateway,core
 # Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
@@ -245,9 +245,11 @@ prometheus_scalar() { # prometheus_scalar <promql>: prints the value of a single
 }
 
 prometheus_all_targets_up() {
-  # The realtime gateway is scraped only while the gateway profile runs.
-  local selector='job=~".+"' expected=4 up down
-  if running realtime-gateway; then expected=5; else selector='job=~".+",job!="realtime-gateway"'; fi
+  # Application targets are scraped only while their profiles run.
+  local selector='job=~".+"' expected=4 up down svc
+  for svc in realtime-gateway trading-core; do
+    if running "$svc"; then expected=$((expected + 1)); else selector="${selector},job!=\"${svc}\""; fi
+  done
   up="$(prometheus_scalar "count(up{${selector}} == 1) or vector(0)")"
   down="$(prometheus_scalar "count(up{${selector}} == 0) or vector(0)")"
   echo "targets up=${up:-?} down=${down:-?} (expected up=${expected})"
@@ -365,6 +367,92 @@ check_gateway_bars_cached() {
   [[ "$(redis_app TTL "bars:$(gateway_source):AAPL:15m:5d")" =~ ^[0-9]+$ ]] || { echo "bars cache key has no TTL"; return 1; }
 }
 
+# ------------------------------------------------------------------ checks: trading core (core profile)
+CORE_URL="http://127.0.0.1:${TRADING_CORE_HOST_PORT:-18080}"
+CORE_MGMT_URL="http://127.0.0.1:${TRADING_CORE_MANAGEMENT_HOST_PORT:-18081}"
+
+new_uuid() {
+  local h; h="$(random_hex 16)"
+  printf '%s-%s-4%s-a%s-%s' "${h:0:8}" "${h:8:4}" "${h:13:3}" "${h:17:3}" "${h:20:12}"
+}
+
+json_field() { grep -o "\"$1\":\"[^\"]*\"" | head -n 1 | cut -d'"' -f4; }
+
+check_core_health() {
+  [[ "$(http_code "${CORE_MGMT_URL}/actuator/health/readiness")" == "200" ]] || { echo "readiness not 200"; return 1; }
+  [[ "$(http_code "${CORE_MGMT_URL}/actuator/health/liveness")" == "200" ]] || { echo "liveness not 200"; return 1; }
+  [[ "$(curl -s --max-time 5 "${CORE_MGMT_URL}/actuator/prometheus")" == *orders_submitted_total* ]] \
+    || { echo "order metrics missing"; return 1; }
+  [[ "$(http_code "${CORE_URL}/actuator/health")" == "404" ]] || { echo "actuator reachable on the API port"; return 1; }
+}
+
+check_core_migrations() {
+  local n
+  n="$(app_sql "SELECT count(*) FROM flyway_schema_history WHERE success")" || return 1
+  echo "applied migrations: $n"
+  [[ "$n" -ge 4 ]] || return 1
+  if app_sql "ALTER TABLE orders ADD COLUMN verify_probe int" > /dev/null 2>&1; then
+    echo "the application role altered a table"; return 1
+  fi
+}
+
+check_core_api_posture() {
+  local id headers body
+  id="$(new_uuid)"
+  headers="$(curl -s -D - -o /dev/null --max-time 5 -H "X-Correlation-Id: ${id}" "${CORE_URL}/api/v1/watchlist")"
+  [[ "$headers" == *"$id"* ]] || { echo "correlation id not echoed"; return 1; }
+  [[ "$(http_code -X OPTIONS -H 'Origin: https://evil.example' -H 'Access-Control-Request-Method: POST' \
+    "${CORE_URL}/api/v1/orders")" == "403" ]] || { echo "disallowed CORS origin not rejected"; return 1; }
+  headers="$(curl -s -D - -o /dev/null --max-time 5 -X OPTIONS -H 'Origin: http://localhost:3000' \
+    -H 'Access-Control-Request-Method: POST' "${CORE_URL}/api/v1/orders")"
+  grep -qi '^access-control-allow-origin: http://localhost:3000' <<< "$headers" \
+    || { echo "allowed origin not granted"; return 1; }
+  body="$(curl -s --max-time 5 -X POST -H 'Content-Type: application/json' -d '{}' "${CORE_URL}/api/v1/orders")"
+  [[ "$body" == *'"category":"VALIDATION"'* && "$body" != *Exception* && "$body" != *trace* ]] \
+    || { echo "unexpected error body: $body"; return 1; }
+}
+
+check_core_fails_closed_in_paper_mode() {
+  local out
+  if out="$(docker run --rm --network none -e APP_RUNTIME_MODE=IBKR_PAPER trading-terminal/trading-core:local 2>&1)"; then
+    echo "trading core started in IBKR_PAPER mode"; return 1
+  fi
+  [[ "$out" == *"Unsupported runtime mode"* ]] || { echo "$out" | tail -n 3; return 1; }
+}
+
+core_order() { # core_order <idempotency-key> <json>
+  curl -s --max-time 10 -X POST -H 'Content-Type: application/json' -H "Idempotency-Key: $1" -d "$2" \
+    "${CORE_URL}/api/v1/orders"
+}
+
+mock_quote_fresh() { # the gateway writes quotes only for subscribed symbols
+  local ts
+  ts="$(redis_app GET quote:MOCK:NVDA | json_field timestamp)"
+  [[ -n "$ts" ]] || { echo "no quote:MOCK:NVDA"; return 1; }
+  (( $(date -u +%s) - $(date -u -d "$ts" +%s) <= 5 )) || { echo "quote too old: $ts"; return 1; }
+}
+
+check_core_market_order_fills_from_live_quotes() {
+  local key body buy retry sell id
+  # Keep NVDA subscribed for the duration of the check, as a terminal watching the symbol would.
+  docker exec -d "$(cid realtime-gateway)" /usr/local/bin/stream-probe -url ws://127.0.0.1:8090/ws \
+    -symbols NVDA -quotes 30 || return 1
+  retry 15 1 mock_quote_fresh > /dev/null || { mock_quote_fresh; return 1; }
+  key="$(new_uuid)"
+  body='{"symbol":"NVDA","intent":"BUY","orderType":"MARKET","quantity":"1","timeInForce":"DAY"}'
+  buy="$(core_order "$key" "$body")" || return 1
+  id="$(json_field id <<< "$buy")"
+  echo "buy: status=$(json_field status <<< "$buy") averageFillPrice=$(json_field averageFillPrice <<< "$buy")"
+  [[ "$(json_field status <<< "$buy")" == "FILLED" && -n "$(json_field averageFillPrice <<< "$buy")" ]] \
+    || { echo "$buy"; return 1; }
+  retry="$(core_order "$key" "$body")"
+  [[ "$(json_field id <<< "$retry")" == "$id" ]] || { echo "an idempotent retry returned another order: $retry"; return 1; }
+  sell="$(core_order "$(new_uuid)" '{"symbol":"NVDA","intent":"SELL","orderType":"MARKET","quantity":"1","timeInForce":"DAY"}')"
+  [[ "$(json_field status <<< "$sell")" == "FILLED" ]] || { echo "sell: $sell"; return 1; }
+  [[ "$(curl -s --max-time 5 "${CORE_URL}/api/v1/executions?orderId=${id}")" == *"\"orderId\":\"${id}\""* ]] \
+    || { echo "execution not recorded"; return 1; }
+}
+
 # ------------------------------------------------------------------ checks: restarts (opt-in)
 check_pg_durable_across_restart() {
   local tbl="${TRADING_SCHEMA}.verify_durable_$$"
@@ -445,6 +533,18 @@ if running realtime-gateway; then
     check "historical bars are cached in Redis and marked cached on the next request" check_gateway_bars_cached
   else skip "gateway Redis checks (redis not running)"; fi
 else skip "realtime gateway checks (gateway profile not running; use 'make up-mock')"; fi
+
+echo "[trading-core]"
+if running trading-core; then
+  check "trading core is healthy" retry 30 2 wait_healthy trading-core
+  check "liveness, readiness and metrics on the management port only" check_core_health
+  check "schema migrations applied; the application role cannot alter the schema" check_core_migrations
+  check "correlation id echoed; CORS allowlist enforced; problem body without internals" check_core_api_posture
+  check "IBKR_PAPER mode fails closed at startup" check_core_fails_closed_in_paper_mode
+  if running realtime-gateway && running redis; then
+    check "market BUY and SELL fill immediately from live MOCK quotes; idempotent retry" check_core_market_order_fills_from_live_quotes
+  else skip "trading core order check (needs the realtime gateway and redis)"; fi
+else skip "trading core checks (core profile not running; use 'make up-mock')"; fi
 
 echo "[restarts]"
 if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then

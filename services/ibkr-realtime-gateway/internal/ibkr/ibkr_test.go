@@ -55,11 +55,14 @@ func startFake(t *testing.T, hosts ...string) (*fakecpgw.Server, string, *fakecp
 	return fake, ts.URL + "/v1/api", pki
 }
 
+// testConfig uses short timings. The keepalive stays above /tickle's own limit of 1 request/second: a faster one
+// would queue on the limiter inside the session loop (blocking renewals) and could time out twice in a row,
+// ending the session.
 func testConfig(baseURL string, ca []byte) Config {
 	return Config{
 		Client:         ClientConfig{BaseURL: baseURL, CAPEM: ca, Timeout: 2 * time.Second, UserAgent: "test"},
 		Pacing:         pacing.Config{SessionLimit: 10, Allocation: 5, Headroom: 1, MaxWaiters: 16, AcquireTimeout: time.Second, Cooldown: 300 * time.Millisecond},
-		TickleInterval: 50 * time.Millisecond, PingInterval: 50 * time.Millisecond,
+		TickleInterval: 1200 * time.Millisecond, PingInterval: 50 * time.Millisecond,
 		RenewAfter: 300 * time.Millisecond, RenewJitter: 20 * time.Millisecond,
 		Reconnect:     reconnect.Policy{Base: 10 * time.Millisecond, Max: 20 * time.Millisecond, MaxAttempts: 2, MaxTotal: time.Second},
 		ProbeInterval: time.Hour, SnapshotWait: time.Second, SnapshotLinger: 50 * time.Millisecond,

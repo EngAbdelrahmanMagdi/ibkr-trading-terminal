@@ -8,12 +8,12 @@ SHELL := bash
 
 COMPOSE := docker compose
 COMPOSE_OBS := $(COMPOSE) --profile observability
-COMPOSE_MOCK := $(COMPOSE) --profile gateway
+COMPOSE_MOCK := $(COMPOSE) --profile gateway --profile core
 IBKR_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr.yml
 IBKR_FAKE_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr-fake.yml
 COMPOSE_IBKR := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway
 COMPOSE_IBKR_FAKE := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile gateway
-COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway
+COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway --profile core
 WAIT_TIMEOUT := 240
 
 # Host path of the repository for bind mounts (Git Bash on Windows needs a Windows-style path).
@@ -29,10 +29,12 @@ MAVEN_IMAGE := maven:3.9.16-eclipse-temurin-25
 GO_IMAGE := golang:1.27.1
 GOLANGCI_IMAGE := golangci/golangci-lint:v2.14.0
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.8.0
+OSV_SCANNER_IMAGE := ghcr.io/google/osv-scanner:v2.6.0
 PYTHON_IMAGE := python:3.14.7-slim
 NODE_IMAGE := node:24.21.0
 
 GATEWAY_DIR := services/ibkr-realtime-gateway
+CORE_DIR := services/trading-core
 # Defaults for `make probe`.
 SYMBOLS ?= NVDA,AAPL,META,AMD,IONQ
 QUOTES ?= 5
@@ -51,10 +53,16 @@ CONTRACT_COPY := mkdir -p /work/tests && cp -r /src/contracts /work/ && cp -r /s
 CONTRACT_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro"
 # Go service checks run on a copy of the service plus the contracts (its integration tests validate against them).
 GATEWAY_COPY := mkdir -p /work/services && cp -r /src/contracts /work/ && cp -r /src/$(GATEWAY_DIR) /work/services/ && cd /work/$(GATEWAY_DIR)
+# Trading Core builds run on a copy of the service plus the contracts and infrastructure its tests use. The Docker
+# socket lets the integration tests start PostgreSQL and Redis with Testcontainers.
+CORE_COPY := mkdir -p /work/services && cp -r /src/contracts /src/infrastructure /work/ && cp -r /src/$(CORE_DIR) /work/services/ && rm -rf /work/$(CORE_DIR)/target && cd /work/$(CORE_DIR)
+MAVEN_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-m2:/root/.m2
+TESTCONTAINERS_RUN := $(MAVEN_RUN) -v /var/run/docker.sock:/var/run/docker.sock --add-host=host.docker.internal:host-gateway \
+	-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
 GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
 
-.PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-contract contract-java \
-        contract-go contract-python contract-typescript lint lint-go lint-contracts security clean
+.PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract \
+        contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts security clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -68,7 +76,7 @@ up: bootstrap ## Start core infrastructure: PostgreSQL, Redis, Kafka
 up-obs: bootstrap ## Start core infrastructure plus Prometheus, Grafana, Tempo and the OpenTelemetry Collector
 	$(COMPOSE_OBS) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
 
-up-mock: bootstrap ## Start core infrastructure plus the realtime gateway streaming simulated (MOCK) market data
+up-mock: bootstrap ## Start the MOCK application: core infrastructure, the realtime gateway (simulated quotes) and Trading Core
 	$(COMPOSE_MOCK) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT)
 
 up-ibkr: bootstrap ## Start the realtime gateway on IBKR market data (needs make ibkr-certs and a CP Gateway login)
@@ -105,11 +113,15 @@ load: ## Run load/soak clients against the running mock feed, with leak checks (
 		-clients $(LOAD_CLIENTS) -symbols-per-client $(LOAD_SYMBOLS_PER_CLIENT) -duration $(LOAD_DURATION) \
 		-slow-readers $(LOAD_SLOW_READERS) $(LOAD_ARGS)
 
-test: test-contract test-unit verify ## Run all available checks: contract tests, Go tests, infrastructure verification
+test: test-contract test-unit test-core verify ## Run all available checks: contract, Go and Java tests, infrastructure verification
 
 test-unit: ## Go unit and integration tests of the realtime gateway, with the race detector
 	@$(GO_RUN) $(GO_IMAGE) sh -c '$(GATEWAY_COPY) && go test -race -count=1 ./...'
 	@echo "test-unit: ok"
+
+test-core: ## Trading Core tests: domain, application, architecture, and the PostgreSQL + Redis integration suite
+	@$(TESTCONTAINERS_RUN) $(MAVEN_IMAGE) sh -c '$(CORE_COPY) && mvn -B -ntp -q verify'
+	@echo "test-core: ok"
 
 test-contract: contract-java contract-go contract-python contract-typescript ## Run the contract tests in all four languages
 
@@ -133,10 +145,10 @@ contract-typescript: ## Contract tests - TypeScript (Ajv) with strict type check
 		'$(CONTRACT_COPY)/typescript && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && npm test --silent'
 	@echo "contract-typescript: ok"
 
-lint: bootstrap lint-contracts lint-go ## Validate Compose, lint shell scripts, Go code and the API contracts
+lint: bootstrap lint-contracts lint-go lint-java ## Validate Compose, lint shell scripts, Go and Java code and the API contracts
 	@echo "compose: default profile"; $(COMPOSE) config --quiet
 	@echo "compose: observability profile"; $(COMPOSE_OBS) config --quiet
-	@echo "compose: gateway profile"; $(COMPOSE_MOCK) config --quiet
+	@echo "compose: gateway and core profiles"; $(COMPOSE_MOCK) config --quiet
 	@echo "compose: ibkr-fake override"; $(COMPOSE_IBKR_FAKE) config --quiet
 	@echo "shellcheck: $(SHELL_SCRIPTS)"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/mnt:ro" -w /mnt $(SHELLCHECK_IMAGE) --severity=style $(SHELL_SCRIPTS)
@@ -147,6 +159,10 @@ lint-go: ## Go formatting, go vet and golangci-lint for the realtime gateway
 	@$(GO_RUN) $(GO_IMAGE) sh -c '$(GATEWAY_COPY) && unformatted=$$(gofmt -l .) && { [ -z "$$unformatted" ] || { echo "$$unformatted"; exit 1; }; } && go vet ./...'
 	@echo "go: golangci-lint"
 	@$(GO_RUN) $(GOLANGCI_IMAGE) sh -c '$(GATEWAY_COPY) && golangci-lint run ./...'
+
+lint-java: ## Trading Core: compile with warnings as errors, Maven enforcer rules, architecture rules
+	@$(MAVEN_RUN) $(MAVEN_IMAGE) sh -c '$(CORE_COPY) && mvn -B -ntp -q -Dtest=ArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false verify'
+	@echo "lint-java: ok"
 
 lint-contracts: ## Lint the OpenAPI documents (Redocly) and validate the AsyncAPI documents
 	@echo "openapi: redocly lint"
@@ -159,7 +175,7 @@ lint-contracts: ## Lint the OpenAPI documents (Redocly) and validate the AsyncAP
 			 ASYNCAPI_METRICS_CONFIG_PATH=/tmp/analytics.json SUPPRESS_NO_CONFIG_WARNING=1 asyncapi validate '"$$spec"' --fail-severity=warn'; \
 	done
 
-security: ## Scan for secrets (git history + every commit candidate) and known Go vulnerabilities
+security: ## Scan for secrets (git history + every commit candidate) and known Go and Java dependency vulnerabilities
 	@echo "gitleaks: git history"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/repo:ro" --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner'
@@ -169,6 +185,8 @@ security: ## Scan for secrets (git history + every commit candidate) and known G
 		'mkdir -p /scan && tar -xf - -C /scan && gitleaks dir /scan --redact --no-banner'
 	@echo "govulncheck: realtime gateway and Go contract tests"
 	@$(GO_RUN) $(GO_IMAGE) sh -c '$(GATEWAY_COPY) && go run $(GOVULNCHECK) ./... && cp -r /src/tests/contract/go /tmp/contract-go && cd /tmp/contract-go && go run $(GOVULNCHECK) ./...'
+	@echo "osv-scanner: Trading Core Maven dependencies (transitive)"
+	@$(DOCKER_RUN) -v "$(HOST_PWD)/$(CORE_DIR):/src:ro" $(OSV_SCANNER_IMAGE) scan source /src/pom.xml
 	@echo "security: ok"
 
 clean: ## Stop containers and DELETE all local data volumes (asks for confirmation; CONFIRM=yes skips it)

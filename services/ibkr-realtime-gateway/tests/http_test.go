@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func (g *gateway) get(t *testing.T, base, path string, header http.Header) (*http.Response, []byte) {
@@ -31,6 +32,9 @@ func (g *gateway) get(t *testing.T, base, path string, header http.Header) (*htt
 
 func TestBarsConformToContractForEverySupportedCombination(t *testing.T) {
 	g := startGateway(t, nil)
+	// Uncached one-month bars are CPU-heavy and can take several seconds under the race detector; allow up to
+	// the bars compute timeout of the gateway under test.
+	g.client.Timeout = 60 * time.Second
 	combos := map[string][]string{"1m": {"1d", "5d"}, "5m": {"1d", "5d", "1mo"}, "15m": {"5d", "1mo"}, "1h": {"5d", "1mo"}, "1d": {"1mo", "3mo", "1y"}}
 	for interval, ranges := range combos {
 		for _, rng := range ranges {

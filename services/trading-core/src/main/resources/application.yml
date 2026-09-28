@@ -1,0 +1,134 @@
+# Trading Core configuration. Secrets are read from files (Docker secrets) through the config tree import:
+# each file name under SECRETS_DIR becomes a property (trading_app_password, trading_owner_password,
+# redis_app_password). No secret has a default value here.
+spring:
+  application:
+    name: trading-core
+  config:
+    import: "optional:configtree:${SECRETS_DIR:/run/secrets/}"
+  main:
+    banner-mode: off
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    url: "jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:15432}/${DB_NAME:trading}?currentSchema=trading&connectTimeout=5&socketTimeout=30&ApplicationName=trading-core"
+    username: ${DB_APP_USER:trading_app}
+    password: ${trading_app_password:}
+    hikari:
+      pool-name: trading-core
+      maximum-pool-size: 10
+      connection-timeout: 3000
+      validation-timeout: 2000
+  flyway:
+    user: ${DB_OWNER_USER:trading_owner}
+    password: ${trading_owner_password:}
+    schemas: trading
+    default-schema: trading
+    create-schemas: false
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: trading
+      hibernate.jdbc.time_zone: UTC
+      jakarta.persistence.query.timeout: 5000
+  transaction:
+    default-timeout: 10s
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
+      username: ${REDIS_USER:app}
+      password: ${redis_app_password:}
+      timeout: 500ms
+      connect-timeout: 1s
+
+server:
+  port: 8080
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    whitelabel:
+      enabled: false
+  tomcat:
+    connection-timeout: 5s
+    max-connections: 1000
+    accept-count: 100
+    threads:
+      max: 100
+
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db
+  health:
+    redis:
+      enabled: false
+  metrics:
+    tags:
+      service: trading-core
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+app:
+  runtime-mode: ${APP_RUNTIME_MODE:MOCK}
+  account-id: ${APP_ACCOUNT_ID:MOCK-ACCOUNT}
+  currency: USD
+  orders:
+    max-quantity: 10000
+    max-notional: 1000000
+    quote-max-age: 10s
+    max-reply-depth: 3
+    shortability-max-age: 1h
+  portfolio:
+    starting-cash: 100000.00
+  watchlist:
+    default-symbols: [NVDA, AAPL, META, AMD, IONQ, MSFT, TSLA, SPY]
+    max-items: 200
+  queries:
+    default-limit: 100
+    max-limit: 500
+  http:
+    cors-allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+    max-request-bytes: 16384
+  idempotency:
+    in-progress-wait: 2s
+    stale-claim-after: 60s
+  metrics:
+    status-refresh-interval: PT15S
+  # Simulated broker (MOCK mode only).
+  mock:
+    reply-notional-threshold: 50000
+    second-reply-notional-threshold: 250000
+    reply-ttl: 5m
+    max-pending-replies: 100
+    matcher-interval: 1s
+    matcher-batch-size: 200
+    max-open-orders: 1000
+    not-ready-timeout: 2m
+    commission-per-share: 0.005
+    commission-minimum: 1.00
+    reject-symbols: []
+    shortability:
+      IONQ: NOT_SHORTABLE
+      TSLA: UNAVAILABLE

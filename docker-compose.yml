@@ -5,6 +5,7 @@
 #   make up-obs   core infrastructure + observability: Prometheus, Grafana, Tempo, OpenTelemetry Collector
 #   make up-mock  the MOCK application: core infrastructure + the realtime gateway (simulated market data)
 #                 + Trading Core (orders, positions, portfolio, watchlist against a simulated broker)
+#                 + the Next.js web terminal
 #   make up-ibkr  the realtime gateway on IBKR market data (local CP Gateway login; infrastructure/ibkr/)
 #   make up-ibkr-fake  the IBKR code path against a FAKE CP Gateway (tests; no IBKR account)
 #   make load     load/soak clients against the running gateway (after make up-mock)
@@ -382,6 +383,49 @@ services:
           memory: 768m
     # edge: clients; data: PostgreSQL and Redis; observability: Prometheus scrapes the management port.
     networks: [edge, data, observability]
+
+  web:
+    <<: *defaults
+    profiles: [web]
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_CORE_ORIGIN: ${WEB_CORE_ORIGIN:-http://localhost:18080}
+        NEXT_PUBLIC_GATEWAY_ORIGIN: ${WEB_GATEWAY_ORIGIN:-http://localhost:18090}
+        NEXT_PUBLIC_GATEWAY_WS_URL: ${WEB_GATEWAY_WS_URL:-ws://localhost:18090/ws}
+    image: trading-terminal/web:local
+    depends_on:
+      realtime-gateway:
+        condition: service_healthy
+      trading-core:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [edge]
+
+  playwright:
+    profiles: [test]
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    entrypoint: ["sh", "-c"]
+    command:
+      - "mkdir -p /work && tar -C /src --exclude=node_modules --exclude=.next -cf - . | tar -C /work -xf - && cd /work && npm ci --ignore-scripts --no-audit --no-fund && PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e"
+    volumes:
+      - ./apps/web:/src:ro
+    network_mode: host
 
 networks:
   data: {}

@@ -183,7 +183,10 @@ func serve() int {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /ws", wsServer)
-	mux.Handle("GET /api/v1/market/bars", http.TimeoutHandler(httpapi.NewBarsHandler(source, bars, logger), cfg.BarsTimeout+2*time.Second, "request timed out"))
+	mux.Handle("/api/v1/market/bars", httpapi.BarsCORS(
+		http.TimeoutHandler(httpapi.NewBarsHandler(source, bars, logger), cfg.BarsTimeout+2*time.Second, "request timed out"),
+		cfg.AllowedOrigins,
+	))
 
 	errorLog := slog.NewLogLogger(logger.Handler(), slog.LevelWarn)
 	public := &http.Server{

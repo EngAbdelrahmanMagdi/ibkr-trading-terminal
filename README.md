@@ -7,7 +7,7 @@ A single-page, realtime stock trading terminal with live quotes, live candlestic
 ## What it does
 
 - **Live market data:** a watchlist with bid, ask, last, volume, change and change %, streamed over WebSocket, with a visible connection state (`LIVE` / `RECONNECTING` / `STALE` / `DISCONNECTED`). Stale prices are never shown as live.
-- **Charting:** candlesticks with historical bars and live updates to the current candle, a crosshair, and an interval selector.
+- **Charting:** Gateway REST candlesticks with bounded refresh, a WebSocket current-price marker, a crosshair, and an interval selector.
 - **Trading:** Buy, Sell and Short orders, market and limit order types, open orders, cancellation, and the full order lifecycle, including broker confirmation prompts.
 - **Portfolio:** positions, average cost, market value, realized and unrealized P&L, and account metrics. Any metric the broker doesn't provide is shown as *Unavailable*, never estimated.
 - **News:** financial news per symbol, optionally enriched with AI-generated summaries, sentiment and catalysts.
@@ -81,7 +81,7 @@ Java · Spring Boot · Go · Python · TypeScript · Next.js · React · Postgre
 
 ## Getting started
 
-Everything runs with Docker Compose: the local infrastructure (PostgreSQL, Redis, Kafka, the observability stack) and the application services that are available so far: the realtime gateway with a simulated market feed, and Trading Core with a simulated broker.
+Everything runs with Docker Compose: the local infrastructure (PostgreSQL, Redis, Kafka, the observability stack), the realtime gateway with a simulated market feed, Trading Core with a simulated broker, and the Next.js web terminal.
 
 ### Prerequisites
 
@@ -108,12 +108,18 @@ To also start Prometheus, Grafana, Tempo and the OpenTelemetry Collector:
 make up-obs
 ```
 
-To start the complete `MOCK` application (the realtime gateway with the simulated market feed, and Trading Core with the simulated broker) and connect a test client to the feed:
+To start the complete `MOCK` application and connect a test client to the feed:
 
 ```bash
 make up-mock
 make probe
 ```
+
+Open the trading terminal at **http://localhost:3000**. It calls Trading Core REST at `http://localhost:18080`, Gateway bars at `http://localhost:18090`, and the Gateway WebSocket at `ws://localhost:18090/ws` directly from the browser. Select a watchlist symbol, wait for a fresh quote, then use the order ticket to place MOCK market or limit orders. The lower deck shows positions, open orders, and executions. The chart's candles come from Gateway REST; its live price marker comes from WebSocket quotes.
+
+The browser URLs are public build-time values (`WEB_CORE_ORIGIN`, `WEB_GATEWAY_ORIGIN`, `WEB_GATEWAY_WS_URL` in `.env`). If host ports change, update these URLs and the exact Core/Gateway browser-origin allowlists, then rebuild the web image. Do not place credentials in web configuration. The terminal has no login and is for the local MOCK workflow; do not expose it publicly without authentication and deployment hardening.
+
+Frontend checks run in the pinned Node container with `make test-web` and `make lint-web`. With `make up-mock` running, `make test-e2e` runs the Playwright MOCK browser workflow. Its test container uses Docker host networking so Chromium can reach the same `localhost` public origins as the terminal; enable host networking in Docker Desktop if needed. The complete `make test` and `make lint` gates include the frontend. The TypeScript client wire types are reproducibly generated from the existing OpenAPI files with `npm run generate:types` in `apps/web`.
 
 The WebSocket endpoint is `ws://127.0.0.1:18090/ws`. For example, send `{"type":"subscribe","symbols":["NVDA","AAPL"]}` from any WebSocket client. Historical bars are at `http://127.0.0.1:18090/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d`.
 
@@ -172,12 +178,13 @@ Application processes run as non-root where supported. Some official images may 
 | OTLP ingest | `127.0.0.1:14317` (gRPC), `127.0.0.1:14318` (HTTP) | OpenTelemetry Collector |
 | Realtime gateway | `ws://127.0.0.1:18090/ws`, `http://127.0.0.1:18090/api/v1/market/bars` | `gateway` profile (`MOCK` by default). Health and Prometheus metrics on `127.0.0.1:18091`. See [the service README](services/ibkr-realtime-gateway/README.md). |
 | Trading Core | `http://127.0.0.1:18080/api/v1` | `core` profile (`MOCK`: simulated broker; `IBKR_PAPER` with `make up-ibkr-paper`). Health and Prometheus metrics on `127.0.0.1:18081`. See [the service README](services/trading-core/README.md). |
+| Web terminal | <http://127.0.0.1:3000> | `web` profile. Browser trading data comes from Core REST, Gateway bars REST and Gateway WebSocket. |
 
 ### Commands
 
 | Command | Description |
 |---|---|
-| `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or start the complete `MOCK` application (realtime gateway and Trading Core) |
+| `make up` / `make up-obs` / `make up-mock` | Start the core infrastructure, add the observability stack, or start the complete `MOCK` application (realtime gateway, Trading Core and web terminal) |
 | `make probe` | Connect a WebSocket test client to the running feed (`SYMBOLS=NVDA,TSLA QUOTES=10`) |
 | `make up-ibkr` / `make up-ibkr-paper` / `make up-ibkr-fake` / `make ibkr-certs` | Run the gateway on IBKR paper market data, add Trading Core on the IBKR paper account, or run the gateway on a fake IBKR gateway for tests; generate the local CP Gateway certificate |
 | `make load` | Run load/soak clients against the running feed and check for leaks (`LOAD_CLIENTS=200 LOAD_DURATION=10m`, extra flags via `LOAD_ARGS`) |
@@ -185,9 +192,10 @@ Application processes run as non-root where supported. Some official images may 
 | `make test-contract` | Run the contract tests in Java, Go, Python and TypeScript against the shared golden fixtures |
 | `make test-unit` | Run the Go unit and integration tests of the realtime gateway with the race detector |
 | `make test-core` | Run the Trading Core tests: domain, application and architecture tests, and an integration suite against real PostgreSQL and Redis (Testcontainers) that validates every response against the contracts |
-| `make test` | Run the contract tests, the Go and Java tests, then the infrastructure verification |
+| `make test-web` / `make test-e2e` | Run web unit tests, or the Playwright browser workflow against the running MOCK stack |
+| `make test` | Run contract, Go, Java and web tests, infrastructure verification and the Playwright browser workflow |
 | `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
-| `make lint` | Validate the Compose configuration, run shellcheck, lint the Go code (gofmt, go vet, golangci-lint), compile the Java code with warnings as errors and check its architecture rules, and lint the API contracts |
+| `make lint` | Validate Compose, shell scripts, Go, Java, web code and API contracts |
 | `make security` | Scan git history and every file that would be committed for secrets (gitleaks), and check the Go modules (govulncheck) and the Java dependencies (OSV-Scanner) for known vulnerabilities |
 | `make down` | Stop the containers and keep the data |
 | `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |

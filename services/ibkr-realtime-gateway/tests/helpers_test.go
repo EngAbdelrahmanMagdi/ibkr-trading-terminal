@@ -232,7 +232,7 @@ func startGatewayWith(t *testing.T, o options) *gateway {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /ws", g.ws)
-	mux.Handle("GET /api/v1/market/bars", httpapi.NewBarsHandler(source, bars, logger))
+	mux.Handle("/api/v1/market/bars", httpapi.BarsCORS(httpapi.NewBarsHandler(source, bars, logger), cfg.AllowedOrigins))
 	g.public = httptest.NewServer(mux)
 	g.intern = httptest.NewServer(g.health.Handler())
 	if g.sim != nil && o.mode == nil {

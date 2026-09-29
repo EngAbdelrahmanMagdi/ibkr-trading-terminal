@@ -95,6 +95,67 @@ func TestCorrelationIdIsEchoedOrGenerated(t *testing.T) {
 	}
 }
 
+func TestBarsCORS(t *testing.T) {
+	g := startGateway(t, nil)
+	const path = "/api/v1/market/bars?symbol=NVDA&interval=1h&range=5d"
+	const allowedOrigin = "http://localhost:3000"
+
+	request := func(method, origin string, headers http.Header) *http.Response {
+		t.Helper()
+		req, err := http.NewRequest(method, g.public.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		for key, values := range headers {
+			req.Header[key] = values
+		}
+		resp, err := g.client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		return resp
+	}
+
+	t.Run("allowed GET", func(t *testing.T) {
+		resp := request(http.MethodGet, allowedOrigin, nil)
+		if resp.StatusCode != http.StatusOK || resp.Header.Get("Access-Control-Allow-Origin") != allowedOrigin || resp.Header.Get("Vary") != "Origin" {
+			t.Fatalf("status %d, ACAO %q, Vary %q", resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"), resp.Header.Get("Vary"))
+		}
+		if resp.Header.Get("Access-Control-Allow-Credentials") != "" {
+			t.Fatal("credentialed CORS must remain disabled")
+		}
+	})
+	t.Run("allowed preflight", func(t *testing.T) {
+		resp := request(http.MethodOptions, allowedOrigin, http.Header{
+			"Access-Control-Request-Method":  {http.MethodGet},
+			"Access-Control-Request-Headers": {"x-correlation-id"},
+		})
+		if resp.StatusCode != http.StatusNoContent || resp.Header.Get("Access-Control-Allow-Origin") != allowedOrigin ||
+			resp.Header.Get("Access-Control-Allow-Methods") != http.MethodGet ||
+			resp.Header.Get("Access-Control-Allow-Headers") != "X-Correlation-Id" || resp.Header.Get("Vary") != "Origin" {
+			t.Fatalf("status %d, CORS headers %v", resp.StatusCode, resp.Header)
+		}
+	})
+	t.Run("disallowed origin", func(t *testing.T) {
+		for _, method := range []string{http.MethodGet, http.MethodOptions} {
+			resp := request(method, "http://untrusted.example:3000", http.Header{"Access-Control-Request-Method": {http.MethodGet}})
+			if resp.StatusCode != http.StatusForbidden || resp.Header.Get("Access-Control-Allow-Origin") != "" {
+				t.Fatalf("%s status %d, ACAO %q", method, resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"))
+			}
+		}
+	})
+	t.Run("internal GET without Origin", func(t *testing.T) {
+		resp := request(http.MethodGet, "", nil)
+		if resp.StatusCode != http.StatusOK || resp.Header.Get("Access-Control-Allow-Origin") != "" {
+			t.Fatalf("status %d, ACAO %q", resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"))
+		}
+	})
+}
+
 func TestHealthEndpoints(t *testing.T) {
 	g := startGateway(t, nil)
 	for _, path := range []string{"/liveness", "/readiness", "/ready"} {

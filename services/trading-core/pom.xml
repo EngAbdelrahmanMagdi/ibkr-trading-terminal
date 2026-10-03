@@ -19,9 +19,9 @@
 
   <properties>
     <java.version>25</java.version>
-    <!-- Boot 4.1.1 manages Jackson 3.1.5, which has security advisories fixed in 3.1.6.
-         Remove when Spring Boot manages Jackson 3.1.6 or later. -->
-    <jackson-bom.version>3.1.6</jackson-bom.version>
+    <!-- Override the Boot-managed Jackson line to address security advisories fixed in 3.1.7.
+         Remove when Spring Boot manages a compatible, secure Jackson 3.1.7 or later. -->
+    <jackson-bom.version>3.1.7</jackson-bom.version>
     <!-- Overrides the Boot-managed 11.0.24, which has critical advisories fixed in 11.0.25+ (no newer Boot patch
          release yet). Remove when Spring Boot manages 11.0.26 or later. -->
     <tomcat.version>11.0.26</tomcat.version>

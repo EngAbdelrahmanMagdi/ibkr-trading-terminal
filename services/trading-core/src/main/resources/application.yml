@@ -91,6 +91,27 @@ logging:
       console: ecs
 
 app:
+  news:
+    provider: ${NEWS_PROVIDER:FIXTURE}
+    private-development: ${NEWS_PRIVATE_DEVELOPMENT:false}
+    finnhub-api-key: ${finnhub_api_key:}
+    freshness: ${NEWS_FRESHNESS:5m}
+    window: ${NEWS_WINDOW:7d}
+    deadline: ${NEWS_DEADLINE:8s}
+    workers: ${NEWS_WORKERS:1}
+    queue-capacity: ${NEWS_QUEUE_CAPACITY:16}
+    max-cold-requests: ${NEWS_MAX_COLD_REQUESTS:4}
+    connect-timeout: ${NEWS_CONNECT_TIMEOUT:2s}
+    attempt-timeout: ${NEWS_ATTEMPT_TIMEOUT:3s}
+    attempts: ${NEWS_ATTEMPTS:2}
+    requests-per-minute: ${NEWS_REQUESTS_PER_MINUTE:30}
+    max-response-bytes: ${NEWS_MAX_RESPONSE_BYTES:2097152}
+    max-records: ${NEWS_MAX_RECORDS:500}
+    max-symbols: ${NEWS_MAX_SYMBOLS:1000}
+    retention: ${NEWS_RETENTION:30d}
+    max-articles: ${NEWS_MAX_ARTICLES:50000}
+    breaker-failures: ${NEWS_BREAKER_FAILURES:5}
+    breaker-cooldown: ${NEWS_BREAKER_COOLDOWN:60s}
   runtime-mode: ${APP_RUNTIME_MODE:MOCK}
   # Required for IBKR_PAPER: the deployment is private and trusted (the API has no login).
   trusted-environment: ${APP_TRUSTED_ENVIRONMENT:false}

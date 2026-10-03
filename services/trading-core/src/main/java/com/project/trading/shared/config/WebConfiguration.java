@@ -20,7 +20,7 @@ public class WebConfiguration implements WebMvcConfigurer {
                 .allowedOrigins(properties.http().corsAllowedOrigins().toArray(String[]::new))
                 .allowedMethods("GET", "POST", "DELETE")
                 .allowedHeaders("Content-Type", "Idempotency-Key", "X-Correlation-Id")
-                .exposedHeaders("X-Correlation-Id")
+                .exposedHeaders("X-Correlation-Id", "X-News-Status", "X-News-Last-Refreshed-At")
                 .allowCredentials(false)
                 .maxAge(600);
     }

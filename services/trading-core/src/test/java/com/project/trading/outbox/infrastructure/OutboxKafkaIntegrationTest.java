@@ -1,6 +1,8 @@
 package com.project.trading.outbox.infrastructure;
 
 import com.project.trading.outbox.application.OutboxMessage;
+import com.project.trading.news.application.NewsIngestion;
+import com.project.trading.news.domain.NewsProviderPort;
 import com.project.trading.support.ContractSchemas;
 import com.project.trading.support.TradingInfrastructure;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -70,7 +72,8 @@ class OutboxKafkaIntegrationTest {
     static {
         KAFKA.start();
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
-            admin.createTopics(List.of(new NewTopic(ORDER_TOPIC, 3, (short) 1), new NewTopic(EXECUTION_TOPIC, 3, (short) 1)))
+            admin.createTopics(List.of(new NewTopic(ORDER_TOPIC, 3, (short) 1), new NewTopic(EXECUTION_TOPIC, 3, (short) 1),
+                    new NewTopic("news.raw.v1", 3, (short) 1)))
                     .all().get();
         } catch (Exception e) {
             throw new IllegalStateException(e);
@@ -103,6 +106,68 @@ class OutboxKafkaIntegrationTest {
     private OutboxProperties properties;
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private NewsIngestion newsIngestion;
+    @Autowired
+    private NewsProviderPort newsProvider;
+
+    @Test
+    void newsRetrievalPersistsDeduplicatesCachesAndPublishesContractEventsAtomically() throws Exception {
+        String symbol = "NEWS";
+        String correlation = UUID.randomUUID().toString();
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + environment.getProperty("local.server.port")
+                + "/api/v1/news?symbol=" + symbol + "&limit=20")).header("X-Correlation-Id", correlation).GET().build();
+        var first = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(200);
+        assertThat(first.headers().firstValue("X-News-Status")).contains("FRESH");
+        assertThat(first.headers().firstValue("X-News-Last-Refreshed-At")).isPresent();
+        var articles = JSON.readTree(first.body());
+        ContractSchemas.assertEachValid("news/news-article.schema.json", articles);
+        assertThat(articles.size()).isEqualTo(2);
+        assertThat(redis.opsForValue().get("news:recent:FIXTURE:" + symbol)).isNotNull();
+        var repeat = newsProvider.fetch(symbol, Instant.now().minus(Duration.ofDays(7)), Instant.now().plusSeconds(8));
+        newsIngestion.ingest(newsProvider.name(), symbol, repeat, Instant.now(), correlation);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM news_articles WHERE primary_symbol=?", Long.class, symbol)).isEqualTo(2);
+        var rows = jdbc.queryForList("SELECT id,payload::text FROM outbox_events WHERE aggregate_type='NEWS_ARTICLE' AND record_key=?", symbol);
+        assertThat(rows).hasSize(2);
+        for (var row : rows) {
+            var event = JSON.readTree(row.get("payload").toString());
+            ContractSchemas.assertValid("events/news-raw.schema.json", event);
+            assertThat(event.path("correlationId").asString()).isEqualTo(correlation);
+            assertThat(event.path("eventId").asString()).isEqualTo(row.get("id").toString());
+        }
+        var second = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(JSON.readTree(second.body())).isEqualTo(articles);
+        // Force an outer transaction rollback: the article and its outbox entry must both disappear.
+        var rolledBack = newsProvider.fetch("ROLLBACK", Instant.now().minus(Duration.ofDays(7)), Instant.now().plusSeconds(8));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new TransactionTemplate(transactionManager).execute(status -> {
+            newsIngestion.admit(newsProvider.name(), "ROLLBACK", Instant.now());
+            newsIngestion.ingest(newsProvider.name(), "ROLLBACK", rolledBack, Instant.now(), correlation);
+            throw new IllegalStateException("Rollback test");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM news_articles WHERE primary_symbol='ROLLBACK'", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events WHERE record_key='ROLLBACK'", Long.class)).isZero();
+        OutboxPublisher publisher = relay();
+        for (int round = 0; round < 4; round++) publisher.runOnce();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events WHERE record_key=? AND status='PUBLISHED'", Long.class, symbol)).isEqualTo(2);
+        try (var consumer = new KafkaConsumer<String, String>(Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
+                ConsumerConfig.GROUP_ID_CONFIG, "news-test-" + UUID.randomUUID(),
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName(),
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName()))) {
+            consumer.subscribe(List.of("news.raw.v1"));
+            var received = new ArrayList<ConsumerRecord<String, String>>();
+            Instant deadline = Instant.now().plusSeconds(15);
+            while (received.size() < 2 && Instant.now().isBefore(deadline))
+                consumer.poll(Duration.ofMillis(200)).forEach(received::add);
+            assertThat(received).hasSize(2);
+            for (var record : received) {
+                assertThat(record.key()).isEqualTo(symbol);
+                ContractSchemas.assertValid("events/news-raw.schema.json", JSON.readTree(record.value()));
+            }
+        }
+    }
 
     private OutboxPublisher relay() {
         return new OutboxPublisher(store, OutboxConfiguration.producerFactory(properties), properties, Clock.systemUTC(),

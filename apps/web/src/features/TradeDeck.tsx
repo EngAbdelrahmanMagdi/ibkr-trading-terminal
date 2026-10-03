@@ -5,9 +5,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errorMessage, type Order } from "@/lib/api";
 import { metric, price, signed, time } from "@/lib/format";
 import { Icon } from "@/components/Icon";
+import { NewsPanel } from "./NewsPanel";
 import styles from "./terminal.module.css";
 
-type Tab = "positions" | "orders" | "executions";
+type Tab = "positions" | "orders" | "executions" | "news";
 const openStatuses = new Set<Order["status"]>([
   "CREATED",
   "SUBMISSION_PENDING",
@@ -18,7 +19,7 @@ const openStatuses = new Set<Order["status"]>([
   "UNKNOWN",
 ]);
 
-export function TradeDeck() {
+export function TradeDeck({ symbol }: { symbol: string }) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("positions");
   const [allOrders, setAllOrders] = useState(false);
@@ -67,30 +68,36 @@ export function TradeDeck() {
           role="tablist"
           aria-label="Trading data"
         >
-          {(["positions", "orders", "executions"] as const).map((name) => (
-            <button
-              key={name}
-              role="tab"
-              aria-selected={tab === name}
-              className={tab === name ? styles.deckActive : ""}
-              onClick={() => setTab(name)}
-            >
-              {name === "orders"
-                ? "Open orders"
-                : name === "executions"
-                  ? "Executions"
-                  : "Positions"}
-              <span>
-                {name === "positions"
-                  ? (positions.data?.length ?? 0)
-                  : name === "orders"
-                    ? (orders.data?.filter((order) =>
-                        openStatuses.has(order.status),
-                      ).length ?? 0)
-                    : (executions.data?.length ?? 0)}
-              </span>
-            </button>
-          ))}
+          {(["positions", "orders", "executions", "news"] as const).map(
+            (name) => (
+              <button
+                key={name}
+                role="tab"
+                aria-selected={tab === name}
+                className={tab === name ? styles.deckActive : ""}
+                onClick={() => setTab(name)}
+              >
+                {name === "orders"
+                  ? "Open orders"
+                  : name === "executions"
+                    ? "Executions"
+                    : name === "news"
+                      ? "News"
+                      : "Positions"}
+                {name !== "news" && (
+                  <span>
+                    {name === "positions"
+                      ? (positions.data?.length ?? 0)
+                      : name === "orders"
+                        ? (orders.data?.filter((order) =>
+                            openStatuses.has(order.status),
+                          ).length ?? 0)
+                        : (executions.data?.length ?? 0)}
+                  </span>
+                )}
+              </button>
+            ),
+          )}
         </div>
         <div className={styles.deckActions}>
           {tab === "orders" && (
@@ -98,21 +105,24 @@ export function TradeDeck() {
               {allOrders ? "Open only" : "All orders"}
             </button>
           )}
-          <button
-            className={styles.iconButton}
-            aria-label="Refresh trading data"
-            onClick={() => {
-              void positions.refetch();
-              void orders.refetch();
-              void executions.refetch();
-            }}
-          >
-            <Icon name="refresh" width={15} height={15} />
-          </button>
+          {tab !== "news" && (
+            <button
+              className={styles.iconButton}
+              aria-label="Refresh trading data"
+              onClick={() => {
+                void positions.refetch();
+                void orders.refetch();
+                void executions.refetch();
+              }}
+            >
+              <Icon name="refresh" width={15} height={15} />
+            </button>
+          )}
         </div>
       </div>
       {actionError && <p className={styles.inlineError}>{actionError}</p>}
       <div className={styles.tableScroll} role="tabpanel">
+        {tab === "news" && <NewsPanel key={symbol} symbol={symbol} />}
         {tab === "positions" && (
           <>
             {positions.isPending ? (

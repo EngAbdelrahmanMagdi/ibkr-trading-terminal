@@ -186,7 +186,7 @@ function Workspace() {
             exchange={metadata?.exchange ?? null}
           />
           <ChartPanel symbol={symbol} />
-          <TradeDeck />
+          <TradeDeck symbol={symbol} />
         </section>
         <div
           className={`${styles.ticketWrap} ${ticketOpen ? styles.mobileOpen : ""}`}

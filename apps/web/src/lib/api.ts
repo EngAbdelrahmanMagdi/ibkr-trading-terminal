@@ -1,4 +1,7 @@
-import type { components as Core } from "@/lib/contracts/trading";
+import type {
+  components as Core,
+  operations as CoreOperations,
+} from "@/lib/contracts/trading";
 import type { components as Gateway } from "@/lib/contracts/gateway";
 
 export type Order = Core["schemas"]["Order"];
@@ -10,6 +13,16 @@ export type Watchlist = Core["schemas"]["Watchlist"];
 export type Instrument = Core["schemas"]["Instrument"];
 export type OptionalMetric = Core["schemas"]["optional-metric.schema"];
 export type Bars = Gateway["schemas"]["BarsResponse"];
+export type NewsArticle = Core["schemas"]["NewsArticle"];
+export type NewsResult = {
+  articles: NewsArticle[];
+  status:
+    | NonNullable<
+        CoreOperations["listNews"]["responses"][200]["headers"]["X-News-Status"]
+      >
+    | "UNKNOWN";
+  lastRefreshedAt: string | null;
+};
 
 const coreOrigin =
   process.env.NEXT_PUBLIC_CORE_ORIGIN ?? "http://localhost:18080";
@@ -70,6 +83,8 @@ async function request<T>(
     body?: unknown;
     idempotencyKey?: string;
     root?: "array" | "object";
+    onHeaders?: (headers: Headers) => void;
+    signal?: AbortSignal;
   } = {},
 ): Promise<T> {
   const controller = new AbortController();
@@ -78,7 +93,9 @@ async function request<T>(
     const response = await fetch(`${origin}${path}`, {
       method: options.method ?? "GET",
       cache: "no-store",
-      signal: controller.signal,
+      signal: options.signal
+        ? AbortSignal.any([controller.signal, options.signal])
+        : controller.signal,
       headers: {
         Accept: "application/json, application/problem+json",
         "X-Correlation-Id": crypto.randomUUID(),
@@ -118,6 +135,7 @@ async function request<T>(
       );
     }
     // OpenAPI-generated types own REST shapes. The runtime check only rejects unusable JSON roots.
+    options.onHeaders?.(response.headers);
     return value as T;
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -132,6 +150,35 @@ async function request<T>(
 }
 
 export const api = {
+  news: async (
+    symbol: string,
+    limit = 20,
+    signal?: AbortSignal,
+  ): Promise<NewsResult> => {
+    let status: NewsResult["status"] = "UNKNOWN";
+    let lastRefreshedAt: string | null = null;
+    const articles = await request<NewsArticle[]>(
+      coreOrigin,
+      `/api/v1/news?symbol=${encodeURIComponent(symbol)}&limit=${Math.min(500, Math.max(1, limit))}`,
+      {
+        root: "array",
+        ...(signal ? { signal } : {}),
+        onHeaders: (headers) => {
+          const raw = headers.get("X-News-Status");
+          if (raw === "FRESH" || raw === "STALE" || raw === "UNAVAILABLE")
+            status = raw;
+          const refreshed = headers.get("X-News-Last-Refreshed-At");
+          if (
+            refreshed &&
+            refreshed.length <= 40 &&
+            !Number.isNaN(Date.parse(refreshed))
+          )
+            lastRefreshedAt = refreshed;
+        },
+      },
+    );
+    return { articles, status, lastRefreshedAt };
+  },
   portfolio: () => request<Portfolio>(coreOrigin, "/api/v1/portfolio"),
   positions: () =>
     request<Position[]>(coreOrigin, "/api/v1/positions", { root: "array" }),

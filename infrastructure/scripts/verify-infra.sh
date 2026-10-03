@@ -195,7 +195,7 @@ check_kafka_no_auto_create_config() {
 
 check_kafka_trading_topics() {
   local topic out
-  for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1; do
+  for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1 news.raw.v1; do
     out="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic "$topic")" || return 1
     [[ "$out" == *"PartitionCount: 3"* && "$out" == *"retention.ms=604800000"* ]] || { echo "$topic: $(head -n 1 <<< "$out")"; return 1; }
   done

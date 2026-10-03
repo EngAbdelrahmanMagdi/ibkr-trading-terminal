@@ -836,9 +836,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description News articles */
+            /** @description News articles. Successful empty refreshes return an empty array. Unavailable refreshes may return retained articles. */
             200: {
                 headers: {
+                    /** @description FRESH after a recent successful refresh, STALE while refresh is due, UNAVAILABLE when refresh cannot complete. */
+                    "X-News-Status"?: "FRESH" | "STALE" | "UNAVAILABLE";
+                    /** @description Last successful refresh time, including empty results. Omitted before the first success. */
+                    "X-News-Last-Refreshed-At"?: components["schemas"]["UtcTimestamp"];
                     [name: string]: unknown;
                 };
                 content: {

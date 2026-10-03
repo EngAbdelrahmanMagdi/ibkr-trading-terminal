@@ -79,6 +79,25 @@ test("MOCK terminal: live quote, chart, fill, position, execution and cancellati
       .filter({ hasText: "1.00" })
       .first(),
   ).toContainText("CANCELLED");
+  await page.getByRole("tab", { name: "News", exact: true }).click();
+  const news = page.getByRole("region", { name: "AAPL news" });
+  await expect(
+    news.getByText("AAPL: synthetic company outlook update"),
+  ).toBeVisible();
+  await expect(news.getByRole("listitem")).toHaveCount(2);
+  await expect(news.getByText("Synthetic demo")).toHaveCount(2);
+  await page
+    .getByRole("listbox", { name: "Watchlist symbols" })
+    .getByRole("button", { name: /NVDA/ })
+    .click();
+  await expect(
+    page
+      .getByRole("region", { name: "NVDA news" })
+      .getByText("NVDA: synthetic company outlook update"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("AAPL: synthetic company outlook update"),
+  ).toHaveCount(0);
 });
 
 test("narrow workspace keeps chart and trading controls reachable", async ({
@@ -87,6 +106,12 @@ test("narrow workspace keeps chart and trading controls reachable", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByLabel("Price chart")).toBeVisible();
+  await page.getByRole("tab", { name: "News", exact: true }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "NVDA news" })
+      .getByText("NVDA: synthetic company outlook update"),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Trade NVDA" }).click();
   await expect(
     page.getByRole("heading", { name: "Order ticket" }),

@@ -327,7 +327,17 @@ paths:
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          description: News articles
+          description: News articles. Successful empty refreshes return an empty array. Unavailable refreshes may return retained articles.
+          headers:
+            X-News-Status:
+              description: FRESH after a recent successful refresh, STALE while refresh is due, UNAVAILABLE when refresh cannot complete.
+              schema:
+                type: string
+                enum: [FRESH, STALE, UNAVAILABLE]
+            X-News-Last-Refreshed-At:
+              description: Last successful refresh time, including empty results. Omitted before the first success.
+              schema:
+                $ref: '../schemas/common/primitives.schema.json#/$defs/UtcTimestamp'
           content:
             application/json:
               schema:

@@ -1,0 +1,12 @@
+# Opt-in personal development only. Default Compose never mounts a provider credential.
+services:
+  trading-core:
+    environment:
+      NEWS_PROVIDER: FINNHUB
+      NEWS_PRIVATE_DEVELOPMENT: "true"
+      APP_TRUSTED_ENVIRONMENT: "true"
+    secrets:
+      - finnhub_api_key
+secrets:
+  finnhub_api_key:
+    file: ./secrets/finnhub_api_key

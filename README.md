@@ -10,7 +10,7 @@ A single-page, realtime stock trading terminal with live quotes, live candlestic
 - **Charting:** Gateway REST candlesticks with bounded refresh, a WebSocket current-price marker, a crosshair, and an interval selector.
 - **Trading:** Buy, Sell and Short orders, market and limit order types, open orders, cancellation, and the full order lifecycle, including broker confirmation prompts.
 - **Portfolio:** positions, average cost, market value, realized and unrealized P&L, and account metrics. Any metric the broker doesn't provide is shown as *Unavailable*, never estimated.
-- **News:** financial news per symbol, optionally enriched with AI-generated summaries, sentiment and catalysts.
+- **News:** compact, normalized news per selected symbol, with publisher, time, snippets and visible freshness. Public demos use clearly identified synthetic news.
 
 ## Runtime modes
 
@@ -67,6 +67,39 @@ flowchart LR
 - **Ports and adapters:** broker and market-data integrations sit behind interfaces, so the simulator and IBKR paper adapters are interchangeable.
 
 ## API and event contracts
+
+### News
+
+Open the **News** tab in the trading activity deck to see articles for the selected symbol. MOCK news is fictional,
+labelled **Synthetic demo**, and passes through the same normalization, deduplication, PostgreSQL persistence,
+Redis cache and transactional event delivery as private provider data. It is not a real company report or a trade signal.
+
+`GET /api/v1/news?symbol=NVDA&limit=20` returns the existing article array, newest first. `X-News-Status` is
+`FRESH`, `STALE` or `UNAVAILABLE`; `X-News-Last-Refreshed-At` is the last successful refresh time, including
+successful empty results. A temporary provider failure retains usable results; a cold unavailable request returns
+a standard 503 problem. News availability does not gate trading or service readiness.
+
+Default Compose fixes `NEWS_PROVIDER=FIXTURE` and does not mount any news credential. Operational settings in
+`.env.example` control freshness, retrieval, queue/deadline, provider rate and retention. Additional Core settings
+include `NEWS_WORKERS`, `NEWS_MAX_COLD_REQUESTS`, `NEWS_ATTEMPTS`, `NEWS_MAX_RESPONSE_BYTES`, `NEWS_MAX_RECORDS`,
+`NEWS_BREAKER_FAILURES`, `NEWS_BREAKER_COOLDOWN` and `NEWS_CLEANUP_INTERVAL`. Bounded cleanup preserves
+articles referenced by unpublished outbox records; reaching a storage bound can temporarily stop new ingestion.
+
+**Private personal development only:** Finnhub is an explicit opt-in adapter. First check your account's applicable
+personal-use terms and storage permissions. Put the credential in the ignored `secrets/finnhub_api_key` file, then run:
+
+```bash
+docker compose -f docker-compose.yml -f infrastructure/news/compose.finnhub-private.yml --profile gateway --profile core --profile web up -d
+```
+
+The override enables private development and the trusted-environment guard, requires private/loopback Core CORS
+origins and mounts the credential only into Core. Keep the deployment, data volumes and Kafka private. Do not use
+private provider data in a public demo. Use separate public MOCK data stores, and delete provider data when your
+license or subscription requires it. No paid plan is required by this project. Public live news is deferred until
+explicit display/redistribution rights are secured. Preserve publisher attribution and original article links;
+attribution alone does not grant redistribution rights. See [Finnhub terms](https://finnhub.io/terms-of-service).
+
+Core publishes normalized new articles to `news.raw.v1` through the existing outbox. AI enrichment is not implemented.
 
 The REST APIs, the Kafka events and the WebSocket protocol are specified contract-first:
 - `contracts/schemas/` holds JSON Schema 2020-12 files, the single source of truth for every message.
@@ -171,7 +204,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|---|
 | PostgreSQL 18 | `127.0.0.1:15432` | Database `trading`, schema `trading`. Roles: `trading_owner` for schema migrations and `trading_app` for data access only. |
 | Redis 8 | `127.0.0.1:16379` | ACL user `app`. No persistence (cache and hot state only). |
-| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled; `kafka-init` provisions `trading.order-events.v1` and `trading.execution-events.v1` |
+| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled; `kafka-init` provisions `trading.order-events.v1`, `trading.execution-events.v1`, `broker.order-updates.v1` and `news.raw.v1` |
 | Grafana | <http://127.0.0.1:13000> | User `admin`. The password is in `secrets/grafana_admin_password`. |
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |

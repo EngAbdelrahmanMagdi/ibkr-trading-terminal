@@ -1,0 +1,5 @@
+[
+  {"id":"outlook","seconds":0,"headline":"{symbol}: synthetic company outlook update","summary":"Demonstration fixture: a fictional company update for testing the terminal news workflow. This is not a real report."},
+  {"id":"product","seconds":-1800,"headline":"{symbol}: synthetic product briefing scheduled","summary":"Demonstration fixture: a fictional product briefing. No investment recommendation or real company claim is intended."},
+  {"id":"outlook","seconds":0,"headline":"{symbol}: synthetic company outlook update","summary":"Demonstration fixture: a fictional company update for testing the terminal news workflow. This is not a real report."}
+]

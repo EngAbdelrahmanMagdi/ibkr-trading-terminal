@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aperture · Trading Terminal",
+  title: "MarketPulse Terminal",
   description: "Realtime paper trading workspace",
 };
 

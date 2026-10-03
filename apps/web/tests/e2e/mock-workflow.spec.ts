@@ -1,9 +1,31 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function expectHistoryAnchored(page: Page) {
+  const trigger = await page
+    .getByRole("button", { name: /^Notifications/ })
+    .boundingBox();
+  const history = await page
+    .getByRole("region", { name: "Notification history" })
+    .boundingBox();
+  expect(trigger).not.toBeNull();
+  expect(history).not.toBeNull();
+  expect(
+    Math.abs(history!.x + history!.width - trigger!.x - trigger!.width),
+  ).toBeLessThan(2);
+  expect(history!.y - trigger!.y - trigger!.height).toBeGreaterThanOrEqual(0);
+  expect(history!.y - trigger!.y - trigger!.height).toBeLessThanOrEqual(12);
+  expect(history!.x).toBeGreaterThanOrEqual(0);
+}
 
 test("MOCK terminal: live quote, chart, fill, position, execution and cancellation", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(page).toHaveTitle("MarketPulse Terminal");
+  await expect(page.locator("header")).toContainText("MarketPulse");
+  await expect(page.locator("header")).not.toContainText(/APERTURE/i);
+  for (const path of ["/icon.svg", "/favicon.ico"])
+    expect((await page.request.get(path)).ok()).toBe(true);
   await expect(page.getByRole("heading", { name: "Watchlist" })).toBeVisible();
   await page
     .getByRole("listbox", { name: "Watchlist symbols" })
@@ -41,7 +63,12 @@ test("MOCK terminal: live quote, chart, fill, position, execution and cancellati
   const buyingPowerBefore = await buyingPower.innerText();
 
   await page.getByRole("button", { name: "Place buy order" }).click();
-  await expect(page.getByText(/Order filled\./i)).toBeVisible();
+  await page.getByRole("button", { name: /^Notifications/ }).click();
+  await expect(
+    page.getByRole("region", { name: "Notification history" }),
+  ).toContainText(/Bought 1 AAPL @/);
+  await expectHistoryAnchored(page);
+  await page.getByRole("button", { name: "Close notifications" }).click();
   await expect(aaplPosition).toBeVisible();
   await expect
     .poll(() => aaplPosition.locator("td").nth(1).innerText().then(Number))
@@ -79,6 +106,15 @@ test("MOCK terminal: live quote, chart, fill, position, execution and cancellati
       .filter({ hasText: "1.00" })
       .first(),
   ).toContainText("CANCELLED");
+  await page.getByRole("button", { name: /^Notifications/ }).click();
+  await expect(
+    page.getByRole("region", { name: "Notification history" }),
+  ).toContainText("Order cancelled");
+  await expect(
+    page.getByRole("region", { name: "Notification history" }),
+  ).toContainText("Cancellation requested");
+  await expectHistoryAnchored(page);
+  await page.getByRole("button", { name: "Close notifications" }).click();
   await page.getByRole("tab", { name: "News", exact: true }).click();
   const news = page.getByRole("region", { name: "AAPL news" });
   await expect(
@@ -114,6 +150,7 @@ test("narrow workspace keeps chart and trading controls reachable", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await expect(page).toHaveTitle("MarketPulse Terminal");
   await expect(page.getByLabel("Price chart")).toBeVisible();
   await page.getByRole("tab", { name: "News", exact: true }).click();
   await expect(
@@ -121,6 +158,14 @@ test("narrow workspace keeps chart and trading controls reachable", async ({
       .getByRole("region", { name: "NVDA news" })
       .getByText("NVDA: synthetic company outlook update"),
   ).toBeVisible();
+  const notifications = page.getByRole("button", { name: /^Notifications/ });
+  await notifications.focus();
+  await notifications.press("Enter");
+  const history = page.getByRole("region", { name: "Notification history" });
+  await expect(history).toBeFocused();
+  await expectHistoryAnchored(page);
+  await history.press("Escape");
+  await expect(notifications).toBeFocused();
   await page.getByRole("button", { name: "Trade NVDA" }).click();
   await expect(
     page.getByRole("heading", { name: "Order ticket" }),

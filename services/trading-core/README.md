@@ -120,7 +120,10 @@ In `MOCK` the portfolio is a simulated cash account:
 | `cash`, `buyingPower` | Starting cash (100,000 by default) plus sales, minus purchases and commissions |
 | `realizedPnl` | From executions |
 | `unrealizedPnl`, `netLiquidation`, position `marketValue` | From fresh quotes (last price). Unavailable while any open position has no fresh quote. |
-| `excessLiquidity`, `dayPnl` | Always unavailable: they can't be derived honestly from the simulation |
+| `dayPnl` | Current New York day: execution cash flow (including commissions) plus current marked inventory minus persisted opening inventory value. Unavailable if an open position has no fresh mark, or any carried position lacks a valid opening valuation. |
+| `excessLiquidity` | Unavailable: the simulator provides no margin-account liquidity metric. |
+
+MOCK day boundaries use `America/New_York` local midnight, including its daylight-saving transitions; the simulator runs continuously and does not emulate an exchange holiday/session calendar. Core captures fresh pre-boundary marks at midnight and persists one opening row per symbol. A restart near the boundary may capture a still-fresh pre-boundary mark; later startup or browser access never backfills a missing historical price. Same-day round trips need no opening price and report their actual net result even without current quotes. Older round trips do not contribute to today's value. If any carried inventory lacks its baseline, the aggregate day metric remains unavailable, including after that inventory is sold. Cumulative `realizedPnl` remains available separately. Late historical executions that change the captured opening quantity invalidate it rather than inventing a correction. The calculation reads the complete Core execution ledger, not the paginated browser list.
 
 In `IBKR_PAPER`, `cash` (the ledger cash balance), `netLiquidation`, `excessLiquidity` and `dayPnl` come from the paper account when its base currency matches, refreshed at most every 10 seconds. `buyingPower` is unavailable. Positions and P&L are computed from the executions recorded here.
 

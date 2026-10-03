@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /** The execution record: each broker execution is stored once. */
 @Service
@@ -51,6 +54,18 @@ public class ExecutionLedger {
     @Transactional(readOnly = true)
     public BigDecimal netCashFlow() {
         return Decimals.money(repository.netCashFlow());
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal netCashFlowBetween(Instant start, Instant end) {
+        return Decimals.money(repository.netCashFlowBetween(start, end));
+    }
+
+    /** Full persisted ledger, independent of the paginated browser execution list. */
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> openingQuantities(Instant start) {
+        return repository.openingQuantities(start).stream().collect(Collectors.toMap(
+                ExecutionJpaRepository.OpeningQuantity::getSymbol, ExecutionJpaRepository.OpeningQuantity::getQuantity));
     }
 
     private static Execution toDomain(ExecutionEntity e) {

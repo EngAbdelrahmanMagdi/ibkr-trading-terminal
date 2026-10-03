@@ -7,6 +7,7 @@ import { metric, price, signed, time } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 import { NewsPanel } from "./NewsPanel";
 import styles from "./terminal.module.css";
+import { useNotifications } from "./Notifications";
 
 type Tab = "positions" | "orders" | "executions" | "news";
 const openStatuses = new Set<Order["status"]>([
@@ -21,6 +22,7 @@ const openStatuses = new Set<Order["status"]>([
 
 export function TradeDeck({ symbol }: { symbol: string }) {
   const queryClient = useQueryClient();
+  const notifications = useNotifications();
   const [tab, setTab] = useState<Tab>("positions");
   const [allOrders, setAllOrders] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -46,14 +48,37 @@ export function TradeDeck({ symbol }: { symbol: string }) {
   };
   const cancel = useMutation({
     mutationFn: api.cancel,
+    onMutate: (id) => {
+      const order = orders.data?.find((item) => item.id === id);
+      if (order) notifications.action(order, "cancel");
+    },
     onSuccess: invalidate,
-    onError: (error) => setActionError(errorMessage(error)),
+    onError: (error, id) => {
+      notifications.failure(
+        `cancel:${id}`,
+        "Cancellation request failed",
+        errorMessage(error),
+      );
+      setActionError(errorMessage(error));
+    },
   });
   const confirm = useMutation({
     mutationFn: ({ id, answer }: { id: string; answer: boolean }) =>
       api.confirm(id, answer),
+    onMutate: (variables) => {
+      const order = orders.data?.find((item) => item.id === variables.id);
+      if (order)
+        notifications.action(order, variables.answer ? "confirm" : "decline");
+    },
     onSuccess: invalidate,
-    onError: (error) => setActionError(errorMessage(error)),
+    onError: (error, variables) => {
+      notifications.failure(
+        `confirm:${variables.id}`,
+        "Confirmation request failed",
+        errorMessage(error),
+      );
+      setActionError(errorMessage(error));
+    },
   });
   const displayedOrders =
     orders.data?.filter(

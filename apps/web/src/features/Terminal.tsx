@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   QueryClient,
@@ -16,6 +17,12 @@ import { WatchlistPanel } from "./WatchlistPanel";
 import { OrderTicket } from "./OrderTicket";
 import { TradeDeck } from "./TradeDeck";
 import styles from "./terminal.module.css";
+import { Notifications } from "@/lib/notifications";
+import {
+  NotificationContext,
+  NotificationControl,
+  NotificationObserver,
+} from "./Notifications";
 
 const ChartPanel = dynamic(
   () => import("./ChartPanel").then((module) => module.ChartPanel),
@@ -34,9 +41,13 @@ const client = new QueryClient({
 });
 
 export function Terminal() {
+  const [notifications] = useState(() => new Notifications());
   return (
     <QueryClientProvider client={client}>
-      <Workspace />
+      <NotificationContext.Provider value={notifications}>
+        <NotificationObserver />
+        <Workspace />
+      </NotificationContext.Provider>
     </QueryClientProvider>
   );
 }
@@ -97,10 +108,10 @@ function Workspace() {
       <header className={styles.header}>
         <div className={styles.brand}>
           <span className={styles.brandMark}>
-            <Icon name="bars" width={20} height={20} />
+            <Image src="/icon.svg" alt="" width={20} height={20} unoptimized />
           </span>
           <span className={styles.brandName}>
-            APERTURE<span> / TERMINAL</span>
+            MarketPulse<span> / TERMINAL</span>
           </span>
         </div>
         <nav className={styles.headerNav} aria-label="Workspace">
@@ -110,6 +121,7 @@ function Workspace() {
           </span>
         </nav>
         <div className={styles.headerActions}>
+          <NotificationControl ticketOpen={ticketOpen} />
           <span className={styles.modeBadge}>
             {portfolio.data?.accountMode ?? "ACCOUNT MODE UNKNOWN"}
           </span>
@@ -147,6 +159,11 @@ function Workspace() {
             />
             <Metric
               label="DAY P&L"
+              description={
+                portfolio.data?.accountMode === "MOCK"
+                  ? "New York day, net of commissions. Unavailable when a carried-position opening valuation or fresh mark is missing."
+                  : "Broker-reported daily P&L."
+              }
               value={metric(portfolio.data?.dayPnl)}
               tone={signed(portfolio.data?.dayPnl.value)}
               loading={portfolio.isPending}
@@ -210,18 +227,20 @@ function Workspace() {
 
 function Metric({
   label,
+  description,
   value,
   tone = "neutral",
   loading,
 }: {
   label: string;
+  description?: string;
   value: string;
   tone?: string;
   loading: boolean;
 }) {
   return (
     <div className={styles.accountMetric}>
-      <span>{label}</span>
+      <span title={description}>{label}</span>
       <strong
         className={
           tone === "positive"

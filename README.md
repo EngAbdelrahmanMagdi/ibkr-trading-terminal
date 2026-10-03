@@ -1,15 +1,34 @@
-# Real-Time Trading Terminal
+# MarketPulse
 
 A single-page, realtime stock trading terminal with live quotes, live candlestick charts, and paper order execution, built on an event-driven backend.
 
-> **Status: under active development.** The services are being built incrementally. Setup instructions, screenshots, and benchmark results will be added here as each part becomes runnable. Only measured results will be published.
+> **Status: under active development.** The services are being built incrementally. Setup instructions and benchmark results will be updated as each part becomes runnable. Only measured results will be published.
+
+## App preview
+
+### Desktop
+
+![MarketPulse terminal in MOCK mode](assets/marketpulse-terminal.png)
+
+*Actual clean MOCK demo after a simulated buy/sell round trip: Core-calculated Day P&L net of commissions, synthetic news/insights, and current-session notifications.*
+
+### Mobile preview
+
+<p>
+  <img src="assets/marketpulse-mobile.png" alt="MarketPulse mobile MOCK terminal with calculated Day P&amp;L and synthetic news" width="260" />
+  <img src="assets/marketpulse-mobile-activity.png" alt="MarketPulse mobile Session Activity aligned beneath the notification bell" width="260" />
+</p>
+
+*The same simulated session on a narrow screen, with the terminal and its bell-aligned activity panel.*
 
 ## What it does
 
 - **Live market data:** a watchlist with bid, ask, last, volume, change and change %, streamed over WebSocket, with a visible connection state (`LIVE` / `RECONNECTING` / `STALE` / `DISCONNECTED`). Stale prices are never shown as live.
 - **Charting:** Gateway REST candlesticks with bounded refresh, a WebSocket current-price marker, a crosshair, and an interval selector.
 - **Trading:** Buy, Sell and Short orders, market and limit order types, open orders, cancellation, and the full order lifecycle, including broker confirmation prompts.
+- **Notifications:** Core-confirmed order activity and executions, with compact toasts and current-session history. HTTP submission success does not establish a fill; uncertain outcomes warn against resubmitting. History retains 100 entries and tracks up to 1,000 orders and 1,000 executions without identity eviction. At capacity, new automatic activity is omitted while trading remains available. The 100-record REST lists and session bounds limit completeness: notifications are not an audit log.
 - **Portfolio:** positions, average cost, market value, realized and unrealized P&L, and account metrics. Any metric the broker doesn't provide is shown as *Unavailable*, never estimated.
+- **MOCK Day P&L:** calculated by Core for the New York day from execution cash flow (net of commissions), marked positions and durable opening valuations. Missing carried-position baselines or fresh marks remain *Unavailable*; same-day closed trades require no mark.
 - **News:** compact, normalized news per selected symbol, with publisher, time, snippets and visible freshness. Public demos use clearly identified synthetic news.
 
 ## Runtime modes

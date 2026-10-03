@@ -7,6 +7,9 @@ import com.project.trading.execution.application.ExecutionLedger;
 import com.project.trading.instrument.domain.Instrument;
 import com.project.trading.marketdata.domain.QuoteReferencePort;
 import com.project.trading.shared.config.AppProperties;
+import com.project.trading.position.application.TradingDayPnl;
+import com.project.trading.position.application.TradingDaySnapshot;
+import com.project.trading.position.domain.OpeningValuationRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -33,8 +36,19 @@ public class MockBrokerConfiguration {
     }
 
     @Bean
-    MockBrokerAccount mockBrokerAccount(ExecutionLedger executions, AppProperties app, Clock clock) {
-        return new MockBrokerAccount(executions, app.portfolio().startingCash(), clock);
+    MockBrokerAccount mockBrokerAccount(ExecutionLedger executions, AppProperties app, Clock clock, TradingDayPnl dayPnl) {
+        return new MockBrokerAccount(executions, app.portfolio().startingCash(), clock, dayPnl);
+    }
+
+    @Bean
+    TradingDayPnl tradingDayPnl(TradingDaySnapshot snapshots, OpeningValuationRepository openings,
+                               QuoteReferencePort quotes, Clock clock, AppProperties app) {
+        return new TradingDayPnl(snapshots, openings, quotes, clock, app.orders().quoteMaxAge());
+    }
+
+    @Bean
+    MockDayPnlCapture mockDayPnlCapture(TradingDayPnl dayPnl) {
+        return new MockDayPnlCapture(dayPnl);
     }
 
     /** The simulated broker delivers its updates in-process; there is nothing to reconcile against. */

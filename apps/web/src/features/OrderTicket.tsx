@@ -23,6 +23,7 @@ import {
 import { useConnectionStatus, useQuote } from "@/lib/realtime";
 import { Icon } from "@/components/Icon";
 import styles from "./terminal.module.css";
+import { useNotifications } from "./Notifications";
 
 const decimalQuantity = z
   .string()
@@ -66,6 +67,7 @@ export function OrderTicket({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const notifications = useNotifications();
   const quote = useQuote(symbol);
   const connection = useConnectionStatus();
   const attempts = useAttempts();
@@ -120,11 +122,13 @@ export function OrderTicket({
   async function send(attempt: Attempt, isRetry: boolean) {
     if (working) return;
     setWorking(true);
+    notifications.begin(attempt.key);
     setMessage("");
     if (!isRetry) updateAttempts([...attempts, attempt]);
     try {
       const order = await api.submit(attempt.body as OrderRequest, attempt.key);
       setLatest(order);
+      notifications.submitted(attempt.key, order);
       if (order.status === "UNKNOWN") {
         updateAttempts(
           (isRetry ? attempts : [...attempts, attempt]).map((item) =>
@@ -144,7 +148,9 @@ export function OrderTicket({
       setMessage(
         order.status === "UNKNOWN"
           ? "Broker outcome is being verified. Do not place this order again with a new key."
-          : `Order ${order.status.toLowerCase().replaceAll("_", " ")}.`,
+          : order.status === "SUBMITTED"
+            ? "Order accepted / open."
+            : "Order submitted.",
       );
     } catch (error) {
       if (
@@ -168,8 +174,20 @@ export function OrderTicket({
             form.setError(field, { message: fieldMessage });
         });
       }
+      if (
+        error instanceof ApiError &&
+        error.status >= 400 &&
+        error.status < 500
+      )
+        notifications.failure(
+          attempt.key,
+          "Order request failed",
+          errorMessage(error),
+        );
+      else notifications.uncertain(attempt.key, attempt.body as OrderRequest);
       setMessage(errorMessage(error));
     } finally {
+      notifications.end(attempt.key);
       setWorking(false);
     }
   }
@@ -177,6 +195,7 @@ export function OrderTicket({
   async function respond(confirm: boolean) {
     if (!selectedLatest || working) return;
     setWorking(true);
+    notifications.action(selectedLatest, confirm ? "confirm" : "decline");
     try {
       const order = await api.confirm(selectedLatest.id, confirm);
       setLatest(order);
@@ -185,6 +204,11 @@ export function OrderTicket({
       );
       setMessage(`Order ${order.status.toLowerCase().replaceAll("_", " ")}.`);
     } catch (error) {
+      notifications.failure(
+        `confirmation:${selectedLatest.id}`,
+        "Confirmation request failed",
+        errorMessage(error),
+      );
       setMessage(errorMessage(error));
     } finally {
       setWorking(false);

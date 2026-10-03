@@ -359,7 +359,9 @@ class TradingWorkflowIntegrationTest {
         assertThat(r.body().get("cash").get("available").asBoolean()).isTrue();
         assertThat(r.body().get("excessLiquidity").get("available").asBoolean()).isFalse();
         assertThat(r.body().get("excessLiquidity").get("value").isNull()).isTrue();
-        assertThat(r.body().get("dayPnl").get("available").asBoolean()).isFalse();
+        // All executions in this fresh database are intraday; open positions still require fresh marks.
+        assertThat(r.body().get("dayPnl").get("available").asBoolean())
+                .isEqualTo(r.body().get("unrealizedPnl").get("available").asBoolean());
 
         Response orders = get("/api/v1/orders?status=FILLED,CANCELLED&limit=5");
         ContractSchemas.assertEachValid("trading/order.schema.json", orders.body());

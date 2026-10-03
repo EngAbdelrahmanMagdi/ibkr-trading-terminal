@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 public interface ExecutionJpaRepository extends JpaRepository<ExecutionEntity, UUID> {
 
@@ -20,4 +21,17 @@ public interface ExecutionJpaRepository extends JpaRepository<ExecutionEntity, U
     @Query("select coalesce(sum(case when e.side = 'SELL' then e.quantity * e.price else -(e.quantity * e.price) end"
             + " - coalesce(e.commission, 0)), 0) from ExecutionEntity e")
     BigDecimal netCashFlow();
+
+    @Query("select coalesce(sum(case when e.side = 'SELL' then e.quantity * e.price else -(e.quantity * e.price) end"
+            + " - coalesce(e.commission, 0)), 0) from ExecutionEntity e where e.executedAt >= :start and e.executedAt < :end")
+    BigDecimal netCashFlowBetween(Instant start, Instant end);
+
+    interface OpeningQuantity {
+        String getSymbol();
+        BigDecimal getQuantity();
+    }
+
+    @Query("select e.symbol as symbol, sum(case when e.side = 'BUY' then e.quantity else -e.quantity end) as quantity"
+            + " from ExecutionEntity e where e.executedAt < :start group by e.symbol")
+    List<OpeningQuantity> openingQuantities(Instant start);
 }

@@ -1,0 +1,5 @@
+pydantic==2.13.5
+confluent-kafka==2.15.1
+httpx==0.28.1
+jsonschema==4.26.0
+prometheus-client==0.26.0

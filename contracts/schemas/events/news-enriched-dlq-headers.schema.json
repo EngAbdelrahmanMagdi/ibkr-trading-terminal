@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/news-enriched-dlq-headers.schema.json",
+  "title": "NewsEnrichedDeadLetterHeaders",
+  "description": "Original poison-record headers plus sanitized diagnostics; original domain headers may be absent or malformed.",
+  "type": "object",
+  "required": ["dlq.reason", "dlq.exceptionClass", "dlq.failedAt", "dlq.consumer", "dlq.sourceTopic", "dlq.sourcePartition", "dlq.sourceOffset"],
+  "properties": {
+    "dlq.reason": {"type": "string", "minLength": 1, "maxLength": 64},
+    "dlq.exceptionClass": {"type": "string", "minLength": 1, "maxLength": 128},
+    "dlq.failedAt": {"$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"},
+    "dlq.consumer": {"const": "trading-core-news-enrichment"},
+    "dlq.sourceTopic": {"const": "news.enriched.v1"},
+    "dlq.sourcePartition": {"type": "string", "pattern": "^[0-9]{1,10}$"},
+    "dlq.sourceOffset": {"type": "string", "pattern": "^[0-9]{1,20}$"}
+  },
+  "additionalProperties": {"type": "string", "maxLength": 1024}
+}

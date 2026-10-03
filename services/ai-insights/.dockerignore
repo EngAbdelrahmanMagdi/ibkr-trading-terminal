@@ -1,0 +1,9 @@
+README.local.md
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+eval-results
+tests
+*.local.md

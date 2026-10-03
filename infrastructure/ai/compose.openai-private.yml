@@ -1,0 +1,19 @@
+# An operator-managed restricted proxy must already be reachable on isolated ai-bus.
+# This override never creates external networks, host routes or direct Internet egress.
+services:
+  ai-insights:
+    environment:
+      AI_PROVIDER: OPENAI
+      AI_PRIVATE_DEVELOPMENT: "true"
+      AI_RIGHTS_VERIFIED: ${AI_RIGHTS_VERIFIED:-false}
+      AI_ISOLATED_PROXY_VERIFIED: ${AI_ISOLATED_PROXY_VERIFIED:-false}
+      AI_MODEL_POLICY_VERIFIED: ${AI_MODEL_POLICY_VERIFIED:-false}
+      AI_PROXY_URL: ${AI_PROXY_URL:?restricted proxy endpoint required}
+      AI_MODEL: ${AI_MODEL:?verified model identifier required}
+      AI_MODEL_VERSION: ${AI_MODEL_VERSION:?verified reproducibility policy required}
+      AI_DAILY_BUDGET: ${AI_DAILY_BUDGET:-0}
+      AI_KEY_FILE: /run/secrets/openai_api_key
+    secrets: [openai_api_key]
+secrets:
+  openai_api_key:
+    file: ${AI_KEY_SOURCE:?server credential file required}

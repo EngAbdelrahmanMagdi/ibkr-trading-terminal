@@ -86,6 +86,15 @@ test("MOCK terminal: live quote, chart, fill, position, execution and cancellati
   ).toBeVisible();
   await expect(news.getByRole("listitem")).toHaveCount(2);
   await expect(news.getByText("Synthetic demo")).toHaveCount(2);
+  await expect
+    .poll(
+      async () => {
+        await news.getByRole("button", { name: "Refresh news" }).click();
+        return news.getByText("Synthetic insight", { exact: true }).count();
+      },
+      { timeout: 30000 },
+    )
+    .toBe(2);
   await page
     .getByRole("listbox", { name: "Watchlist symbols" })
     .getByRole("button", { name: /NVDA/ })

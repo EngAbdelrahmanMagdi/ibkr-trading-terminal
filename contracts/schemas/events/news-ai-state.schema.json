@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trading-terminal.invalid/schemas/events/news-ai-state.schema.json",
+  "title": "NewsAiState",
+  "description": "Compacted worker operational state; not a domain event. Kafka tombstones delete expired keys.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "identity", "expiresAt", "data"],
+  "properties": {
+    "version": {"const": 1},
+    "kind": {"enum": ["ARTICLE", "CONTENT", "BUDGET"]},
+    "identity": {"type": "string", "minLength": 1, "maxLength": 128},
+    "expiresAt": {"$ref": "../common/primitives.schema.json#/$defs/UtcTimestamp"},
+    "data": {
+      "oneOf": [
+        {"$ref": "#/$defs/Article"},
+        {"$ref": "#/$defs/Content"},
+        {"$ref": "#/$defs/Budget"}
+      ]
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "ARTICLE"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/Article"}}}},
+    {"if": {"properties": {"kind": {"const": "CONTENT"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/Content"}}}},
+    {"if": {"properties": {"kind": {"const": "BUDGET"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/Budget"}}}}
+  ],
+  "$defs": {
+    "Article": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "articleId", "processingIdentity", "reservedNanodollars", "budgetDay"],
+      "properties": {
+        "status": {"enum": ["STARTED", "RESULT", "DONE", "UNCERTAIN", "SKIPPED"]},
+        "articleId": {"$ref": "../common/primitives.schema.json#/$defs/Uuid"},
+        "processingIdentity": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reservedNanodollars": {"type": "integer", "minimum": 0},
+        "budgetDay": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "event": {"$ref": "news-enriched.schema.json"}
+      }
+    },
+    "Content": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["STARTED", "RESULT", "UNCERTAIN"]},
+        "insight": {"$ref": "../news/news-insight.schema.json"}
+      },
+      "allOf": [{"if": {"properties": {"status": {"const": "RESULT"}}}, "then": {"required": ["insight"]}}]
+    },
+    "Budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reservedNanodollars"],
+      "properties": {"reservedNanodollars": {"type": "integer", "minimum": 0}}
+    }
+  }
+}

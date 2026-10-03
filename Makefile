@@ -8,13 +8,13 @@ SHELL := /bin/bash
 
 COMPOSE := docker compose
 COMPOSE_OBS := $(COMPOSE) --profile observability
-COMPOSE_MOCK := $(COMPOSE) --profile gateway --profile core --profile web
+COMPOSE_MOCK := $(COMPOSE) --profile gateway --profile core --profile web --profile ai
 IBKR_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr.yml
 IBKR_FAKE_OVERRIDE := -f docker-compose.yml -f infrastructure/ibkr/compose.ibkr-fake.yml
 COMPOSE_IBKR := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway
 COMPOSE_IBKR_PAPER := $(COMPOSE) $(IBKR_OVERRIDE) --profile gateway --profile core
 COMPOSE_IBKR_FAKE := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile gateway
-COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway --profile core --profile web
+COMPOSE_ALL := $(COMPOSE) $(IBKR_FAKE_OVERRIDE) --profile observability --profile gateway --profile core --profile web --profile ai
 WAIT_TIMEOUT := 240
 
 # Host path of the repository for bind mounts (Cygwin/Git Bash need a Windows-style path).
@@ -48,7 +48,7 @@ LOAD_SLOW_READERS ?= 0
 LOAD_ARGS ?=
 SHELL_SCRIPTS := infrastructure/scripts/bootstrap.sh infrastructure/scripts/verify-infra.sh \
                  infrastructure/postgres/init/10-create-roles.sh infrastructure/redis/start-redis.sh \
-                 infrastructure/ibkr/generate-cpgw-cert.sh
+                 infrastructure/ibkr/generate-cpgw-cert.sh infrastructure/kafka/create-topics.sh
 
 # Contract tests run on a copy of the sources inside the container (repository mounted read-only).
 CONTRACT_COPY := mkdir -p /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cd /work/tests/contract
@@ -57,13 +57,16 @@ CONTRACT_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro"
 GATEWAY_COPY := mkdir -p /work/services && cp -r /src/contracts /work/ && cp -r /src/$(GATEWAY_DIR) /work/services/ && cd /work/$(GATEWAY_DIR)
 # Trading Core builds run on a copy of the service plus the contracts and infrastructure its tests use. The Docker
 # socket lets the integration tests start PostgreSQL and Redis with Testcontainers.
-CORE_COPY := mkdir -p /work/services && cp -r /src/contracts /src/infrastructure /work/ && cp -r /src/$(CORE_DIR) /work/services/ && rm -rf /work/$(CORE_DIR)/target && cd /work/$(CORE_DIR)
+CORE_COPY := mkdir -p /work/services /work/tests && cp -r /src/contracts /src/infrastructure /work/ && cp -r /src/tests/contract /work/tests/ && cp -r /src/$(CORE_DIR) /work/services/ && rm -rf /work/$(CORE_DIR)/target && cd /work/$(CORE_DIR)
 MAVEN_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-m2:/root/.m2
 TESTCONTAINERS_RUN := $(MAVEN_RUN) -v /var/run/docker.sock:/var/run/docker.sock --add-host=host.docker.internal:host-gateway \
 	-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
 GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
 WEB_COPY := mkdir -p /work/apps/web && tar -C /src/$(WEB_DIR) --exclude=node_modules --exclude=.next --exclude=test-results --exclude=playwright-report -cf - . | tar -C /work/apps/web -xf - && cd /work/apps/web
 WEB_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-npm:/root/.npm
+AI_COPY := mkdir -p /work/services /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cp -r /src/services/ai-insights /work/services/ && cd /work/services/ai-insights
+AI_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-pip:/root/.cache/pip -v trading-terminal-ai-tools:/venv
+AI_INSTALL := (test -x /venv/bin/python || python -m venv /venv) && if ! cmp -s requirements-dev.txt /venv/requirements-dev.txt; then /venv/bin/pip install --quiet --require-hashes -r requirements-dev.txt && cp requirements-dev.txt /venv/requirements-dev.txt; fi
 
 .PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-paper up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract test-web test-e2e \
         contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts lint-web security clean
@@ -80,10 +83,10 @@ up: bootstrap ## Start core infrastructure: PostgreSQL, Redis, Kafka
 up-obs: bootstrap ## Start core infrastructure plus Prometheus, Grafana, Tempo and the OpenTelemetry Collector
 	$(COMPOSE_OBS) up -d --wait --wait-timeout $(WAIT_TIMEOUT)
 
-up-mock: bootstrap ## Start the MOCK application: infrastructure, gateway, Trading Core and web terminal
+up-mock: bootstrap ## Start the MOCK application: infrastructure, gateway, Trading Core, fixture insights and web terminal
 	$(COMPOSE) up -d --wait --wait-timeout $(WAIT_TIMEOUT) postgres redis kafka
 	$(COMPOSE) run --rm kafka-init
-	$(COMPOSE_MOCK) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT) realtime-gateway trading-core web
+	$(COMPOSE_MOCK) up -d --build --wait --wait-timeout $(WAIT_TIMEOUT) realtime-gateway trading-core ai-insights web
 
 up-ibkr: bootstrap ## Start the realtime gateway on IBKR market data (needs make ibkr-certs and a CP Gateway login)
 	@test -s secrets/ibkr/ca.pem || { echo "up-ibkr: secrets/ibkr/ca.pem is missing - run 'make ibkr-certs' and install the certificate in the CP Gateway first"; exit 1; }
@@ -124,7 +127,7 @@ load: ## Run load/soak clients against the running mock feed, with leak checks (
 		-clients $(LOAD_CLIENTS) -symbols-per-client $(LOAD_SYMBOLS_PER_CLIENT) -duration $(LOAD_DURATION) \
 		-slow-readers $(LOAD_SLOW_READERS) $(LOAD_ARGS)
 
-test: test-contract test-unit test-core test-web verify test-e2e ## Run all available checks, including the web terminal and MOCK browser workflow
+test: test-contract test-unit test-core test-web test-ai eval-ai verify test-e2e ## Run all available checks, including the web terminal and MOCK browser workflow
 
 test-web: ## Typecheck, unit test and production-build the web terminal in pinned Node
 	@$(WEB_RUN) $(NODE_IMAGE) sh -c '$(WEB_COPY) && npm ci --ignore-scripts --no-audit --no-fund && npm run typecheck && npm test && npm run build'
@@ -164,7 +167,9 @@ contract-typescript: ## Contract tests - TypeScript (Ajv) with strict type check
 		'$(CONTRACT_COPY)/typescript && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && npm test --silent'
 	@echo "contract-typescript: ok"
 
-lint: bootstrap lint-contracts lint-go lint-java lint-web ## Validate Compose, lint shell scripts, Go, Java, web and contracts
+lint: lint-infra lint-contracts lint-go lint-java lint-web lint-ai ## Validate infrastructure, services and contracts
+
+lint-infra: bootstrap ## Validate Compose and shell scripts
 	@echo "compose: default profile"; $(COMPOSE) config --quiet
 	@echo "compose: observability profile"; $(COMPOSE_OBS) config --quiet
 	@echo "compose: gateway and core profiles"; $(COMPOSE_MOCK) config --quiet
@@ -199,7 +204,7 @@ lint-contracts: ## Lint the OpenAPI documents (Redocly) and validate the AsyncAP
 			 ASYNCAPI_METRICS_CONFIG_PATH=/tmp/analytics.json SUPPRESS_NO_CONFIG_WARNING=1 asyncapi validate '"$$spec"' --fail-severity=warn'; \
 	done
 
-security: ## Scan for secrets (git history + every commit candidate) and known Go and Java dependency vulnerabilities
+security: security-ai ## Scan secrets and known service dependency vulnerabilities
 	@echo "gitleaks: git history"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/repo:ro" --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner'
@@ -222,3 +227,16 @@ clean: ## Stop containers and DELETE all local data volumes (asks for confirmati
 	fi
 	$(COMPOSE_ALL) down --volumes --remove-orphans
 	@echo "clean: containers and volumes removed (.env and ./secrets are kept; delete them manually to regenerate)"
+
+.PHONY: test-ai eval-ai lint-ai security-ai lint-infra
+test-ai: ## Worker unit and real Kafka integration tests (no live inference)
+	@$(AI_RUN) -v /var/run/docker.sock:/var/run/docker.sock --add-host=host.docker.internal:host-gateway -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e TESTCONTAINERS_RYUK_DISABLED=true $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && /venv/bin/python -m pytest -q --ignore=tests/eval'
+
+eval-ai: ## Deterministic insight evaluation (not live-model quality)
+	@$(AI_RUN) $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && /venv/bin/python -m pytest -q tests/eval'
+
+lint-ai: ## Worker Ruff lint/format and strict mypy
+	@$(AI_RUN) $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && /venv/bin/ruff check . && /venv/bin/ruff format --check . && /venv/bin/mypy src'
+
+security-ai: ## Audit hash-locked Python runtime and development dependencies
+	@$(AI_RUN) $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && /venv/bin/pip-audit --disable-pip --no-deps -r requirements-dev.txt'

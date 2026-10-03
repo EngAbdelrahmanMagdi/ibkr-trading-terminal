@@ -1,0 +1,9 @@
+{
+  "dlq.failedAt": "2026-10-03T00:00:00Z",
+  "dlq.sourcePartition": "0",
+  "dlq.exceptionClass": "InvalidEnrichment",
+  "dlq.sourceOffset": "1",
+  "dlq.reason": "schema",
+  "dlq.sourceTopic": "news.enriched.v1",
+  "dlq.consumer": "trading-core-news-enrichment"
+}

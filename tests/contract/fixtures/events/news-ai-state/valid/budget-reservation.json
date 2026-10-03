@@ -1,0 +1,9 @@
+{
+  "identity": "2026-10-03",
+  "kind": "BUDGET",
+  "version": 1,
+  "expiresAt": "2026-10-17T00:00:00Z",
+  "data": {
+    "reservedNanodollars": 1000
+  }
+}

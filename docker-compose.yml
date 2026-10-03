@@ -141,7 +141,7 @@ services:
       resources:
         limits:
           memory: 1g
-    networks: [data]
+    networks: [data, ai-bus]
 
   # One-shot topic provisioning (idempotent); the broker never creates topics implicitly.
   kafka-init:
@@ -191,7 +191,7 @@ services:
       resources:
         limits:
           memory: 512m
-    networks: [observability]
+    networks: [observability, ai-bus]
 
   otel-collector:
     <<: *defaults
@@ -337,6 +337,8 @@ services:
     profiles: [core]
     build:
       context: ./services/trading-core
+      additional_contexts:
+        contracts: ./contracts
     image: trading-terminal/trading-core:local
     environment:
       # MOCK: the simulated broker (the only mode for public demos). Fills use the gateway's MOCK quotes.
@@ -405,6 +407,41 @@ services:
     # edge: clients; data: PostgreSQL and Redis; observability: Prometheus scrapes the management port.
     networks: [edge, data, observability]
 
+  ai-insights:
+    <<: *defaults
+    profiles: [ai]
+    build:
+      context: ./services/ai-insights
+      additional_contexts:
+        contracts: ./contracts
+    image: trading-terminal/ai-insights:local
+    environment:
+      AI_PROVIDER: FIXTURE
+      AI_BROKERS: kafka:29092
+      AI_PRIVATE_DEVELOPMENT: "false"
+      AI_DAILY_BUDGET: "0"
+      AI_STATE_KEYS: ${AI_STATE_KEYS:-20000}
+      AI_STATE_BYTES: ${AI_STATE_BYTES:-67108864}
+      AI_STATE_TTL: ${AI_STATE_TTL:-1209600}
+      AI_INPUT_BYTES: ${AI_INPUT_BYTES:-16384}
+      AI_RESPONSE_BYTES: ${AI_RESPONSE_BYTES:-131072}
+      AI_DEADLINE: ${AI_DEADLINE:-30}
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp:size=16m]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8092/readiness', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [ai-bus]
+
   web:
     <<: *defaults
     profiles: [web]
@@ -452,6 +489,8 @@ networks:
   data: {}
   edge: {}
   observability: {}
+  ai-bus:
+    internal: true
 
 volumes:
   postgres-data: {}

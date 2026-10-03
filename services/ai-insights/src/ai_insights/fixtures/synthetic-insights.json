@@ -1,0 +1,5 @@
+{
+  "summary": "Synthetic interpretation of the supplied fixture: a neutral demonstration of the news pipeline.",
+  "sentiment": "NEUTRAL", "sentimentScore": 0.0, "relevanceScore": 0.5,
+  "catalysts": [], "confidence": 0.4, "evidence": [], "flags": ["LOW_CONFIDENCE"]
+}

@@ -5,7 +5,7 @@ info:
   description: |
     Durable asynchronous events exchanged over Kafka.
 
-    - Every record value uses the standard event envelope (`events/envelope.schema.json`). Every record carries the headers `correlationId`, `eventType` and `eventVersion`.
+    - Domain event values use the standard event envelope (`events/envelope.schema.json`) and headers `correlationId`, `eventType` and `eventVersion`. Operational state and dead-letter records have separate contracts.
     - Delivery is **at-least-once**. Consumers are idempotent by `eventId` and must tolerate unknown fields and unknown event types.
     - Each event semantic has exactly one authoritative producer.
     - Ordering is guaranteed per record key only.
@@ -79,12 +79,20 @@ channels:
     address: news.enriched.v1.dlq
     title: Dead letters for enriched news
     description: |
-      Enriched events the trading core could not persist after bounded retries. Records keep the original key, value and headers,
-      plus `dlq.reason`, `dlq.consumer`, `dlq.failedAt`, `dlq.sourceTopic`, `dlq.partition` and `dlq.offset` headers.
+      Permanently invalid enriched records rejected by trading core. Database and Kafka outages are not poison records.
+      Records preserve opaque original key/value bytes and bounded original headers plus sanitized diagnostics.
       They are replayed manually after inspection.
     messages:
       newsEnrichedDeadLetter:
-        $ref: '#/components/messages/NewsEnriched'
+        $ref: '#/components/messages/NewsEnrichedDeadLetter'
+
+  newsAiState:
+    address: news.ai-state.v1
+    title: Worker operational state
+    description: Python-owned compacted result, completion and budget state. One partition; tombstones expire keys. Not domain truth.
+    messages:
+      state:
+        $ref: '#/components/messages/NewsAiState'
 
 operations:
   publishOrderEvents:
@@ -102,11 +110,6 @@ operations:
     channel:
       $ref: '#/channels/tradingExecutionEvents'
     summary: The trading core publishes execution events.
-  consumeExecutionEvents:
-    action: receive
-    channel:
-      $ref: '#/channels/tradingExecutionEvents'
-    summary: The realtime gateway consumes execution events to notify browsers.
   publishBrokerOrderUpdates:
     action: send
     channel:
@@ -142,9 +145,35 @@ operations:
     channel:
       $ref: '#/channels/newsEnrichedDlq'
     summary: The trading core routes permanently failing enriched events to the dead-letter topic.
+  publishNewsAiState:
+    action: send
+    channel:
+      $ref: '#/channels/newsAiState'
+    summary: The worker commits durable operational state.
+  restoreNewsAiState:
+    action: receive
+    channel:
+      $ref: '#/channels/newsAiState'
+    summary: The worker restores committed operational state before processing.
 
 components:
   messages:
+    NewsAiState:
+      name: NewsAiState
+      payload:
+        $ref: '../schemas/events/news-ai-state.schema.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: kind:identity; null values are deletion tombstones
+          bindingVersion: '0.5.0'
+    NewsEnrichedDeadLetter:
+      name: NewsEnrichedDeadLetter
+      contentType: application/octet-stream
+      description: Opaque original payload bytes, including malformed JSON. Original key bytes are preserved.
+      headers:
+        $ref: '../schemas/events/news-enriched-dlq-headers.schema.json'
     TradingOrderEvent:
       name: TradingOrderEvent
       title: Order lifecycle event

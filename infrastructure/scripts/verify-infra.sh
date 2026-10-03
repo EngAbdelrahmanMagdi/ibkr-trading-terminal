@@ -11,7 +11,7 @@ set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 2
 # Resolve services of every profile (checks for services that are not running are skipped).
-export COMPOSE_PROFILES=observability,gateway,core
+export COMPOSE_PROFILES=observability,gateway,core,web,ai
 # Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
@@ -195,10 +195,12 @@ check_kafka_no_auto_create_config() {
 
 check_kafka_trading_topics() {
   local topic out
-  for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1 news.raw.v1; do
+  for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1 news.raw.v1 news.enriched.v1 news.enriched.v1.dlq; do
     out="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic "$topic")" || return 1
     [[ "$out" == *"PartitionCount: 3"* && "$out" == *"retention.ms=604800000"* ]] || { echo "$topic: $(head -n 1 <<< "$out")"; return 1; }
   done
+  out="$(kafka_tool kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --describe --topic news.ai-state.v1)" || return 1
+  [[ "$out" == *"PartitionCount: 1"* && "$out" == *"cleanup.policy=compact"* ]]
 }
 
 topic_absent() {
@@ -606,6 +608,45 @@ if running trading-core; then
     check "order events reach Kafka through the outbox; the gateway fans them out" check_core_events_published_and_fanned_out
   else skip "trading core order check (needs the realtime gateway and redis)"; fi
 else skip "trading core checks (core profile not running; use 'make up-mock')"; fi
+
+echo "[ai-insights]"
+check_ai_isolation() {
+  local worker networks internal service ip addresses=() current=()
+  worker="$(cid ai-insights)"
+  networks="$(docker inspect "$worker" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}')"
+  [[ "$networks" == "${PROJECT}_ai-bus " ]] || return 1
+  internal="$(docker network inspect "${PROJECT}_ai-bus" --format '{{.Internal}}')"
+  [[ "$internal" == true ]] || return 1
+  for service in trading-core realtime-gateway postgres redis; do
+    if running "$service"; then
+      ip="$(docker inspect "$(cid "$service")" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}')"
+      # Test direct IP routes as well as isolated DNS, without persisting machine-specific addresses.
+      read -r -a current <<< "$ip"
+      addresses+=("${current[@]}")
+    fi
+  done
+  docker compose exec -T ai-insights python -c '
+import socket, sys, urllib.request
+assert urllib.request.urlopen("http://127.0.0.1:8092/readiness", timeout=2).status == 200
+with socket.create_connection(("kafka", 29092), timeout=2): pass
+for host in ["trading-core", "realtime-gateway", "postgres", "redis"]:
+    try: socket.getaddrinfo(host, None)
+    except socket.gaierror: continue
+    raise AssertionError("unexpected trading DNS route")
+addresses = sys.argv[1:] + ["1.1.1.1"]
+try: addresses.extend({v[4][0] for v in socket.getaddrinfo("host.docker.internal", None)})
+except socket.gaierror: pass
+for address in addresses:
+    for port in [8080, 8090, 5432, 6379, 443]:
+        try: connection = socket.create_connection((address, port), timeout=0.3)
+        except OSError: continue
+        connection.close()
+        raise AssertionError("unexpected outbound route")
+' "${addresses[@]}"
+}
+if running ai-insights; then
+  check "worker ready; isolated Kafka network; no trading or direct Internet route" check_ai_isolation
+else skip "AI checks (worker profile not running)"; fi
 
 echo "[restarts]"
 if [[ "${VERIFY_RESTARTS:-0}" == "1" ]]; then

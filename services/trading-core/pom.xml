@@ -131,11 +131,14 @@
       <groupId>com.networknt</groupId>
       <artifactId>json-schema-validator</artifactId>
       <version>${json-schema-validator.version}</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
+    <resources>
+      <resource><directory>src/main/resources</directory></resource>
+      <resource><directory>${contracts.dir}/schemas</directory><targetPath>contracts/schemas</targetPath></resource>
+    </resources>
     <finalName>trading-core</finalName>
     <plugins>
       <plugin>

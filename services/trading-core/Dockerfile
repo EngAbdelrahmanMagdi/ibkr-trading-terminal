@@ -6,6 +6,7 @@ WORKDIR /src
 COPY pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
 COPY src/main ./src/main
+COPY --from=contracts schemas/ /contracts/schemas/
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -DskipTests package
 
 FROM eclipse-temurin:25.0.4.1_1-jre-noble

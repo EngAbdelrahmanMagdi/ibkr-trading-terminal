@@ -6,6 +6,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  - job_name: ai-insights
+    static_configs:
+      - targets: ["ai-insights:8092"]
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]

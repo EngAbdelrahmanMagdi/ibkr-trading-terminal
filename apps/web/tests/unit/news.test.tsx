@@ -20,6 +20,52 @@ function mount(symbol = "NVDA") {
 }
 beforeEach(() => jest.clearAllMocks());
 
+test.each([
+  ["synthetic-news.v1", "Synthetic insight"],
+  ["private-synthetic-news.v1", "AI insight"],
+])(
+  "identifies insight only by the exact reserved model %s",
+  async (model, label) => {
+    news.mockResolvedValueOnce({
+      status: "FRESH",
+      lastRefreshedAt: null,
+      articles: [
+        {
+          id: "d9c877ab-4a67-4457-a3ca-61c2b912bf85",
+          symbols: ["NVDA"],
+          headline: "Raw headline",
+          source: "Publisher",
+          url: "https://example.com/news",
+          publishedAt: "2026-10-03T11:00:00Z",
+          rawSummary: "Raw snippet",
+          enrichment: {
+            model,
+            modelVersion: "1",
+            promptVersion: "news-insight.v1",
+            enrichedAt: "2026-10-03T11:01:00Z",
+            insight: {
+              summary: "<script>interpretation</script>",
+              sentiment: "NEUTRAL",
+              sentimentScore: 0,
+              relevanceScore: 0.5,
+              confidence: 0.4,
+              catalysts: [],
+              evidence: ["d9c877ab-4a67-4457-a3ca-61c2b912bf85"],
+              flags: ["LOW_CONFIDENCE"],
+            },
+          },
+        },
+      ],
+    });
+    mount();
+    expect(await screen.findByText(label)).toBeVisible();
+    expect(screen.getByText("<script>interpretation</script>")).toBeVisible();
+    expect(screen.getByText("Raw snippet")).toBeVisible();
+    expect(screen.getByText("low confidence")).toBeVisible();
+    expect(document.querySelector("script")).toBeNull();
+  },
+);
+
 test("successful empty data differs from provider failure", async () => {
   news.mockResolvedValueOnce({
     articles: [],

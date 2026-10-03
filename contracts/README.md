@@ -41,3 +41,11 @@ Every message the platform exchanges is defined here, once, as a **JSON Schema 2
 
 - `make lint-contracts` lints the OpenAPI documents with Redocly and validates the AsyncAPI documents.
 - `make test-contract` checks every schema against golden fixtures in Java, Go, Python and TypeScript (see `tests/contract/`).
+## Worker operational state and dead letters
+
+`news.ai-state.v1` is a single-partition compacted operational topic owned by the news worker.
+It holds result-cache, completion and conservative budget state, not application news truth.
+Null values are deletion tombstones. State expiry is enforced by the worker; compaction alone is not expiry.
+
+`news.enriched.v1.dlq` preserves permanently invalid original payload bytes, including malformed JSON.
+Its diagnostic headers have a separate schema. Database/Kafka outages are not poison records.

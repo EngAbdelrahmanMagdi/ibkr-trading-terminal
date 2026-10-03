@@ -1371,3 +1371,24 @@
     padding-bottom: 60px;
   }
 }
+.newsInsight {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--text-muted, #728096);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 11px;
+}
+.newsInsightMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--text-muted, #728096);
+  font-variant-numeric: tabular-nums;
+}
+.newsInsight details {
+  margin-top: 6px;
+}
+.newsInsight summary {
+  cursor: pointer;
+  width: fit-content;
+}

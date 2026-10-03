@@ -124,6 +124,68 @@ export function NewsPanel({ symbol }: { symbol: string }) {
                   <strong>{article.headline}</strong>
                 )}
                 {article.rawSummary && <p>{article.rawSummary}</p>}
+                {article.enrichment ? (
+                  <div className={styles.newsInsight}>
+                    <div className={styles.newsInsightMeta}>
+                      <strong>
+                        {article.enrichment.model === "synthetic-news.v1"
+                          ? "Synthetic insight"
+                          : "AI insight"}
+                      </strong>
+                      <span>{article.enrichment.insight.sentiment}</span>
+                      <span title="Model confidence is not a calibrated probability">
+                        Model confidence{" "}
+                        {Math.round(
+                          article.enrichment.insight.confidence * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <p>{article.enrichment.insight.summary}</p>
+                    {article.enrichment.insight.flags.length > 0 && (
+                      <span className={styles.warning}>
+                        {article.enrichment.insight.flags
+                          .map((flag) =>
+                            flag.replaceAll("_", " ").toLowerCase(),
+                          )
+                          .join(" · ")}
+                      </span>
+                    )}
+                    <details>
+                      <summary>Insight details</summary>
+                      <span>
+                        Relevance{" "}
+                        {Math.round(
+                          article.enrichment.insight.relevanceScore * 100,
+                        )}
+                        % · Sentiment score{" "}
+                        {article.enrichment.insight.sentimentScore.toFixed(2)}
+                      </span>
+                      {article.enrichment.insight.catalysts.map(
+                        (catalyst, index) => (
+                          <p key={`${catalyst.type}-${index}`}>
+                            {catalyst.type.replaceAll("_", " ")}:{" "}
+                            {catalyst.description}
+                          </p>
+                        ),
+                      )}
+                      <p>
+                        Evidence: this article · {article.enrichment.model} ·{" "}
+                        {article.enrichment.modelVersion ??
+                          "Version unavailable"}{" "}
+                        · {article.enrichment.promptVersion}
+                      </p>
+                      <time dateTime={article.enrichment.enrichedAt}>
+                        Interpreted{" "}
+                        {new Date(
+                          article.enrichment.enrichedAt,
+                        ).toLocaleString()}
+                      </time>
+                    </details>
+                  </div>
+                ) : (
+                  <span className={styles.muted}>No AI insight available</span>
+                )}
               </li>
             );
           })}

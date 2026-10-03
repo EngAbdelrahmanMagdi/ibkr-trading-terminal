@@ -1,0 +1,1 @@
+"""Noncritical, asynchronous article interpretation."""

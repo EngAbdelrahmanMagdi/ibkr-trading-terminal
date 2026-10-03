@@ -99,7 +99,8 @@ license or subscription requires it. No paid plan is required by this project. P
 explicit display/redistribution rights are secured. Preserve publisher attribution and original article links;
 attribution alone does not grant redistribution rights. See [Finnhub terms](https://finnhub.io/terms-of-service).
 
-Core publishes normalized new articles to `news.raw.v1` through the existing outbox. AI enrichment is not implemented.
+Core publishes normalized new articles to `news.raw.v1` through the existing outbox. The isolated worker publishes
+validated interpretations to `news.enriched.v1`; Core accepts the first valid interpretation without automatic replacement.
 
 The REST APIs, the Kafka events and the WebSocket protocol are specified contract-first:
 - `contracts/schemas/` holds JSON Schema 2020-12 files, the single source of truth for every message.
@@ -204,7 +205,7 @@ Application processes run as non-root where supported. Some official images may 
 |---|---|---|
 | PostgreSQL 18 | `127.0.0.1:15432` | Database `trading`, schema `trading`. Roles: `trading_owner` for schema migrations and `trading_app` for data access only. |
 | Redis 8 | `127.0.0.1:16379` | ACL user `app`. No persistence (cache and hot state only). |
-| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled; `kafka-init` provisions `trading.order-events.v1`, `trading.execution-events.v1`, `broker.order-updates.v1` and `news.raw.v1` |
+| Kafka 4 (KRaft) | `127.0.0.1:19092` | Topic auto-creation is disabled; `kafka-init` provisions `trading.order-events.v1`, `trading.execution-events.v1`, `broker.order-updates.v1` `news.raw.v1`, `news.enriched.v1`, `news.enriched.v1.dlq` and `news.ai-state.v1` |
 | Grafana | <http://127.0.0.1:13000> | User `admin`. The password is in `secrets/grafana_admin_password`. |
 | Prometheus | <http://127.0.0.1:19090> | |
 | Tempo | <http://127.0.0.1:13200> | Trace query API |
@@ -242,3 +243,18 @@ See [SECURITY.md](SECURITY.md). Public deployments run in `MOCK` mode only. Brok
 ## License
 
 Proprietary: available for viewing and evaluation only. See [LICENSE](LICENSE).
+## Informational news insights
+
+The MOCK stack includes an isolated asynchronous worker. Synthetic articles receive clearly labelled synthetic
+interpretations through Kafka, validated Core persistence and the existing News tab. Raw news remains available
+when the worker is stopped. Refresh news to see newly accepted interpretation. Sentiment and confidence never
+drive trading actions; confidence is not a calibrated probability.
+
+Use `make test-ai`, `make eval-ai` and `make lint-ai` for deterministic worker checks. `make security` includes
+the Python dependency audit. No test invokes an external model.
+
+The optional private OpenAI override in `infrastructure/ai/compose.openai-private.yml` is fail-closed and requires
+separately verified content-processing rights, model reproducibility, a server credential file, an approved budget
+and an operator-managed restricted proxy reachable from the isolated worker network. Default spend is zero.
+Never add an unrestricted network or trading-service route to make that deployment work. Public MOCK requires
+neither a proxy nor a model credential. Historical reenrichment and automatic insight replacement are unsupported.

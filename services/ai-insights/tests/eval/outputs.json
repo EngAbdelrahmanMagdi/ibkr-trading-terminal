@@ -1,0 +1,68 @@
+{
+  "positive earnings": [
+    "POSITIVE",
+    0.5,
+    0.9,
+    "EARNINGS"
+  ],
+  "negative guidance": [
+    "NEGATIVE",
+    -0.6,
+    0.9,
+    "GUIDANCE"
+  ],
+  "neutral announcement": [
+    "NEUTRAL",
+    0,
+    0.7,
+    null
+  ],
+  "merger": [
+    "MIXED",
+    0.1,
+    0.9,
+    "M_AND_A"
+  ],
+  "analyst upgrade": [
+    "POSITIVE",
+    0.5,
+    0.9,
+    "ANALYST_RATING"
+  ],
+  "regulatory investigation": [
+    "NEGATIVE",
+    -0.6,
+    0.9,
+    "REGULATORY"
+  ],
+  "irrelevant": [
+    "NEUTRAL",
+    0,
+    0.1,
+    null
+  ],
+  "instruction override": [
+    "NEUTRAL",
+    0,
+    0.1,
+    null
+  ],
+  "fake system": [
+    "NEUTRAL",
+    0,
+    0.1,
+    null
+  ],
+  "trading request": [
+    "NEUTRAL",
+    0,
+    0.1,
+    null
+  ],
+  "delimiter escape": [
+    "NEUTRAL",
+    0,
+    0.1,
+    null
+  ]
+}

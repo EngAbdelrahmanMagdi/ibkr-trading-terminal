@@ -1,9 +1,9 @@
-FROM node:24.21.0 AS dependencies
+FROM node:26.10.0 AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
-FROM node:24.21.0 AS builder
+FROM node:26.10.0 AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -16,7 +16,7 @@ ENV NEXT_PUBLIC_GATEWAY_ORIGIN=$NEXT_PUBLIC_GATEWAY_ORIGIN
 ENV NEXT_PUBLIC_GATEWAY_WS_URL=$NEXT_PUBLIC_GATEWAY_WS_URL
 RUN npm run build
 
-FROM node:24.21.0-trixie-slim AS runtime
+FROM node:26.10.0-trixie-slim AS runtime
 # Apply compatible distribution security updates without changing the Node runtime.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libssl3t64=3.5.7-1~deb13u3 openssl=3.5.7-1~deb13u3 openssl-provider-legacy=3.5.7-1~deb13u3 libpcre2-8-0=10.46-1~deb13u3 \

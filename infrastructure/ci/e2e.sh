@@ -8,6 +8,7 @@ export COMPOSE_PROJECT_NAME="marketpulse-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMP
 compose() { docker compose --profile gateway --profile core --profile ai --profile web "$@"; }
 cleanup() {
   result=$?
+  if [ -n "${probe_pid:-}" ]; then kill "$probe_pid" 2>/dev/null || true; fi
   if [ "$result" -ne 0 ]; then
     mkdir -p .artifacts/e2e
     compose ps --all --format json >.artifacts/e2e/compose-state.json 2>/dev/null || true
@@ -29,4 +30,18 @@ chmod 444 secrets/*_password
 compose up -d --wait --wait-timeout 300 postgres redis kafka
 compose run --rm kafka-init
 compose up --no-deps --no-build -d --wait --wait-timeout 300 realtime-gateway trading-core ai-insights web
+# A fresh stack has no quote cache until a real subscription starts. Establish
+# the market-data prerequisite before the browser performs its first trade.
+compose exec -T realtime-gateway /usr/local/bin/stream-probe --symbols AAPL,NVDA,META --quotes 2000 --timeout 5m >.artifacts/market-feed.log 2>&1 &
+probe_pid=$!
+ready=false
+for attempt in $(seq 1 30); do
+  if compose exec -T redis sh -c 'REDISCLI_AUTH="$(cat /run/secrets/redis_app_password)" redis-cli --no-auth-warning --user "$REDIS_APP_USER" --raw get quote:MOCK:AAPL' \
+    | python3 -c 'import json,sys,time; q=json.load(sys.stdin); from datetime import datetime; assert q["dataMode"] == "REALTIME" and not q["stale"] and q["ask"] and time.time()-datetime.fromisoformat(q["timestamp"].replace("Z","+00:00")).timestamp() < 10' 2>/dev/null; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+[ "$ready" = true ] || { echo 'Fresh authoritative MOCK quote cache was not established' >&2; exit 1; }
 make test-e2e

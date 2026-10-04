@@ -35,7 +35,9 @@ compose up --no-deps --no-build -d --wait --wait-timeout 300 realtime-gateway tr
 compose exec -T realtime-gateway /usr/local/bin/stream-probe --symbols AAPL,NVDA,META --quotes 2000 --timeout 5m >.artifacts/market-feed.log 2>&1 &
 probe_pid=$!
 ready=false
-for attempt in $(seq 1 30); do
+for _attempt in $(seq 1 30); do
+  # Expand the password and user inside the Redis container, never in host logs.
+  # shellcheck disable=SC2016
   if compose exec -T redis sh -c 'REDISCLI_AUTH="$(cat /run/secrets/redis_app_password)" redis-cli --no-auth-warning --user "$REDIS_APP_USER" --raw get quote:MOCK:AAPL' \
     | python3 -c 'import json,sys,time; q=json.load(sys.stdin); from datetime import datetime; assert q["dataMode"] == "REALTIME" and not q["stale"] and q["ask"] and time.time()-datetime.fromisoformat(q["timestamp"].replace("Z","+00:00")).timestamp() < 10' 2>/dev/null; then
     ready=true

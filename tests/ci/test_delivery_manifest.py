@@ -31,6 +31,14 @@ class DeliveryManifestTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     delivery_manifest.validate_files(output)
 
+    def test_unversioned_detected_components_are_retained_without_invented_versions(self):
+        report = {"Metadata": {"ImageID": "sha256:example"}, "Results": [{"Type": "gobinary", "Packages": [
+            {"Name": "example"}, {"Name": "example", "Version": ""}, {"Name": "example", "Version": "1.2"}]}]}
+        packages = delivery_manifest.sbom(report)["packages"]
+        self.assertEqual(2, len(packages))
+        self.assertEqual(1, sum("versionInfo" not in package for package in packages))
+        self.assertEqual(["1.2"], [package["versionInfo"] for package in packages if "versionInfo" in package])
+
 
 if __name__ == "__main__":
     unittest.main()

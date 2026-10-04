@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.JsonNode;
@@ -44,6 +45,28 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.data.redis.connect-timeout=5s",
         "SECRETS_DIR=/nonexistent/"})
 class TradingWorkflowIntegrationTest {
+    @Autowired private JdbcTemplate jdbc;
+
+    @Test void storageWriteFailureCannotReportAFillOrCommitFinancialEffects() throws Exception {
+        quote("AAPL", "189.95", "190.05");
+        long before = jdbc.queryForObject("SELECT count(*) FROM executions", Long.class);
+        INFRASTRUCTURE.ownerSql("""
+                CREATE FUNCTION reject_execution_write() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN RAISE EXCEPTION 'injected storage failure' USING ERRCODE = '53100'; END $$;
+                CREATE TRIGGER reject_execution_write BEFORE INSERT ON executions
+                FOR EACH ROW EXECUTE FUNCTION reject_execution_write();
+                """);
+        try {
+            Response response = placeOrder(market("AAPL", "BUY", "1"));
+            // The durable broker acknowledgement may succeed while its separate fill transaction fails.
+            assertThat(response.status()).isEqualTo(201);
+            assertThat(response.body().get("status").stringValue()).isEqualTo("SUBMITTED");
+            assertThat(response.body().get("filledQuantity").stringValue()).isEqualTo("0");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM executions", Long.class)).isEqualTo(before);
+        } finally {
+            INFRASTRUCTURE.ownerSql("DROP TRIGGER reject_execution_write ON executions; DROP FUNCTION reject_execution_write();");
+        }
+    }
 
     static final TradingInfrastructure INFRASTRUCTURE = TradingInfrastructure.start();
 

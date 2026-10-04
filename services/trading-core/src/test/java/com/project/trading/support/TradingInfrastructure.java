@@ -7,6 +7,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 import java.nio.file.Path;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Map;
 
 /**
@@ -14,7 +16,7 @@ import java.util.Map;
  * role) and real Redis (ACL user) for application-level tests. Each started instance is a separate database, so
  * tests of different runtime modes never share one.
  */
-public final class TradingInfrastructure {
+public final class TradingInfrastructure implements AutoCloseable {
 
     private static final String OWNER_PASSWORD = "test-owner-password";
     private static final String APP_PASSWORD = "test-app-password";
@@ -47,6 +49,11 @@ public final class TradingInfrastructure {
     }
 
     public void register(DynamicPropertyRegistry registry) {
+        // Integration workflows run bursts deliberately; default pacing has dedicated boundary tests.
+        registry.add("http.admission.reads", () -> 60000);
+        registry.add("http.admission.news", () -> 60000);
+        registry.add("http.admission.submissions", () -> 60000);
+        registry.add("http.admission.commands", () -> 60000);
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + postgres.getHost() + ":"
                 + postgres.getMappedPort(5432) + "/" + postgres.getDatabaseName() + "?currentSchema=trading");
         registry.add("spring.datasource.username", () -> "trading_app");
@@ -57,5 +64,18 @@ public final class TradingInfrastructure {
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
         registry.add("spring.data.redis.username", () -> "app");
         registry.add("spring.data.redis.password", () -> REDIS_PASSWORD);
+    }
+
+    public void ownerSql(String sql) throws SQLException {
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), "trading_owner", OWNER_PASSWORD);
+             var statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    @Override
+    public void close() {
+        redis.stop();
+        postgres.stop();
     }
 }

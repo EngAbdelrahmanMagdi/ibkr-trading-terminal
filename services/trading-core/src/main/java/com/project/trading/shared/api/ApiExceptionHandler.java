@@ -134,7 +134,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<Problem> unexpected(Exception e) {
-        log.error("unexpected error", e);
+        log.error("unexpected error category={}", e.getClass().getSimpleName());
         return respond(ProblemWriter.of(ErrorCategory.INTERNAL, 500, "Internal error",
                 "an unexpected error occurred", List.of()));
     }

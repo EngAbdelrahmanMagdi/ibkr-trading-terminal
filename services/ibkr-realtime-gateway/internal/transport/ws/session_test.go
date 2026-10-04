@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +23,37 @@ import (
 )
 
 var errClosed = errors.New("fake conn closed")
+
+func TestSameHostOriginCannotBypassCompleteAllowlist(t *testing.T) {
+	cfg := testConfig()
+	cfg.AllowedOrigins = []string{"http://configured.example"}
+	h := newHarness(t, cfg, clock.Real{})
+	server := httptest.NewServer(h.srv)
+	defer server.Close()
+	request, _ := http.NewRequest(http.MethodGet, server.URL, nil)
+	request.Header.Set("Origin", server.URL)
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status=%d", response.StatusCode)
+	}
+}
+
+func TestInboundCommandsAreBoundedEvenWhenMalformed(t *testing.T) {
+	cfg := testConfig()
+	cfg.CommandsPerSecond, cfg.CommandBurst = 1, 2
+	h := newHarness(t, cfg, clock.NewFake(time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)))
+	c := newFakeConn()
+	_, done := h.start(c)
+	for range 3 {
+		c.send(`{"type":"invalid"}`)
+	}
+	waitFor(t, "policy close", func() bool { return c.code() == websocket.StatusPolicyViolation })
+	<-done
+}
 
 // fakeConn is a scripted peer. Writes can be delayed or blocked to simulate slow and stuck clients.
 type fakeConn struct {

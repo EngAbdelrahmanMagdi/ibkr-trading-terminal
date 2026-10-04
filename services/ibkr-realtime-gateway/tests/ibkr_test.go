@@ -141,7 +141,7 @@ func TestIBKRBarsCachedAndRateLimited(t *testing.T) {
 	fake.FailNext("/tickle", 429, 1)
 	waitUntil(t, "cool-down", func() bool { return g.reg.State().State == marketdata.StateDegraded })
 	resp, body = g.get(t, g.public.URL, "/api/v1/market/bars?symbol=NVDA&interval=1d&range=1mo", nil)
-	if resp.StatusCode != http.StatusTooManyRequests || !strings.Contains(string(body), `"category":"RATE_LIMITED"`) {
+	if resp.StatusCode != http.StatusServiceUnavailable || !strings.Contains(string(body), `"category":"SERVICE_UNAVAILABLE"`) {
 		t.Fatalf("bars during the IBKR cool-down: %d %s", resp.StatusCode, body)
 	}
 	conform(t, "common/problem.schema.json", body)

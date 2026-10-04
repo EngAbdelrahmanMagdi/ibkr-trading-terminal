@@ -56,7 +56,7 @@ public class ConfirmOrderService {
         try {
             result = broker.confirmReply(replyId, confirm);
         } catch (RuntimeException e) {
-            log.error("broker confirmation failed with an unexpected error; outcome unknown for order {}", orderId, e);
+            log.error("broker confirmation failed; outcome unknown for order {} category={}", orderId, e.getClass().getSimpleName());
             result = new SubmitResult.Unknown("broker call failed");
         }
         Order updated = outcomes.apply(orderId, OrderStatus.PENDING_CONFIRMATION, replyId, result, null).order();

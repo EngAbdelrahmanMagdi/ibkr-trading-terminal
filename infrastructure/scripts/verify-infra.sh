@@ -15,23 +15,35 @@ export COMPOSE_PROFILES=observability,gateway,core,web,ai
 # Git Bash on Windows: don't rewrite container paths such as /opt/kafka/... into Windows paths.
 export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 
-[[ -f .env ]] || { echo "verify: .env not found - run 'make bootstrap' first" >&2; exit 2; }
+verify_env="${VERIFY_ENV_FILE:-.env}"
+[[ -f "$verify_env" ]] || { echo "verify: environment file not found" >&2; exit 2; }
 while IFS='=' read -r key value; do
   [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] && printf -v "$key" '%s' "$value"
-done < <(grep -E '^[A-Z][A-Z0-9_]*=' .env)
+done < <(grep -E '^[A-Z][A-Z0-9_]*=' "$verify_env")
 
 PROJECT="${COMPOSE_PROJECT_NAME:-trading-platform}"
 PG_IMAGE="postgres:18.6"
 KAFKA_BOOTSTRAP="localhost:29092"
 PASS=0 FAIL=0 SKIP=0
 
-secret() { tr -d '\r\n' < "secrets/$1"; }
-cid() { docker compose ps -q "$1" 2> /dev/null; }
-running() { [[ -n "$(docker compose ps -q --status running "$1" 2> /dev/null)" ]]; }
+secret() { tr -d '\r\n' < "${VERIFY_SECRET_DIR:-secrets}/$1"; }
+compose() {
+  if [[ -n "${VERIFY_COMPOSE_OVERRIDE:-}" ]]; then
+    docker compose --env-file "$verify_env" -p "$PROJECT" -f docker-compose.yml -f "$VERIFY_COMPOSE_OVERRIDE" "$@"
+  else
+    docker compose --env-file "$verify_env" -p "$PROJECT" "$@"
+  fi
+}
+cid() { compose ps -q "$1" 2> /dev/null; }
+running() { [[ -n "$(compose ps -q --status running "$1" 2> /dev/null)" ]]; }
 
 # check <description> <command...>: runs the command and records PASS/FAIL with its output on failure.
 check() {
   local desc="$1"; shift
+  if [[ -n "${VERIFY_ONLY:-}" && ! "$desc" =~ $VERIFY_ONLY ]]; then
+    skip "$desc (not selected)"
+    return 0
+  fi
   local out
   if out="$("$@" 2>&1)"; then
     PASS=$((PASS + 1)); printf '  PASS  %s\n' "$desc"
@@ -76,7 +88,12 @@ redis_anon() { docker exec -i "$(cid redis)" redis-cli "$@"; }
 
 kafka_tool() { # kafka_tool <script> <args...>
   local tool="$1"; shift
-  docker exec -i -e KAFKA_HEAP_OPTS=-Xmx128m "$(cid kafka)" "/opt/kafka/bin/${tool}" "$@"
+  local config_flag=--command-config
+  case "$tool" in
+    kafka-console-producer.sh) config_flag=--producer.config ;;
+    kafka-console-consumer.sh) config_flag=--command-config ;;
+  esac
+  docker exec -i -e KAFKA_HEAP_OPTS=-Xmx128m "$(cid kafka)" "/opt/kafka/bin/${tool}" "$config_flag" /scripts/broker-client.properties "$@"
 }
 
 http_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$@"; }
@@ -84,7 +101,7 @@ http_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$@"; }
 # ------------------------------------------------------------------ checks: posture
 check_ports_loopback() {
   local ids bad=0 id binding
-  ids="$(docker compose ps -q)"
+  ids="$(compose ps -q)"
   [[ -n "$ids" ]] || { echo "no containers running"; return 1; }
   for id in $ids; do
     for binding in $(docker inspect -f '{{range $p, $b := .NetworkSettings.Ports}}{{range $b}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}' "$id"); do
@@ -100,7 +117,7 @@ check_non_root() {
   # Checks the steady state after startup. Some official images (e.g. PostgreSQL) start their entrypoint as
   # root to prepare data directories and then drop privileges; that initialization phase is not covered here.
   local bad=0 svc id uids
-  for svc in $(docker compose ps --services --status running); do
+  for svc in $(compose ps --services --status running); do
     id="$(cid "$svc")"
     # Default `docker top` output; the first column is the UID (numeric or user name).
     uids="$(docker top "$id" 2> /dev/null | awk 'NR > 1 {print $1}' | sort -u | tr '\n' ' ')"
@@ -413,9 +430,9 @@ check_core_api_posture() {
   [[ "$headers" == *"$id"* ]] || { echo "correlation id not echoed"; return 1; }
   [[ "$(http_code -X OPTIONS -H 'Origin: https://evil.example' -H 'Access-Control-Request-Method: POST' \
     "${CORE_URL}/api/v1/orders")" == "403" ]] || { echo "disallowed CORS origin not rejected"; return 1; }
-  headers="$(curl -s -D - -o /dev/null --max-time 5 -X OPTIONS -H 'Origin: http://localhost:3000' \
+  headers="$(curl -s -D - -o /dev/null --max-time 5 -X OPTIONS -H "Origin: ${TRADING_CORE_ALLOWED_ORIGINS%%,*}" \
     -H 'Access-Control-Request-Method: POST' "${CORE_URL}/api/v1/orders")"
-  grep -qi '^access-control-allow-origin: http://localhost:3000' <<< "$headers" \
+  grep -Fqi "access-control-allow-origin: ${TRADING_CORE_ALLOWED_ORIGINS%%,*}" <<< "$headers" \
     || { echo "allowed origin not granted"; return 1; }
   body="$(curl -s --max-time 5 -X POST -H 'Content-Type: application/json' -d '{}' "${CORE_URL}/api/v1/orders")"
   [[ "$body" == *'"category":"VALIDATION"'* && "$body" != *Exception* && "$body" != *trace* ]] \
@@ -423,8 +440,9 @@ check_core_api_posture() {
 }
 
 check_core_fails_closed_in_paper_mode() {
-  local out
-  if out="$(docker run --rm --network none -e APP_RUNTIME_MODE=IBKR_PAPER trading-terminal/trading-core:local 2>&1)"; then
+  local out core_image
+  core_image="$(docker inspect -f '{{.Config.Image}}' "$(compose --profile core ps -q trading-core)")"
+  if out="$(docker run --rm --network none -e APP_RUNTIME_MODE=IBKR_PAPER "$core_image" 2>&1)"; then
     echo "trading core started in IBKR_PAPER mode"; return 1
   fi
   [[ "$out" == *"IBKR_PAPER startup refused"* ]] || { echo "$out" | tail -n 3; return 1; }
@@ -504,10 +522,10 @@ check_core_events_published_and_fanned_out() {
 
 check_outbox_survives_kafka_restart() {
   local id status
-  docker compose stop kafka > /dev/null 2>&1 || return 1
+  compose stop kafka > /dev/null 2>&1 || return 1
   id="$(place_mock_buy)"
   status="$(app_sql "SELECT string_agg(DISTINCT status, ',') FROM outbox_events WHERE aggregate_id = '$id'")"
-  docker compose start kafka > /dev/null 2>&1 || return 1
+  compose start kafka > /dev/null 2>&1 || return 1
   [[ -n "$id" && "$status" == "PENDING" ]] || { echo "order '$id' placed while Kafka was down: outbox status '$status'"; return 1; }
   retry 30 2 wait_healthy kafka > /dev/null || { echo "kafka not healthy after restart"; return 1; }
   retry 45 2 outbox_published "$id" || { echo "events of $id not published after Kafka returned"; return 1; }
@@ -518,7 +536,7 @@ check_outbox_survives_kafka_restart() {
 check_pg_durable_across_restart() {
   local tbl="${TRADING_SCHEMA}.verify_durable_$$"
   owner_sql "CREATE TABLE ${tbl} (v text); INSERT INTO ${tbl} VALUES ('kept')" > /dev/null || return 1
-  docker compose restart postgres > /dev/null 2>&1 || return 1
+  compose restart postgres > /dev/null 2>&1 || return 1
   retry 30 2 wait_healthy postgres > /dev/null || { echo "postgres not healthy after restart"; return 1; }
   local v; v="$(owner_sql "SELECT v FROM ${tbl}")"
   owner_sql "DROP TABLE ${tbl}" > /dev/null
@@ -528,7 +546,7 @@ check_pg_durable_across_restart() {
 check_redis_disposable_across_restart() {
   local key="verify:disposable:$$" v
   redis_app SET "$key" value EX 300 > /dev/null || return 1
-  docker compose restart redis > /dev/null 2>&1 || return 1
+  compose restart redis > /dev/null 2>&1 || return 1
   retry 30 2 wait_healthy redis > /dev/null || { echo "redis not healthy after restart"; return 1; }
   v="$(redis_app GET "$key")"
   [[ -z "$v" ]] || { echo "key survived restart - Redis must not persist data"; return 1; }
@@ -625,7 +643,7 @@ check_ai_isolation() {
       addresses+=("${current[@]}")
     fi
   done
-  docker compose exec -T ai-insights python -c '
+  compose exec -T ai-insights python -c '
 import socket, sys, urllib.request
 assert urllib.request.urlopen("http://127.0.0.1:8092/readiness", timeout=2).status == 200
 with socket.create_connection(("kafka", 29092), timeout=2): pass

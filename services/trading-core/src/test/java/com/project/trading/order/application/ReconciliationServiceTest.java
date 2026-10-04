@@ -82,7 +82,7 @@ class ReconciliationServiceTest {
         order.markSubmissionPending(clock.instant());
         if (status == OrderStatus.SUBMITTED) {
             order.acknowledge("B-" + ref, clock.instant());
-        } else {
+        } else if (status == OrderStatus.UNKNOWN) {
             order.markUnknown(clock.instant());
         }
         return orders.save(order);
@@ -95,6 +95,22 @@ class ReconciliationServiceTest {
 
     private double gauge(String name) {
         return registry.get(name).gauge().value();
+    }
+
+    @Test
+    void interruptedSubmissionRequiresPositiveBrokerTruthAndNeverResubmits() {
+        Order order = order("interrupted", OrderStatus.SUBMISSION_PENDING);
+        reconciliation.run();
+        assertThat(orders.findById(order.id()).orElseThrow().status()).isEqualTo(OrderStatus.SUBMISSION_PENDING);
+        verify(executions, never()).record(any());
+        brokerOrders.add(new BrokerTruthPort.OrderView("B-interrupted", "interrupted", ObservedStatus.FILLED,
+                Quantity.of("10"), "Filled"));
+        brokerExecutions.add(new BrokerTruthPort.ExecutionView("E-interrupted", null, "interrupted", Quantity.of("10"),
+                Price.of("99.50"), BigDecimal.ONE, clock.instant()));
+        reconciliation.run();
+        assertThat(orders.findById(order.id()).orElseThrow().status()).isEqualTo(OrderStatus.FILLED);
+        verify(executions).record(any());
+        verify(broker, never()).submit(any());
     }
 
     @Test

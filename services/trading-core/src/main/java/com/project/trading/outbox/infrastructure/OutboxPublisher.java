@@ -152,7 +152,7 @@ class OutboxPublisher implements SmartLifecycle {
         try {
             runOnce();
         } catch (RuntimeException e) {
-            log.error("outbox publisher run failed", e);
+            log.error("outbox publisher run failed category={}", e.getClass().getSimpleName());
         }
     }
 
@@ -293,8 +293,7 @@ class OutboxPublisher implements SmartLifecycle {
     }
 
     private static String describe(Throwable error) {
-        String message = error.getMessage() == null ? "" : ": " + error.getMessage();
-        String text = error.getClass().getSimpleName() + message;
+        String text = error.getClass().getSimpleName();
         return text.length() <= 500 ? text : text.substring(0, 500);
     }
 

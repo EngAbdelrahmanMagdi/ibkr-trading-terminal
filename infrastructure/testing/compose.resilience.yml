@@ -1,0 +1,13 @@
+# Combine with docker-compose.yml and a disposable environment file, never existing application volumes.
+services:
+  trading-core:
+    environment:
+      APP_RUNTIME_MODE: MOCK
+      APP_TRUSTED_ENVIRONMENT: "false"
+  realtime-gateway:
+    environment:
+      GATEWAY_MARKET_DATA_MODE: MOCK
+  ai-insights:
+    environment:
+      AI_PROVIDER: FIXTURE
+      AI_DAILY_BUDGET: "0"

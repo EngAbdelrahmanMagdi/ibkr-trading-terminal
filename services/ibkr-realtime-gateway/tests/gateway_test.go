@@ -275,7 +275,7 @@ func (b *blockingBars) Bars(ctx context.Context, s string, i marketdata.Interval
 	return b.Source.Bars(ctx, s, i, r)
 }
 
-func TestSaturatedBarComputationsAreRateLimited(t *testing.T) {
+func TestSaturatedBarComputationsAreUnavailable(t *testing.T) {
 	src := &blockingBars{Source: testsource.New(clock.Real{}, "NVDA"), release: make(chan struct{})}
 	g := startGatewayWith(t, options{source: src})
 	var wg sync.WaitGroup
@@ -292,11 +292,11 @@ func TestSaturatedBarComputationsAreRateLimited(t *testing.T) {
 	}
 	waitUntil(t, "computations to start", func() bool { return src.started.Load() == 4 })
 	resp, body := g.get(t, g.public.URL, "/api/v1/market/bars?symbol=NVDA&interval=1d&range=1mo", nil)
-	if resp.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want 429: %s", resp.StatusCode, body)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503: %s", resp.StatusCode, body)
 	}
 	conform(t, "common/problem.schema.json", body)
-	if !strings.Contains(string(body), `"category":"RATE_LIMITED"`) {
+	if !strings.Contains(string(body), `"category":"SERVICE_UNAVAILABLE"`) {
 		t.Fatalf("problem: %s", body)
 	}
 	close(src.release)

@@ -160,7 +160,7 @@ public class MockMatcher implements SmartLifecycle {
         try {
             tick();
         } catch (RuntimeException e) {
-            log.error("simulated matcher tick failed", e);
+            log.error("simulated matcher tick failed category={}", e.getClass().getSimpleName());
         }
     }
 
@@ -204,7 +204,7 @@ public class MockMatcher implements SmartLifecycle {
         try {
             outcome = updates.handle(update);
         } catch (RuntimeException e) {
-            log.warn("simulated update for {} not applied; retrying on a later tick", entry.brokerOrderId, e);
+            log.warn("simulated update for {} not applied; retrying category={}", entry.brokerOrderId, e.getClass().getSimpleName());
             return;
         }
         switch (outcome) {

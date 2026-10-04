@@ -4,8 +4,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/origin"
 	"log/slog"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +18,10 @@ type Config struct {
 	HTTPAddr               string
 	HealthAddr             string
 	AllowedOrigins         []string
+	BarsRequestsPerMinute  int
+	UpgradesPerMinute      int
+	CommandsPerSecond      int
+	CommandBurst           int
 	Seed                   uint64
 	TickInterval           time.Duration
 	MaxSymbolsPerSubscribe int
@@ -101,7 +107,7 @@ func (i IBKR) Configured() bool { return i.BaseURL != "" && i.CAFile != "" }
 const (
 	DefaultHTTPAddr               = ":8090"
 	DefaultHealthAddr             = ":8091"
-	DefaultAllowedOrigins         = "localhost:3000,127.0.0.1:3000"
+	DefaultAllowedOrigins         = "http://localhost:3000,http://127.0.0.1:3000"
 	DefaultSeed                   = "20260927"
 	DefaultTickInterval           = "1s"
 	DefaultMaxSymbolsPerSubscribe = "50"
@@ -183,6 +189,9 @@ func (c Config) brokerModeErrors() []error {
 // privateOrigin reports whether an origin host pattern is loopback or on a private network.
 func privateOrigin(origin string) bool {
 	host := origin
+	if parsed, err := url.Parse(origin); err == nil && parsed.Host != "" {
+		host = parsed.Hostname()
+	}
 	if h, _, err := net.SplitHostPort(origin); err == nil {
 		host = h
 	}
@@ -281,6 +290,10 @@ func Load(getenv func(string) string) (Config, error) {
 	if c.RedisAddr != "" && c.RedisPasswordFile == "" {
 		errs = append(errs, errors.New("GATEWAY_REDIS_PASSWORD_FILE is required when GATEWAY_REDIS_ADDR is set"))
 	}
+	c.BarsRequestsPerMinute = int(intVar("GATEWAY_BARS_REQUESTS_PER_MINUTE", "120", 1, 1000000))
+	c.UpgradesPerMinute = int(intVar("GATEWAY_UPGRADES_PER_MINUTE", "30", 1, 1000000))
+	c.CommandsPerSecond = int(intVar("GATEWAY_COMMANDS_PER_SECOND", "10", 1, 10000))
+	c.CommandBurst = int(intVar("GATEWAY_COMMAND_BURST", "20", 1, 10000))
 	for _, o := range strings.Split(get("GATEWAY_ALLOWED_ORIGINS", DefaultAllowedOrigins), ",") {
 		o = strings.TrimSpace(o)
 		switch {
@@ -288,7 +301,12 @@ func Load(getenv func(string) string) (Config, error) {
 		case strings.Contains(o, "*"):
 			errs = append(errs, fmt.Errorf("GATEWAY_ALLOWED_ORIGINS must list explicit origins, not wildcards: %q", o))
 		default:
-			c.AllowedOrigins = append(c.AllowedOrigins, o)
+			normalized, err := origin.Normalize(o)
+			if err != nil {
+				errs = append(errs, errors.New("GATEWAY_ALLOWED_ORIGINS requires exact HTTP origins"))
+			} else {
+				c.AllowedOrigins = append(c.AllowedOrigins, normalized)
+			}
 		}
 	}
 	if len(c.AllowedOrigins) == 0 {

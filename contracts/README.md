@@ -46,6 +46,19 @@ Every message the platform exchanges is defined here, once, as a **JSON Schema 2
 `news.ai-state.v1` is a single-partition compacted operational topic owned by the news worker.
 It holds result-cache, completion and conservative budget state, not application news truth.
 Null values are deletion tombstones. State expiry is enforced by the worker; compaction alone is not expiry.
+ARTICLE records in RESULT or DONE require the frozen enrichment event. Restored keys must match
+their kind and identity; article and event associations are checked before admitting processing.
+Keys are bounded to 256 UTF-8 bytes and values to 128 KiB before decoding.
 
 `news.enriched.v1.dlq` preserves permanently invalid original payload bytes, including malformed JSON.
 Its diagnostic headers have a separate schema. Database/Kafka outages are not poison records.
+
+## Transport and admission
+
+Kafka transport uses mutually authenticated TLS with exact service principals and literal topic,
+consumer-group and transactional-ID permissions. Transport policy does not alter domain payloads.
+Browser REST and WebSocket access uses configured complete HTTP origins, never wildcard or
+host-only matching. Requests without Origin remain supported for internal tools.
+An intentional client request policy returns 429 and a bounded `Retry-After` value in seconds.
+Internal admission capacity or provider unavailability returns 503; upstream limiting is not a
+client rate-policy violation. REST response shapes remain unchanged.

@@ -1,0 +1,30 @@
+Configuration:
+  status: WARN
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        pattern: "[%d] %level %logger - %msg%n"
+    RollingFile:
+      name: Authorization
+      fileName: /var/lib/kafka/data/principals.log
+      filePattern: /var/lib/kafka/data/principals-%i.log
+      PatternLayout:
+        pattern: "%d %msg%n"
+      Policies:
+        SizeBasedTriggeringPolicy:
+          size: 1MB
+      DefaultRolloverStrategy:
+        max: 2
+  Loggers:
+    Logger:
+      - name: kafka.authorizer.logger
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          ref: Authorization
+    Root:
+      level: INFO
+      AppenderRef:
+        ref: Console

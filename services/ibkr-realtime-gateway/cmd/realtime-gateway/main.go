@@ -24,6 +24,7 @@ import (
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/hotcache"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/httpapi"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/ibkr"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/logsafe"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/marketdata"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/metrics"
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/modes"
@@ -51,13 +52,13 @@ func run(args []string) int {
 }
 
 func serve() int {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("service", "realtime-gateway")
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: logsafe.ReplaceAttr})).With("service", "realtime-gateway")
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
 		logger.Error("invalid configuration", "error", err.Error())
 		return 2
 	}
-	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel})).With("service", "realtime-gateway")
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel, ReplaceAttr: logsafe.ReplaceAttr})).With("service", "realtime-gateway")
 
 	clk := clock.Real{}
 	gm := metrics.New()
@@ -149,6 +150,8 @@ func serve() int {
 		LagThreshold:           cfg.SlowConsumerLag,
 		MaxLaggingFlushes:      cfg.MaxLaggingFlushes,
 		MaxConnections:         cfg.MaxConnections,
+		CommandsPerSecond:      cfg.CommandsPerSecond, CommandBurst: cfg.CommandBurst,
+		MaxConnectionsPerPeer: 100,
 	}, reg, clk, gm, logger)
 	reg.Start()
 	sel.Start()
@@ -182,9 +185,9 @@ func serve() int {
 	}, gm)
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /ws", wsServer)
+	mux.Handle("GET /ws", httpapi.Admission(wsServer, cfg.BarsRequestsPerMinute, cfg.UpgradesPerMinute))
 	mux.Handle("/api/v1/market/bars", httpapi.BarsCORS(
-		http.TimeoutHandler(httpapi.NewBarsHandler(source, bars, logger), cfg.BarsTimeout+2*time.Second, "request timed out"),
+		httpapi.Admission(http.TimeoutHandler(httpapi.NewBarsHandler(source, bars, logger), cfg.BarsTimeout+2*time.Second, "request timed out"), cfg.BarsRequestsPerMinute, cfg.UpgradesPerMinute),
 		cfg.AllowedOrigins,
 	))
 

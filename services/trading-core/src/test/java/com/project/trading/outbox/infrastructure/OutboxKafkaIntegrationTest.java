@@ -42,8 +42,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The outbox end to end against real PostgreSQL, Redis and Kafka (topics created explicitly, auto-creation off).
@@ -248,6 +250,41 @@ class OutboxKafkaIntegrationTest {
             }
         }
         assertThat(orderEvents).containsExactly("ORDER_SUBMISSION_PENDING", "ORDER_SUBMITTED", "ORDER_FILLED");
+    }
+
+    @Test
+    void acknowledgementBeforeDatabaseCompletionReplaysTheSameEventIdentity() {
+        String suffix = UUID.randomUUID().toString();
+        UUID id = insert("ACK-GAP:" + suffix);
+        OutboxRelayStore interrupted = new OutboxRelayStore() {
+            @Override public List<Claimed> claim(UUID instance, int batchSize, Duration lease) {
+                return store.claim(instance, batchSize, lease);
+            }
+            @Override public void complete(UUID instance, Collection<UUID> published, Collection<BadRecord> bad,
+                                            Collection<UUID> released, Duration base, Duration max, int attempts) {
+                assertThat(published).contains(id); // Kafka acknowledgement has already succeeded.
+                throw new org.springframework.dao.DataAccessResourceFailureException("Injected completion outage");
+            }
+        };
+        OutboxPublisher first = new OutboxPublisher(interrupted, OutboxConfiguration.producerFactory(properties),
+                properties, Clock.systemUTC(), new SimpleMeterRegistry());
+        try {
+            assertThatThrownBy(() -> first.round(100)).isInstanceOf(org.springframework.dao.DataAccessResourceFailureException.class);
+            assertThat(status(id)).isEqualTo("PENDING");
+        } finally { first.stop(); }
+        // Advance only the isolated test lease, representing a later relay after process death.
+        jdbc.update("update outbox_events set claim_expires_at = now() - interval '1 second' where id = ?", id);
+        OutboxPublisher restarted = relay();
+        try {
+            restarted.runOnce();
+            assertThat(status(id)).isEqualTo("PUBLISHED");
+            List<ConsumerRecord<String, String>> duplicates = consume(suffix, 2);
+            assertThat(duplicates).allSatisfy(record -> {
+                assertThat(JSON.readTree(record.value()).path("eventId").asString()).isEqualTo(id.toString());
+                assertThat(record.key()).isEqualTo("ACK-GAP:" + suffix);
+            });
+            assertThat(duplicates.get(0).value()).isEqualTo(duplicates.get(1).value());
+        } finally { restarted.stop(); }
     }
 
     @Test

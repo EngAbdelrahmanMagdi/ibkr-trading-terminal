@@ -128,7 +128,7 @@ final class IbkrSession {
             }
             AccountCheck accounts = checkAccounts();
             if (accounts != lastAccountCheck && accounts != AccountCheck.OK) {
-                log.error("IBKR session refused for trading: {}", accounts);
+                log.error("IBKR session refused for trading: account policy mismatch");
             }
             lastAccountCheck = accounts;
             return accounts == AccountCheck.OK ? BrokerConnectionState.READY : BrokerConnectionState.UNAVAILABLE;

@@ -335,4 +335,21 @@ class OrderWorkflowTest {
         assertThat(updates.handle(fill("B-unknown", "E-1", "1"))).isEqualTo(BrokerOrderUpdateHandler.Outcome.NOT_READY);
         verify(executions, never()).record(any());
     }
+
+    @Test
+    void positiveExecutionBeforeHttpOutcomeWinsWithoutResubmission() {
+        when(broker.submit(any())).thenAnswer(invocation -> {
+            com.project.trading.broker.domain.BrokerOrderRequest request = invocation.getArgument(0);
+            assertThat(updates.handle(new BrokerOrderUpdate.Fill("B-early", "E-early", null,
+                    Quantity.of("10"), Price.of("100.00"), BigDecimal.ONE, "USD", clock.instant(),
+                    request.clientOrderId()))).isEqualTo(BrokerOrderUpdateHandler.Outcome.APPLIED);
+            return new SubmitResult.Unknown("response interrupted");
+        });
+        UUID key = UUID.randomUUID();
+        Order order = place.place(key, limitBuy("10")).order();
+        assertThat(order.status()).isEqualTo(OrderStatus.FILLED);
+        assertThat(place.place(key, limitBuy("10")).order().status()).isEqualTo(OrderStatus.FILLED);
+        verify(broker, times(1)).submit(any());
+        verify(executions, times(1)).record(any());
+    }
 }

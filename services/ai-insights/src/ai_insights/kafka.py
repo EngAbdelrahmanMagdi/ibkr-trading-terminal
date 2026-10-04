@@ -22,6 +22,7 @@ class Kafka:
         self.producer: Any = Producer(
             {
                 "bootstrap.servers": settings.brokers,
+                **self.tls_config(),
                 "transactional.id": settings.transactional_id,
                 "enable.idempotence": True,
                 "transaction.timeout.ms": 60000,
@@ -35,22 +36,40 @@ class Kafka:
         self.consumer: Any = Consumer(
             {
                 "bootstrap.servers": settings.brokers,
+                **self.tls_config(),
                 "group.id": settings.group,
                 "enable.auto.commit": False,
                 "enable.auto.offset.store": False,
                 "auto.offset.reset": "earliest",
                 "isolation.level": "read_committed",
                 "max.poll.interval.ms": 300000,
+                "socket.timeout.ms": 10000,
                 "queued.max.messages.kbytes": 16384,
                 "fetch.message.max.bytes": 1048576,
             }
         )
+
+    def tls_config(self) -> dict[str, str]:
+        files = [self.settings.tls_ca_file, self.settings.tls_cert_file, self.settings.tls_key_file]
+        if not any(files):
+            return {}
+        if not all(path and path.is_file() for path in files):
+            raise ValueError("kafka_tls_identity")
+        return {
+            "security.protocol": "SSL",
+            "ssl.ca.location": str(files[0]),
+            "ssl.certificate.location": str(files[1]),
+            "ssl.key.location": str(files[2]),
+            "ssl.endpoint.identification.algorithm": "https",
+            "enable.ssl.certificate.verification": "true",
+        }
 
     def restore(self) -> None:
         self.producer.init_transactions(30)
         reader: Any = Consumer(
             {
                 "bootstrap.servers": self.settings.brokers,
+                **self.tls_config(),
                 "group.id": self.settings.group + "-restore",
                 "enable.auto.commit": False,
                 "isolation.level": "read_committed",
@@ -85,7 +104,10 @@ class Kafka:
                 scanned += len(value or b"")
                 if scanned > self.settings.restore_bytes:
                     raise ValueError("restore_capacity")
-                key = message.key().decode()
+                raw_key = message.key()
+                if not raw_key or len(raw_key) > 256 or len(value or b"") > 131072:
+                    raise ValueError("state_record_bounds")
+                key = raw_key.decode()
                 self.state.apply({key: json.loads(value) if value is not None else None})
         finally:
             reader.close()
@@ -147,3 +169,10 @@ class Kafka:
     def close(self) -> None:
         self.consumer.close()
         self.producer = None  # Release librdkafka threads after completed/aborted transactions.
+
+    def healthy(self) -> bool:
+        try:
+            metadata = self.producer.list_topics(STATE, timeout=2)
+            return STATE in metadata.topics and not metadata.topics[STATE].error
+        except Exception:
+            return False

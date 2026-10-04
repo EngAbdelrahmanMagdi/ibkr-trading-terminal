@@ -40,6 +40,35 @@ A single-page, realtime stock trading terminal with live quotes, live candlestic
 
 There is no live-money trading.
 
+## Local security and recovery
+
+Kafka requires mutually authenticated TLS and service-specific permissions. `make bootstrap`
+creates a local CA and service identities under ignored `secrets/kafka/`; it preserves existing
+identities. The signing key is never mounted into running services. Provisioning uses a separate
+operator identity, which application services do not receive. Certificate replacement is an
+explicit operator action; do not delete the Kafka data volume to rotate certificates.
+
+Browser origins must include their full scheme and port. REST calls without an Origin header
+remain available for internal tools. Requests are bounded by socket-peer admission budgets:
+intentional throttling returns 429 with `Retry-After`, while exhausted internal capacity returns
+503. Forwarded headers do not grant a new budget. Production browser pages use a fresh nonce
+Content Security Policy; inline script execution is prohibited. Inline style attributes remain
+permitted for chart and layout geometry.
+
+`make test-kafka-access` and `make test-resilience` require an explicitly configured disposable
+MOCK project and reject ordinary project names. They test authorization and controlled outages;
+never point disruption checks at a personal trading environment. `make benchmark` performs
+three read-only runs after warmup and requires `BENCHMARK_PROJECT` and `BENCHMARK_URL`.
+Record admission overrides, dataset, hardware and concurrent workloads with any measurements.
+Security overhead and optimization improvements are separate comparisons.
+
+The default environment remains trusted local development: local HTTP, a local CA and a single
+Kafka broker are not a public deployment or high-availability guarantee. `make security` audits
+language dependencies and runtime images; unresolved findings and native-library coverage gaps
+require review rather than suppression.
+Do not deploy publicly while unresolved Critical or High findings remain. Public deployment
+requires a fresh security review.
+
 ## Architecture
 
 ```mermaid
@@ -50,11 +79,11 @@ flowchart LR
     ai["AI Insights Worker<br/>Python"]
     pg[("PostgreSQL")]
     redis[("Redis")]
-    kafka{{"Kafka"}}
+    kafka{{"Kafka mTLS<br/>service ACLs"}}
     broker[["Broker<br/>(IBKR Paper / simulator)"]]
 
     web -- REST --> core
-    web -- WebSocket --> rtg
+    web -- "REST bars + WebSocket quotes/refetch hints" --> rtg
     core --> pg
     core --> redis
     rtg --> redis
@@ -249,7 +278,7 @@ Application processes run as non-root where supported. Some official images may 
 | `make test` | Run contract, Go, Java and web tests, infrastructure verification and the Playwright browser workflow |
 | `make ps` / `make logs [SERVICE=kafka]` | Show container status / follow the logs |
 | `make lint` | Validate Compose, shell scripts, Go, Java, web code and API contracts |
-| `make security` | Scan git history and every file that would be committed for secrets (gitleaks), and check the Go modules (govulncheck) and the Java dependencies (OSV-Scanner) for known vulnerabilities |
+| `make security` | Scan Git/public files for secrets; audit Go, Maven, Python and frontend dependencies; scan runtime images with pinned Trivy and cached advisory databases |
 | `make down` | Stop the containers and keep the data |
 | `make clean` | Stop the containers and delete all local data volumes (asks for confirmation) |
 
@@ -277,3 +306,26 @@ separately verified content-processing rights, model reproducibility, a server c
 and an operator-managed restricted proxy reachable from the isolated worker network. Default spend is zero.
 Never add an unrestricted network or trading-service route to make that deployment work. Public MOCK requires
 neither a proxy nor a model credential. Historical reenrichment and automatic insight replacement are unsupported.
+
+## Reproducible state profiling
+
+The worker bounds retained operational state by key count and encoded bytes. Incremental byte accounting avoids rescanning every retained record for each change; validation, durable reservations and conservative restart behavior still apply.
+
+```sh
+make benchmark-ai-state
+make benchmark-ai-state STATE_BENCHMARK_ARGS="--algorithm full-scan"
+make benchmark-ai-state STATE_BENCHMARK_ARGS="--operation restore"
+make benchmark-ai-state STATE_BENCHMARK_ARGS="--operation fixture"
+```
+
+Each command warms up and reports three runs at 100, 1,000 and 10,000 keys, with a profile of the largest case. The full-scan reference uses the same security validation. JSON replay measures decoding and state application only; it excludes Kafka network fetches and model latency. Fixture processing uses the actual worker with an in-memory publication boundary and synthetic provider. Its timing includes removing only benchmark-created state between samples to preserve the initial key count; it excludes durable Kafka delivery. These are component measurements, not a trading throughput or availability guarantee.
+
+Measured on 4 October 2026 in pinned Python 3.14.7 containers on a shared Docker host (8 CPUs, 15.46 GiB), with identical validation and bounds, one warmup and three runs of 20 checks each:
+
+| Retained keys | Full-scan median ms/check | Incremental median ms/check |
+|---:|---:|---:|
+| 100 | 2.763 | 0.649 |
+| 1,000 | 8.144 | 0.893 |
+| 10,000 | 127.955 | 0.849 |
+
+Profiling identified repeated whole-state JSON accounting as the bottleneck. These numbers compare the accounting implementations after hardening; they do not measure TLS/CSP overhead, external inference, Kafka delivery or financial-query performance. Shared-host variation prevents a capacity guarantee.

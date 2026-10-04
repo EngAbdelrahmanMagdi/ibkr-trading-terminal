@@ -179,7 +179,7 @@ final class IbkrTradingAdapter implements BrokerTradingPort {
         if (e.kind() == IbkrHttp.CallException.Kind.NOT_SENT) {
             return new SubmitResult.Failed(e.getMessage() + "; nothing was sent");
         }
-        log.warn("IBKR outcome unknown for {}: {}", what, e.getMessage());
+        log.warn("IBKR outcome unknown for {} category={}", what, e.kind());
         return new SubmitResult.Unknown(e.getMessage());
     }
 

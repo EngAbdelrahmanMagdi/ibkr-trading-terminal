@@ -37,6 +37,8 @@ import java.time.ZoneOffset;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Arrays;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -102,6 +104,58 @@ class TradingDayPnlIntegrationTest {
     private void quote(String price, Instant at) {
         Price mark = new Price(new BigDecimal(price));
         when(quotes.latest("NVDA")).thenReturn(Optional.of(new ReferenceQuote("NVDA", mark, mark, mark, at, false, true, false)));
+    }
+
+    @Test
+    void executionScalePreservesExactIntradayCashFlow() {
+        int inserted = 0;
+        for (int target : new int[]{100, 1000, 10000}) {
+            while (inserted < target) {
+                int batch = Math.min(100, target - inserted);
+                seedRoundTrips(batch);
+                inserted += batch;
+            }
+            BigDecimal expected = new BigDecimal("0.99").multiply(BigDecimal.valueOf(target / 2));
+            assertThat(jdbc.queryForObject("select count(*) from executions", Integer.class)).isEqualTo(target);
+            assertThat(pnl.value().orElseThrow()).isEqualByComparingTo(expected); // Warmup outside timings.
+            for (int run = 1; run <= 3; run++) {
+                double[] samples = new double[20];
+                for (int sample = 0; sample < samples.length; sample++) {
+                    long start = System.nanoTime();
+                    BigDecimal observed = pnl.value().orElseThrow();
+                    samples[sample] = (System.nanoTime() - start) / 1_000_000.0;
+                    assertThat(observed).isEqualByComparingTo(expected);
+                }
+                Arrays.sort(samples);
+                System.out.println(String.format(java.util.Locale.ROOT,
+                        "day-pnl executions=%d run=%d samples=20 medianMs=%.3f p95Ms=%.3f value=%s%n",
+                        target, run, (samples[9] + samples[10]) / 2, samples[18], expected.toPlainString()));
+            }
+        }
+    }
+
+    /** Deterministic isolated database fixtures; setup is excluded from read timing. */
+    private void seedRoundTrips(int count) {
+        var orderRows = new ArrayList<Object[]>();
+        var executionRows = new ArrayList<Object[]>();
+        Instant at = Instant.parse("2026-10-04T12:00:00Z");
+        for (int i = 0; i < count; i++) {
+            UUID order = UUID.randomUUID();
+            String side = i % 2 == 0 ? "BUY" : "SELL";
+            orderRows.add(new Object[]{order, order.toString(), side, side, Timestamp.from(at), Timestamp.from(at)});
+            executionRows.add(new Object[]{UUID.randomUUID(), order, order.toString(), side,
+                    new BigDecimal(i % 2 == 0 ? "100" : "101"), Timestamp.from(at)});
+        }
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            jdbc.batchUpdate("insert into orders (id,client_order_id,account_id,conid,symbol,intent,broker_side,order_type,"
+                    + "quantity,filled_quantity,time_in_force,status,reply_depth,created_at,updated_at,version)"
+                    + " values (?,?,'MOCK',1,'NVDA',?,?,'MARKET',1,1,'DAY','FILLED',0,?,?,0)", orderRows);
+            jdbc.batchUpdate("insert into executions (id,order_id,broker_execution_id,symbol,side,quantity,price,commission,currency,executed_at)"
+                    + " values (?,?,?,'NVDA',?,1,?,0.005,'USD',?)", executionRows);
+            Quantity total = new Quantity(BigDecimal.valueOf(count / 2));
+            positions.applyFill("NVDA", "USD", BrokerSide.BUY, total, new Price(new BigDecimal("100")), at);
+            positions.applyFill("NVDA", "USD", BrokerSide.SELL, total, new Price(new BigDecimal("101")), at);
+        });
     }
 
     @Test

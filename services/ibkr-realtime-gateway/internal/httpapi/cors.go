@@ -1,29 +1,19 @@
 package httpapi
 
 import (
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/origin"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
-// BarsCORS permits browser bars requests from the same explicit origin hosts used by the WebSocket.
-// The configured values are host:port entries; no-Origin internal requests remain available.
+// BarsCORS uses the same complete-origin policy as the WebSocket.
+// Legacy bare local host:port configuration permits HTTP only.
 func BarsCORS(next http.Handler, allowedOrigins []string) http.Handler {
-	allowed := make(map[string]struct{}, len(allowedOrigins))
-	for _, host := range allowedOrigins {
-		allowed[host] = struct{}{}
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Origin")
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			u, err := url.Parse(origin)
-			if err != nil || (u.Scheme != "http" && u.Scheme != "https") ||
-				u.User != nil || u.Host == "" || origin != u.Scheme+"://"+u.Host {
-				http.Error(w, "origin not allowed", http.StatusForbidden)
-				return
-			}
-			if _, ok := allowed[u.Host]; !ok {
+			if !originpolicy(origin, allowedOrigins) {
 				http.Error(w, "origin not allowed", http.StatusForbidden)
 				return
 			}
@@ -33,6 +23,7 @@ func BarsCORS(next http.Handler, allowedOrigins []string) http.Handler {
 		case http.MethodGet:
 			if origin != "" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Expose-Headers", "Retry-After")
 			}
 			next.ServeHTTP(w, r)
 		case http.MethodOptions:
@@ -57,3 +48,5 @@ func BarsCORS(next http.Handler, allowedOrigins []string) http.Handler {
 		}
 	})
 }
+
+func originpolicy(value string, configured []string) bool { return origin.Allowed(value, configured) }

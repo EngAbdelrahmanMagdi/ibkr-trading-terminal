@@ -1,0 +1,28 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.project.infrastructure</groupId><artifactId>kafka-security-patches</artifactId><version>1</version>
+  <!-- Compatible patch overrides for vulnerable upstream image libraries. Remove when the upstream image includes these fixes. -->
+  <dependencyManagement><dependencies><dependency><groupId>com.fasterxml.jackson</groupId><artifactId>jackson-bom</artifactId><version>2.21.7</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement>
+  <dependencies>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-core</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-csv</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.datatype</groupId><artifactId>jackson-datatype-jdk8</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.jakarta.rs</groupId><artifactId>jackson-jakarta-rs-base</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.jakarta.rs</groupId><artifactId>jackson-jakarta-rs-json-provider</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.module</groupId><artifactId>jackson-module-blackbird</artifactId></dependency>
+    <dependency><groupId>com.fasterxml.jackson.module</groupId><artifactId>jackson-module-jakarta-xmlbind-annotations</artifactId></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-alpn-client</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-client</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-http</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-io</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-security</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-server</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-session</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty</groupId><artifactId>jetty-util</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee10</groupId><artifactId>jetty-ee10-servlet</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.eclipse.jetty.ee10</groupId><artifactId>jetty-ee10-servlets</artifactId><version>12.0.36</version></dependency>
+    <dependency><groupId>org.jline</groupId><artifactId>jline</artifactId><version>3.30.15</version></dependency>
+  </dependencies>
+</project>

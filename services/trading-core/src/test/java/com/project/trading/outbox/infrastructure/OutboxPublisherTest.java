@@ -126,7 +126,7 @@ class OutboxPublisherTest {
     void anEventKafkaRefusesForItselfConsumesAnAttempt() {
         OutboxRelayStore.Claimed event = event(4);
         store.next = List.of(event);
-        producer.sendException = new RecordTooLargeException("The message is 2000000 bytes when serialized");
+        producer.sendException = new RecordTooLargeException("sentinel-private-token broker-response");
 
         OutboxPublisher.Round round = publisher.round(100);
 
@@ -134,7 +134,8 @@ class OutboxPublisherTest {
         assertThat(store.badRecords).singleElement().satisfies(bad -> {
             assertThat(bad.id()).isEqualTo(event.id());
             assertThat(bad.attemptCount()).isEqualTo(4);
-            assertThat(bad.error()).startsWith("RecordTooLargeException");
+            assertThat(bad.error()).isEqualTo("RecordTooLargeException")
+                    .doesNotContain("sentinel-private-token", "broker-response");
         });
         assertThat(store.released).isEmpty();
         assertThat(publisher.currentBackoff()).isZero();

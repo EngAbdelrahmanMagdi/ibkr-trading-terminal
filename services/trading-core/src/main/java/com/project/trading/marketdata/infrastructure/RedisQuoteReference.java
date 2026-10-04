@@ -46,7 +46,7 @@ public class RedisQuoteReference implements QuoteReferencePort {
             raw = redis.opsForValue().get(keyPrefix + symbol);
         } catch (RuntimeException e) {
             errors.increment();
-            log.warn("quote cache read failed", e);
+            log.warn("quote cache read failed category={}", e.getClass().getSimpleName());
             return Optional.empty();
         }
         if (raw == null) {

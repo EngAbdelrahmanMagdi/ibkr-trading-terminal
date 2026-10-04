@@ -48,7 +48,11 @@ LOAD_SLOW_READERS ?= 0
 LOAD_ARGS ?=
 SHELL_SCRIPTS := infrastructure/scripts/bootstrap.sh infrastructure/scripts/verify-infra.sh \
                  infrastructure/postgres/init/10-create-roles.sh infrastructure/redis/start-redis.sh \
-                 infrastructure/ibkr/generate-cpgw-cert.sh infrastructure/kafka/create-topics.sh
+                 infrastructure/ibkr/generate-cpgw-cert.sh infrastructure/kafka/create-topics.sh \
+                 infrastructure/kafka/generate-certificates.sh infrastructure/kafka/start-kafka.sh \
+                 infrastructure/kafka/apply-acls.sh infrastructure/scripts/scan-images.sh \
+                 infrastructure/scripts/test-resilience.sh infrastructure/scripts/test-kafka-access.sh \
+                 infrastructure/scripts/benchmark.sh
 
 # Contract tests run on a copy of the sources inside the container (repository mounted read-only).
 CONTRACT_COPY := mkdir -p /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cd /work/tests/contract
@@ -69,7 +73,15 @@ AI_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-pip:/root/.
 AI_INSTALL := (test -x /venv/bin/python || python -m venv /venv) && if ! cmp -s requirements-dev.txt /venv/requirements-dev.txt; then /venv/bin/pip install --quiet --require-hashes -r requirements-dev.txt && cp requirements-dev.txt /venv/requirements-dev.txt; fi
 
 .PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-paper up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract test-web test-e2e \
-        contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts lint-web security clean
+        contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts lint-web security clean \
+        lint-ai test-ai eval-ai test-kafka-access test-resilience security-ai security-web security-images security-source benchmark
+
+benchmark: ## Three bounded, read-only load runs against a disposable stack (explicit environment required)
+	@bash infrastructure/scripts/benchmark.sh
+
+.PHONY: benchmark-ai-state
+benchmark-ai-state: ## Profile bounded state checks or JSON replay (no Kafka or model calls)
+	@$(AI_RUN) $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && PYTHONPATH=src /venv/bin/python benchmarks/state.py $(STATE_BENCHMARK_ARGS)'
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -204,7 +216,9 @@ lint-contracts: ## Lint the OpenAPI documents (Redocly) and validate the AsyncAP
 			 ASYNCAPI_METRICS_CONFIG_PATH=/tmp/analytics.json SUPPRESS_NO_CONFIG_WARNING=1 asyncapi validate '"$$spec"' --fail-severity=warn'; \
 	done
 
-security: security-ai ## Scan secrets and known service dependency vulnerabilities
+security: security-ai security-web security-images security-source ## Scan public files, dependencies and local runtime images
+
+security-source: ## Scan Git/public files and Go/Maven dependencies
 	@echo "gitleaks: git history"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/repo:ro" --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner'
@@ -240,3 +254,15 @@ lint-ai: ## Worker Ruff lint/format and strict mypy
 
 security-ai: ## Audit hash-locked Python runtime and development dependencies
 	@$(AI_RUN) $(PYTHON_IMAGE) sh -c '$(AI_COPY) && $(AI_INSTALL) && /venv/bin/pip-audit --disable-pip --no-deps -r requirements-dev.txt'
+
+security-web: ## Audit the exact frontend dependency lock, including development tools
+	@$(WEB_RUN) $(NODE_IMAGE) sh -c '$(WEB_COPY) && npm audit --audit-level=high'
+
+security-images: ## Scan local runtime images for detected High/Critical vulnerabilities
+	@bash infrastructure/scripts/scan-images.sh
+
+test-resilience: ## Bounded disruption checks; requires an explicitly configured disposable MOCK stack
+	@bash infrastructure/scripts/test-resilience.sh
+
+test-kafka-access: ## Broker-observed identity, ACL and trust checks on a disposable Kafka project
+	@bash infrastructure/scripts/test-kafka-access.sh

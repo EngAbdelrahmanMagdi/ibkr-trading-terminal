@@ -141,6 +141,8 @@ func (s *session) closeStatus() (websocket.StatusCode, string) {
 // context: cancelling a read would drop the connection without a close handshake. The writer closes the
 // connection when the session ends, which unblocks the read.
 func (s *session) readLoop() {
+	tokens := float64(s.srv.cfg.CommandBurst)
+	at := s.srv.clock.Now()
 	for {
 		typ, data, err := s.conn.Read(context.Background())
 		if err != nil {
@@ -148,6 +150,16 @@ func (s *session) readLoop() {
 		}
 		if s.ctx.Err() != nil {
 			continue // session is ending; keep reading until the close handshake completes
+		}
+		if s.srv.cfg.CommandsPerSecond > 0 {
+			now := s.srv.clock.Now()
+			tokens = min(float64(s.srv.cfg.CommandBurst), tokens+now.Sub(at).Seconds()*float64(s.srv.cfg.CommandsPerSecond))
+			at = now
+			if tokens < 1 {
+				s.fail(websocket.StatusPolicyViolation, "client command rate exceeded")
+				return
+			}
+			tokens--
 		}
 		if typ != websocket.MessageText {
 			s.sendError(stream.ErrInvalidMessage, "only JSON text messages are supported", nil)

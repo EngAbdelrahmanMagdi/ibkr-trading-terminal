@@ -36,19 +36,19 @@ public class NewsEnrichmentConfiguration {
     @Bean(destroyMethod = "close")
     @ConditionalOnProperty(name = "news.enrichment.enabled", havingValue = "true", matchIfMissing = true)
     Producer<byte[], byte[]> newsDeadLetterProducer(@Value("${app.outbox.bootstrap-servers}") String brokers) {
-        return new KafkaProducer<>(Map.of("bootstrap.servers", brokers, "acks", "all", "enable.idempotence", true,
+        return new KafkaProducer<>(com.project.trading.shared.config.KafkaTls.configure(Map.of("bootstrap.servers", brokers, "acks", "all", "enable.idempotence", true,
                 "max.block.ms", 5000, "request.timeout.ms", 5000, "delivery.timeout.ms", 15000,
                 "max.request.size", 2097152,
-                "key.serializer", ByteArraySerializer.class, "value.serializer", ByteArraySerializer.class));
+                "key.serializer", ByteArraySerializer.class, "value.serializer", ByteArraySerializer.class)));
     }
     @Bean
     @ConditionalOnProperty(name = "news.enrichment.enabled", havingValue = "true", matchIfMissing = true)
     NewsEnrichedConsumer newsEnrichedConsumer(@Value("${app.outbox.bootstrap-servers}") String brokers,
             NewsEnrichmentIngestion ingestion, Producer<byte[], byte[]> newsDeadLetterProducer, Clock clock, MeterRegistry metrics) {
-        return new NewsEnrichedConsumer(() -> new KafkaConsumer<>(Map.of("bootstrap.servers", brokers,
+        return new NewsEnrichedConsumer(() -> new KafkaConsumer<>(com.project.trading.shared.config.KafkaTls.configure(Map.of("bootstrap.servers", brokers,
                 "group.id", NewsEnrichmentIngestion.CONSUMER, "enable.auto.commit", false,
                 "auto.offset.reset", "earliest", "isolation.level", "read_committed", "max.poll.records", 50,
-                "key.deserializer", ByteArrayDeserializer.class, "value.deserializer", ByteArrayDeserializer.class)),
+                "key.deserializer", ByteArrayDeserializer.class, "value.deserializer", ByteArrayDeserializer.class))),
                 new NewsEnrichedEvents(), ingestion, new NewsEnrichedDeadLetters(newsDeadLetterProducer, clock), metrics);
     }
 }

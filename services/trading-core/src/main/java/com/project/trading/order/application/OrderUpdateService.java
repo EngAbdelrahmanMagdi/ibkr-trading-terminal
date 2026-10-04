@@ -114,12 +114,15 @@ public class OrderUpdateService implements BrokerOrderUpdateHandler, OpenOrderSo
         Order order = found.get();
         boolean resolved = false;
         if (order.brokerOrderId() == null) {
-            if (order.status() != OrderStatus.UNKNOWN || update.brokerOrderId() == null) {
+            // A process may die after sending but before saving the acknowledgement. Only a
+            // positive broker observation with the matching client reference can recover it.
+            if ((order.status() != OrderStatus.UNKNOWN && order.status() != OrderStatus.SUBMISSION_PENDING)
+                    || update.brokerOrderId() == null) {
                 return Outcome.NOT_READY;
             }
             order.acknowledge(update.brokerOrderId(), clock.instant());
             resolved = true;
-            drift.report("order", DriftReporter.INFO, order.id(), "order with an unknown outcome found at the broker");
+            drift.report("order", DriftReporter.INFO, order.id(), "order awaiting acknowledgement found at the broker");
         } else if (update.brokerOrderId() != null && !order.brokerOrderId().equals(update.brokerOrderId())) {
             drift.report("order", DriftReporter.SERIOUS, order.id(),
                     "the broker reports another broker order ID for this client order reference");

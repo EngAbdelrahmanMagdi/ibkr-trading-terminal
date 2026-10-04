@@ -16,6 +16,9 @@ distributor:
 storage:
   trace:
     backend: local
+    # Keep the existing storage format explicit across runtime updates.
+    block:
+      version: vParquet4
     wal:
       path: /var/tempo/wal
     local:

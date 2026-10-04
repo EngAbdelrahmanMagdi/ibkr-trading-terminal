@@ -1,6 +1,13 @@
 # Trading Core configuration. Secrets are read from files (Docker secrets) through the config tree import:
 # each file name under SECRETS_DIR becomes a property (trading_app_password, trading_owner_password,
 # redis_app_password). No secret has a default value here.
+http:
+  admission:
+    reads: ${HTTP_ADMISSION_READS:600}
+    news: ${HTTP_ADMISSION_NEWS:60}
+    submissions: ${HTTP_ADMISSION_SUBMISSIONS:60}
+    commands: ${HTTP_ADMISSION_COMMANDS:120}
+
 spring:
   application:
     name: trading-core
@@ -87,6 +94,8 @@ management:
 
 logging:
   structured:
+    json:
+      customizer: com.project.trading.shared.config.SecurityLogCustomizer
     format:
       console: ecs
 

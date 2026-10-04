@@ -114,7 +114,7 @@ public class PlaceOrderService {
                     order.conid(), order.symbol(), order.brokerSide(), order.orderType(), order.quantity(),
                     order.limitPrice(), order.timeInForce()));
         } catch (RuntimeException e) {
-            log.error("broker submission failed with an unexpected error; outcome unknown for order {}", order.id(), e);
+            log.error("broker submission failed; outcome unknown for order {} category={}", order.id(), e.getClass().getSimpleName());
             result = new SubmitResult.Unknown("broker call failed");
         }
 

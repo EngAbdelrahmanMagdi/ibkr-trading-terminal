@@ -13,6 +13,9 @@ class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["FIXTURE", "OPENAI"] = "FIXTURE"
     brokers: str = "kafka:29092"
+    tls_ca_file: Path | None = None
+    tls_cert_file: Path | None = None
+    tls_key_file: Path | None = None
     group: str = "ai-insights-news"
     transactional_id: str = "ai-insights-news-singleton"
     contracts_dir: Path = Path("/app/contracts/schemas")

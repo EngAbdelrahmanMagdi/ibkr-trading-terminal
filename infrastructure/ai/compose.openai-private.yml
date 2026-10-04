@@ -13,7 +13,7 @@ services:
       AI_MODEL_VERSION: ${AI_MODEL_VERSION:?verified reproducibility policy required}
       AI_DAILY_BUDGET: ${AI_DAILY_BUDGET:-0}
       AI_KEY_FILE: /run/secrets/openai_api_key
-    secrets: [openai_api_key]
+    secrets: [kafka_ca, kafka_ai_cert, kafka_ai_key, openai_api_key]
 secrets:
   openai_api_key:
     file: ${AI_KEY_SOURCE:?server credential file required}

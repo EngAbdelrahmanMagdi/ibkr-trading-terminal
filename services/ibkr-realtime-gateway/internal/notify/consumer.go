@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/kafkatls"
 	"log/slog"
 	"time"
 
@@ -44,7 +45,12 @@ func NewConsumer(cfg Config, proc *Processor, m *metrics.Gateway, log *slog.Logg
 	if len(cfg.Brokers) == 0 || cfg.Topic == "" || cfg.Group == "" || cfg.MaxPollRecords < 1 {
 		return nil, errors.New("notify: brokers, topic, group and a positive poll size are required")
 	}
+	tlsOption, err := kafkatls.Option()
+	if err != nil {
+		return nil, err
+	}
 	client, err := kgo.NewClient(
+		tlsOption,
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.ClientID("realtime-gateway"),
 		kgo.ConsumerGroup(cfg.Group),

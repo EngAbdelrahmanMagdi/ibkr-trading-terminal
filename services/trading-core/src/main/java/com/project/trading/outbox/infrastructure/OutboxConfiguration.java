@@ -52,6 +52,6 @@ public class OutboxConfiguration {
                 Map.entry(ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 10_000),
                 Map.entry(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class),
                 Map.entry(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class));
-        return () -> new KafkaProducer<>(config);
+        return () -> new KafkaProducer<>(com.project.trading.shared.config.KafkaTls.configure(config));
     }
 }

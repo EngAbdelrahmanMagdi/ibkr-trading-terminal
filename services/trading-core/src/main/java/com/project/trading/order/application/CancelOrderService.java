@@ -54,7 +54,7 @@ public class CancelOrderService {
         try {
             result = broker.cancel(order.brokerOrderId());
         } catch (RuntimeException e) {
-            log.error("broker cancel failed with an unexpected error for order {}", orderId, e);
+            log.error("broker cancel failed for order {} category={}", orderId, e.getClass().getSimpleName());
             result = new CancelResult.Unknown("broker call failed");
         }
 

@@ -6,10 +6,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/origin"
 	"github.com/coder/websocket"
 
 	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/clock"
@@ -21,7 +23,7 @@ import (
 
 // Config holds the transport limits and timeouts.
 type Config struct {
-	AllowedOrigins         []string      // origin host patterns (path.Match); requests without Origin (non-browser) are allowed
+	AllowedOrigins         []string      // exact complete origins; no-Origin internal clients remain supported
 	MaxInboundMessageBytes int64         // larger client messages close the connection with 1009
 	MaxSymbolsPerSubscribe int           // per subscribe message
 	MaxSubscribedSymbols   int           // per connection
@@ -32,6 +34,9 @@ type Config struct {
 	LagThreshold           time.Duration // a flush delivering data older than this counts as lagging
 	MaxLaggingFlushes      int           // more consecutive lagging flushes than this evict the client
 	MaxConnections         int           // concurrent connections; further upgrade requests get 503
+	CommandsPerSecond      int
+	CommandBurst           int
+	MaxConnectionsPerPeer  int
 }
 
 // Limits returns the protocol limits advertised to clients.
@@ -60,6 +65,7 @@ type Server struct {
 	mu       sync.Mutex
 	closing  bool
 	sessions map[*session]struct{}
+	peers    map[string]int
 	wg       sync.WaitGroup // one entry per active handler
 }
 
@@ -71,6 +77,7 @@ func NewServer(cfg Config, reg *registry.Registry, clk clock.Clock, m *metrics.G
 		slots: make(chan struct{}, cfg.MaxConnections),
 		ctx:   ctx, cancel: cancel,
 		sessions: map[*session]struct{}{},
+		peers:    map[string]int{},
 	}
 }
 
@@ -99,6 +106,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.wg.Done()
+	peer, _, peerError := net.SplitHostPort(r.RemoteAddr)
+	if peerError != nil {
+		peer = r.RemoteAddr
+	}
+	s.mu.Lock()
+	full := s.cfg.MaxConnectionsPerPeer > 0 && s.peers[peer] >= s.cfg.MaxConnectionsPerPeer
+	if !full {
+		s.peers[peer]++
+	}
+	s.mu.Unlock()
+	if full {
+		http.Error(w, "too many connections", http.StatusServiceUnavailable)
+		return
+	}
+	defer func() {
+		s.mu.Lock()
+		s.peers[peer]--
+		if s.peers[peer] == 0 {
+			delete(s.peers, peer)
+		}
+		s.mu.Unlock()
+	}()
 
 	select {
 	case s.slots <- struct{}{}:
@@ -108,9 +137,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: s.cfg.AllowedOrigins})
+	if !origin.Allowed(r.Header.Get("Origin"), s.cfg.AllowedOrigins) {
+		http.Error(w, "origin not allowed", http.StatusForbidden)
+		return
+	}
+	// The exact policy above is authoritative; avoid the library's implicit same-host exception.
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
-		s.log.Info("websocket upgrade rejected", "error", err.Error(), "origin", r.Header.Get("Origin"))
+		s.log.Info("websocket upgrade rejected", "category", "invalid_upgrade")
 		return
 	}
 	conn.SetReadLimit(s.cfg.MaxInboundMessageBytes)

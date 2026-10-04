@@ -3,6 +3,7 @@ package brokerupdates
 import (
 	"context"
 	"errors"
+	"github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal/services/ibkr-realtime-gateway/internal/kafkatls"
 	"log/slog"
 	"sync"
 	"time"
@@ -134,7 +135,12 @@ func NewKafkaProducer(brokers []string, topic string) (*KafkaProducer, error) {
 	if len(brokers) == 0 || topic == "" {
 		return nil, errors.New("brokerupdates: brokers and topic are required")
 	}
+	tlsOption, err := kafkatls.Option()
+	if err != nil {
+		return nil, err
+	}
 	client, err := kgo.NewClient(
+		tlsOption,
 		kgo.SeedBrokers(brokers...),
 		kgo.ClientID("realtime-gateway-broker-updates"),
 		kgo.RequiredAcks(kgo.AllISRAcks()),

@@ -45,6 +45,6 @@ public class BrokerUpdatesConfiguration {
                 ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 10_000,
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        return () -> new KafkaConsumer<>(config);
+        return () -> new KafkaConsumer<>(com.project.trading.shared.config.KafkaTls.configure(config));
     }
 }

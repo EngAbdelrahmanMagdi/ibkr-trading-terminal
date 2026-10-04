@@ -27,7 +27,8 @@ services:
   # ---------------------------------------------------------------- core infrastructure
   postgres:
     <<: *defaults
-    image: postgres:18.6
+    image: trading-terminal/postgres:local
+    build: ./infrastructure/postgres
     command:
       - postgres
       - -c
@@ -72,7 +73,8 @@ services:
 
   redis:
     <<: *defaults
-    image: redis:8.10.2
+    image: trading-terminal/redis:local
+    build: ./infrastructure/redis
     user: "999:999"
     command: ["sh", "/usr/local/etc/redis/start-redis.sh"]
     environment:
@@ -104,15 +106,16 @@ services:
 
   kafka:
     <<: *defaults
-    image: apache/kafka:4.3.1
+    image: trading-terminal/kafka:local
+    build: ./infrastructure/kafka
     environment:
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:?KAFKA_CLUSTER_ID is empty - run make bootstrap}
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://127.0.0.1:9093
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://127.0.0.1:${KAFKA_HOST_PORT:-19092}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SSL,EXTERNAL:SSL,CONTROLLER:SSL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       # Topics are provisioned explicitly; producers can never create them implicitly.
@@ -126,13 +129,16 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    entrypoint: ["sh", "/scripts/start-kafka.sh"]
+    secrets: [kafka_ca, kafka_broker_keystore]
     volumes:
       - kafka-data:/var/lib/kafka/data
+      - ./infrastructure/kafka:/scripts:ro
     ports:
       - "127.0.0.1:${KAFKA_HOST_PORT:-19092}:9092"
     cap_drop: [ALL]
     healthcheck:
-      test: ["CMD-SHELL", "KAFKA_HEAP_OPTS=-Xmx64m /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      test: ["CMD-SHELL", "KAFKA_HEAP_OPTS=-Xmx64m /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 --command-config /scripts/broker-client.properties > /dev/null 2>&1"]
       interval: 10s
       timeout: 20s
       retries: 12
@@ -146,14 +152,30 @@ services:
   # One-shot topic provisioning (idempotent); the broker never creates topics implicitly.
   kafka-init:
     <<: *defaults
-    image: apache/kafka:4.3.1
+    build:
+      context: ./infrastructure/kafka
+    image: trading-terminal/kafka-provisioner:local
     restart: "no"
     entrypoint: ["/bin/sh", "/scripts/create-topics.sh"]
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       KAFKA_HEAP_OPTS: -Xmx128m
+    secrets:
+      - kafka_ca
+      - kafka_operator_keystore
+      - source: kafka_broker_keystore
+        target: probe_kafka-broker
+      - source: kafka_operator_keystore
+        target: probe_kafka-operator
+      - source: kafka_core_keystore
+        target: probe_trading-core
+      - source: kafka_gateway_keystore
+        target: probe_realtime-gateway
+      - source: kafka_ai_keystore
+        target: probe_ai-insights
     volumes:
       - ./infrastructure/kafka:/scripts:ro
+      - kafka-data:/audit:ro
     depends_on:
       kafka:
         condition: service_healthy
@@ -168,7 +190,7 @@ services:
   prometheus:
     <<: *defaults
     profiles: [observability]
-    image: prom/prometheus:v3.13.3
+    image: prom/prometheus:v3.13.4
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -218,7 +240,7 @@ services:
   tempo:
     <<: *defaults
     profiles: [observability]
-    image: grafana/tempo:3.0.3
+    image: grafana/tempo:3.1.0
     command: ["-target=all", "-config.file=/etc/tempo/tempo.yaml"]
     volumes:
       - ./infrastructure/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
@@ -239,7 +261,7 @@ services:
   grafana:
     <<: *defaults
     profiles: [observability]
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2.3
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
@@ -252,6 +274,9 @@ services:
       GF_LOG_MODE: console
     secrets:
       - grafana_admin_password
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
     volumes:
       # Mount only the provisioning directories in use so the image's other default folders stay intact.
       - ./infrastructure/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
@@ -292,7 +317,11 @@ services:
       # MOCK (default, the only mode for public demos), IBKR or AUTO; IBKR modes are enabled by the
       # override files in infrastructure/ibkr/.
       GATEWAY_MARKET_DATA_MODE: MOCK
-      GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-localhost:3000,127.0.0.1:3000}
+      GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      GATEWAY_BARS_REQUESTS_PER_MINUTE: ${GATEWAY_BARS_REQUESTS_PER_MINUTE:-120}
+      GATEWAY_UPGRADES_PER_MINUTE: ${GATEWAY_UPGRADES_PER_MINUTE:-30}
+      GATEWAY_COMMANDS_PER_SECOND: ${GATEWAY_COMMANDS_PER_SECOND:-10}
+      GATEWAY_COMMAND_BURST: ${GATEWAY_COMMAND_BURST:-20}
       GATEWAY_SEED: ${GATEWAY_SEED:-20260927}
       GATEWAY_TICK_INTERVAL: ${GATEWAY_TICK_INTERVAL:-1s}
       GATEWAY_HEARTBEAT_INTERVAL: ${GATEWAY_HEARTBEAT_INTERVAL:-15s}
@@ -303,12 +332,18 @@ services:
       GATEWAY_REDIS_ADDR: redis:6379
       # Order notifications: order events from Kafka fanned out as refetch hints (optional; never affects quotes).
       GATEWAY_KAFKA_BROKERS: kafka:29092
+      KAFKA_TLS_CA_FILE: /run/secrets/kafka_ca
+      KAFKA_TLS_CERT_FILE: /run/secrets/kafka_gateway_cert
+      KAFKA_TLS_KEY_FILE: /run/secrets/kafka_gateway_key
       GATEWAY_REDIS_USERNAME: ${REDIS_APP_USER:-app}
       GATEWAY_REDIS_PASSWORD_FILE: /run/secrets/redis_app_password
       GATEWAY_SHUTDOWN_TIMEOUT: 10s
       GATEWAY_LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
     secrets:
       - redis_app_password
+      - kafka_ca
+      - kafka_gateway_cert
+      - kafka_gateway_key
     ports:
       - "127.0.0.1:${GATEWAY_HOST_PORT:-18090}:8090"
       - "127.0.0.1:${GATEWAY_HEALTH_HOST_PORT:-18091}:8091"
@@ -327,8 +362,6 @@ services:
         limits:
           memory: 128m
     # Lets the gateway reach a CP Gateway running on the developer's machine (IBKR modes only).
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     # edge: clients; data: Redis; observability: Prometheus scrapes /metrics on the internal port.
     networks: [edge, data, observability]
 
@@ -373,13 +406,21 @@ services:
       REDIS_PORT: "6379"
       REDIS_USER: ${REDIS_APP_USER:-app}
       APP_CORS_ALLOWED_ORIGINS: ${TRADING_CORE_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      HTTP_ADMISSION_READS: ${HTTP_ADMISSION_READS:-600}
+      HTTP_ADMISSION_NEWS: ${HTTP_ADMISSION_NEWS:-60}
+      HTTP_ADMISSION_SUBMISSIONS: ${HTTP_ADMISSION_SUBMISSIONS:-60}
+      HTTP_ADMISSION_COMMANDS: ${HTTP_ADMISSION_COMMANDS:-120}
       # Domain events are recorded in PostgreSQL and relayed to Kafka; Kafka being down never blocks trading.
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TLS_CA_FILE: /run/secrets/kafka_ca
+      KAFKA_TLS_KEYSTORE_FILE: /run/secrets/kafka_core_keystore
     # Read through the config tree under /run/secrets: the migration role's password is used by Flyway only.
     secrets:
       - trading_app_password
       - trading_owner_password
       - redis_app_password
+      - kafka_ca
+      - kafka_core_keystore
     depends_on:
       postgres:
         condition: service_healthy
@@ -399,7 +440,8 @@ services:
       timeout: 3s
       retries: 24
       start_period: 20s
-    stop_grace_period: 30s
+    # Covers request draining and bounded reconciliation, relay and consumer shutdown.
+    stop_grace_period: 120s
     deploy:
       resources:
         limits:
@@ -418,6 +460,9 @@ services:
     environment:
       AI_PROVIDER: FIXTURE
       AI_BROKERS: kafka:29092
+      AI_TLS_CA_FILE: /run/secrets/kafka_ca
+      AI_TLS_CERT_FILE: /run/secrets/kafka_ai_cert
+      AI_TLS_KEY_FILE: /run/secrets/kafka_ai_key
       AI_PRIVATE_DEVELOPMENT: "false"
       AI_DAILY_BUDGET: "0"
       AI_STATE_KEYS: ${AI_STATE_KEYS:-20000}
@@ -426,6 +471,10 @@ services:
       AI_INPUT_BYTES: ${AI_INPUT_BYTES:-16384}
       AI_RESPONSE_BYTES: ${AI_RESPONSE_BYTES:-131072}
       AI_DEADLINE: ${AI_DEADLINE:-30}
+    secrets: [kafka_ca, kafka_ai_cert, kafka_ai_key]
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
     read_only: true
     cap_drop: [ALL]
     tmpfs: [/tmp:size=16m]
@@ -435,7 +484,8 @@ services:
       timeout: 3s
       retries: 30
       start_period: 30s
-    stop_grace_period: 45s
+    # Allow bounded reservation/result/final transactions and consumer close to finish.
+    stop_grace_period: 420s
     deploy:
       resources:
         limits:
@@ -480,7 +530,7 @@ services:
     image: mcr.microsoft.com/playwright:v1.63.0-noble
     entrypoint: ["sh", "-c"]
     command:
-      - "mkdir -p /work && tar -C /src --exclude=node_modules --exclude=.next -cf - . | tar -C /work -xf - && cd /work && npm ci --ignore-scripts --no-audit --no-fund && PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e"
+      - "mkdir -p /work && tar -C /src --exclude=node_modules --exclude=.next -cf - . | tar -C /work -xf - && cd /work && npm ci --ignore-scripts --no-audit --no-fund && PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL:-http://localhost:3000} npm run test:e2e"
     volumes:
       - ./apps/web:/src:ro
     network_mode: host
@@ -500,6 +550,26 @@ volumes:
   grafana-data: {}
 
 secrets:
+  kafka_ca:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/ca.pem
+  kafka_broker_keystore:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/kafka-broker.keystore
+  kafka_operator_keystore:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/kafka-operator.keystore
+  kafka_core_keystore:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/trading-core.keystore
+  kafka_gateway_cert:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/realtime-gateway.pem
+  kafka_gateway_key:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/realtime-gateway.key
+  kafka_ai_cert:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/ai-insights.pem
+  kafka_ai_key:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/ai-insights.key
+  kafka_gateway_keystore:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/realtime-gateway.keystore
+  kafka_ai_keystore:
+    file: ${KAFKA_SECRET_DIR:-./secrets/kafka}/ai-insights.keystore
   postgres_admin_password:
     file: ./secrets/postgres_admin_password
   trading_owner_password:

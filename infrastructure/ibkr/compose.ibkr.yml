@@ -8,6 +8,8 @@
 # Both services trust only the local CA in secrets/ibkr/ca.pem, with hostname verification on.
 services:
   realtime-gateway:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       GATEWAY_MARKET_DATA_MODE: ${GATEWAY_MARKET_DATA_MODE:-IBKR}
       GATEWAY_TRUSTED_ENVIRONMENT: "true"

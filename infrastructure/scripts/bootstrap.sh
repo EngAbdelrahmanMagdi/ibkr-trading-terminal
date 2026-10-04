@@ -103,3 +103,16 @@ else
 fi
 
 echo "bootstrap: ready"
+
+# Generate only missing local Kafka identities. Signing material never enters runtime containers.
+kafka_secrets="${KAFKA_SECRET_DIR:-$(sed -n 's/^KAFKA_SECRET_DIR=//p' .env | tail -n 1)}"
+kafka_secrets="${kafka_secrets:-./secrets/kafka}"
+mkdir -p "$kafka_secrets"
+host_root="$(cygpath -m "$(pwd)" 2>/dev/null || pwd)"
+case "$kafka_secrets" in
+  /* | [A-Za-z]:*) kafka_output="$kafka_secrets" ;;
+  *) kafka_output="$host_root/$kafka_secrets" ;;
+esac
+MSYS_NO_PATHCONV=1 docker run --rm --entrypoint sh \
+  -v "$host_root/infrastructure/kafka:/scripts:ro" -v "$kafka_output:/out" \
+  maven:3.9.16-eclipse-temurin-25 /scripts/generate-certificates.sh /out

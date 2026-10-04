@@ -17,15 +17,21 @@ PARTITIONS="${KAFKA_TOPIC_PARTITIONS:-3}"
 REPLICATION="${KAFKA_TOPIC_REPLICATION:-1}"
 RETENTION_MS="${KAFKA_TOPIC_RETENTION_MS:-604800000}"
 
+# Provisioner-only mounts permit checking the exact observed identity before ACL creation.
+for principal in kafka-broker kafka-operator trading-core realtime-gateway ai-insights; do
+  java -Xmx64m --class-path '/opt/kafka/libs/*:/opt/principal-probe' PrincipalProbe "$principal"
+done
+
 for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1 news.raw.v1 news.enriched.v1 news.enriched.v1.dlq; do
   if [ "$topic" = news.enriched.v1.dlq ]; then max_message_bytes=2097152; else max_message_bytes=1048588; fi
   /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP" --create --if-not-exists \
-    --topic "$topic" --partitions "$PARTITIONS" --replication-factor "$REPLICATION" \
+    --command-config /scripts/client.properties --topic "$topic" --partitions "$PARTITIONS" --replication-factor "$REPLICATION" \
     --config cleanup.policy=delete --config retention.ms="$RETENTION_MS" --config min.insync.replicas=1 \
     --config max.message.bytes="$max_message_bytes"
   echo "topic ready: $topic"
 done
 /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP" --create --if-not-exists \
-  --topic news.ai-state.v1 --partitions 1 --replication-factor "$REPLICATION" \
+  --command-config /scripts/client.properties --topic news.ai-state.v1 --partitions 1 --replication-factor "$REPLICATION" \
   --config cleanup.policy=compact --config delete.retention.ms=86400000 --config min.insync.replicas=1
 echo "topic ready: news.ai-state.v1"
+sh /scripts/apply-acls.sh

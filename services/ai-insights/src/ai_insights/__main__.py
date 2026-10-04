@@ -21,8 +21,13 @@ def main() -> None:
     )
     health = Health(settings.health_port)
     stopped = threading.Event()
-    signal.signal(signal.SIGTERM, lambda *_: stopped.set())
-    signal.signal(signal.SIGINT, lambda *_: stopped.set())
+
+    def stop(*_: object) -> None:
+        health.ready = False
+        stopped.set()
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
     kafka = Kafka(settings, State(settings, contracts))
     try:
         kafka.restore()
@@ -30,7 +35,15 @@ def main() -> None:
         health.ready = True
         metrics.READY.set(1)
         cleanup_at = time.monotonic()
+        probe_at = time.monotonic()
         while not stopped.is_set():
+            if time.monotonic() >= probe_at:
+                health.ready = kafka.healthy() and not stopped.is_set()
+                metrics.READY.set(int(health.ready))
+                probe_at = time.monotonic() + 10
+            if not health.ready:
+                stopped.wait(1)
+                continue
             if time.monotonic() >= cleanup_at:
                 expired = dict(list(kafka.state.expired().items())[:100])
                 if expired:

@@ -123,7 +123,7 @@ class SubmissionOutcomes {
                     log.warn("immediate broker update for order {} not applied: {}", orderId, outcome);
                 }
             } catch (RuntimeException e) {
-                log.error("immediate broker update for order {} failed", orderId, e);
+                log.error("immediate broker update for order {} failed category={}", orderId, e.getClass().getSimpleName());
             }
         }
     }

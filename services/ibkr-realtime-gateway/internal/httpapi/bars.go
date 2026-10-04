@@ -42,7 +42,7 @@ var ErrBusy = errors.New("bars: computation limit reached")
 
 // BarsConfig configures bar serving.
 type BarsConfig struct {
-	MaxConcurrent  int           // concurrent uncached computations; further requests get RATE_LIMITED
+	MaxConcurrent  int           // concurrent uncached computations; excess work gets temporary unavailability
 	ComputeTimeout time.Duration // bound on one computation
 	MaxCacheTTL    time.Duration // cache TTL is a quarter of the interval, capped at this value
 }
@@ -194,8 +194,8 @@ func (h *BarsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrBusy), errors.Is(err, marketdata.ErrRateLimited):
-		writeProblem(w, http.StatusTooManyRequests, CategoryRateLimited, "rate-limited", "Too many requests",
-			"too many historical-bar computations in progress; retry shortly", cid)
+		writeProblem(w, http.StatusServiceUnavailable, CategoryServiceUnavailable, "service-unavailable", "Service unavailable",
+			"historical bars are temporarily unavailable", cid)
 		return
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, marketdata.ErrSourceUnavailable):
 		h.log.Warn("bars computation timed out", "correlationId", cid, "symbol", symbol, "interval", string(interval), "range", string(rng))

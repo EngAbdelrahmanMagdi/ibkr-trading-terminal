@@ -29,7 +29,7 @@
          1.11.1). Remove when kafka-clients depends on a fixed version. -->
     <lz4-java.version>1.11.4</lz4-java.version>
     <archunit.version>1.5.1</archunit.version>
-    <json-schema-validator.version>3.0.7</json-schema-validator.version>
+    <json-schema-validator.version>3.0.8</json-schema-validator.version>
     <wiremock.version>3.13.2</wiremock.version>
     <!-- Contracts directory used by the contract-conformance tests. -->
     <contracts.dir>${project.basedir}/../../contracts</contracts.dir>

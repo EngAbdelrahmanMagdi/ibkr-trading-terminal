@@ -23,7 +23,7 @@ make -k security-source >"$output/source.log" 2>&1
 source_status=$?
 make security-ai >"$output/python.log" 2>&1
 python_status=$?
-SECURITY_REPORT_DIR="$output/images" make security-images >"$output/images.log" 2>&1
+SECURITY_REPORT_DIR="$output/images" bash infrastructure/scripts/scan-images.sh >"$output/images.log" 2>&1
 image_status=$?
 docker run --rm -v "$root/apps/web:/src:ro" -w /src node:24.21.0 npm audit --json --audit-level=high >"$output/npm.json" 2>"$output/npm.log"
 npm_status=$?

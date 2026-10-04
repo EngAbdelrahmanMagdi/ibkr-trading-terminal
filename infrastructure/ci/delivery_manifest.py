@@ -42,11 +42,14 @@ def sbom(report: dict) -> dict:
     packages = {}
     for result in report.get("Results", []):
         for item in result.get("Packages", []):
-            identity = (result.get("Type", "unknown"), item["Name"], item["Version"])
-            packages[identity] = {"name": item["Name"], "versionInfo": item["Version"],
+            version = item.get("Version") or ""
+            identity = (result.get("Type", "unknown"), item["Name"], version)
+            packages[identity] = {"name": item["Name"],
                                   "downloadLocation": "NOASSERTION", "filesAnalyzed": False,
                                   "licenseConcluded": "NOASSERTION", "licenseDeclared": "NOASSERTION",
                                   "copyrightText": "NOASSERTION"}
+            if version:
+                packages[identity]["versionInfo"] = version
     entries = []
     for identity, package in sorted(packages.items()):
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()

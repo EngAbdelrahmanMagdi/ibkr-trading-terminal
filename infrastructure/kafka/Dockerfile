@@ -1,5 +1,5 @@
 FROM apache/kafka:4.3.1 AS kafka
-FROM maven:3.9.16-eclipse-temurin-25 AS compile
+FROM maven:3-eclipse-temurin-24 AS compile
 COPY security-patches.pom.xml /src/pom.xml
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -q -f /src/pom.xml dependency:copy-dependencies -DoutputDirectory=/patches -DincludeArtifactIds=jackson-core,jackson-databind,jackson-dataformat-csv,jackson-dataformat-yaml,jackson-datatype-jdk8,jackson-jakarta-rs-base,jackson-jakarta-rs-json-provider,jackson-module-blackbird,jackson-module-jakarta-xmlbind-annotations,jetty-alpn-client,jetty-client,jetty-http,jetty-io,jetty-security,jetty-server,jetty-session,jetty-util,jetty-ee10-servlet,jetty-ee10-servlets,jline
 COPY --from=kafka /opt/kafka/libs /opt/kafka/libs

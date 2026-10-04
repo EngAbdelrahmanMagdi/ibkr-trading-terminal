@@ -99,11 +99,10 @@ AI evaluation and fresh MOCK browser tests. Independent checks run in parallel; 
 job checks every mandatory result. Download and build caches are separate from credentials and
 disposable databases, and contributor pull requests cannot write privileged delivery caches.
 
-Main accepts only an exact commit whose final `required` check has passed. For solo work,
-push a temporary branch, manually run the **CI** workflow for that branch, and wait for
-the aggregated result. Then fast-forward main to that same SHA. Do not amend, rebase,
-or create a merge commit after verification. Pull requests, reviewers and signed commits
-are not required; force pushes and deletion of main are blocked.
+Main requires the final `required` CI check and blocks force pushes and branch deletion.
+Push work to a temporary branch, open a pull request, and wait for the aggregated CI
+result before merging. No reviewer approvals or signed commits are required. A manual
+branch run does not substitute for the required pull-request check in this configuration.
 
 Security jobs retain complete scan reports and evaluate a separately reviewed, expiring policy.
 New findings, changed security context, expired approvals and scanner failures fail verification.

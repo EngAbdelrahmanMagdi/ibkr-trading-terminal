@@ -13,7 +13,7 @@ for image in ${SECURITY_IMAGES:-trading-terminal/trading-core:local trading-term
   name="${image//\//_}"
   name="${name//:/_}"
   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-    -v trading-terminal-trivy:/root/.cache/trivy -v "$host_output:/reports" "$scanner" \
+    -v "${TRIVY_CACHE:-trading-terminal-trivy}:/root/.cache/trivy" -v "$host_output:/reports" "$scanner" \
     image --timeout 15m --db-repository ghcr.io/aquasecurity/trivy-db:2 --java-db-repository ghcr.io/aquasecurity/trivy-java-db:1 \
     --scanners vuln --severity HIGH,CRITICAL --list-all-pkgs --format json \
     --output "/reports/$name.json" --exit-code 1 "$image" || status=1

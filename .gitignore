@@ -80,3 +80,8 @@ crash.log
 *.log
 /data/
 /tmp/
+
+# Local recordings, delivery evidence and destination-specific publication configuration.
+/.artifacts/
+/.local/
+/.wrangler/

@@ -1,8 +1,8 @@
 # MarketPulse
 
-A single-page, realtime stock trading terminal with live quotes, live candlestick charts, and paper order execution, built on an event-driven backend.
+A compact realtime stock trading terminal built with Java/Spring, Go, Next.js/React and Python. It combines streamed quotes, authoritative candlestick history, order execution, exact portfolio accounting and asynchronous news insights.
 
-> **Status: under active development.** The services are being built incrementally. Setup instructions and benchmark results will be updated as each part becomes runnable. Only measured results will be published.
+The public previews show the complete stack running locally in **simulated/MOCK mode**. Private broker and provider integrations have separate activation and licensing requirements; this repository does not offer live-money trading.
 
 ## App preview
 
@@ -63,11 +63,9 @@ Record admission overrides, dataset, hardware and concurrent workloads with any 
 Security overhead and optimization improvements are separate comparisons.
 
 The default environment remains trusted local development: local HTTP, a local CA and a single
-Kafka broker are not a public deployment or high-availability guarantee. `make security` audits
-language dependencies and runtime images; unresolved findings and native-library coverage gaps
-require review rather than suppression.
-Do not deploy publicly while unresolved Critical or High findings remain. Public deployment
-requires a fresh security review.
+Kafka broker are not a public deployment or high-availability guarantee. Security verification
+covers language dependencies and runtime images, retaining scanner evidence separately from
+policy decisions. Public backend deployment requires its own security and operational review.
 
 ## Architecture
 
@@ -93,6 +91,34 @@ flowchart LR
     core -- orders --> broker
     rtg -- market data --> broker
 ```
+
+## Verification and delivery
+
+GitHub workflows reuse the same Make targets used locally for contracts, Go, Core, frontend,
+AI evaluation and fresh MOCK browser tests. Independent checks run in parallel; a final required
+job checks every mandatory result. Download and build caches are separate from credentials and
+disposable databases, and contributor pull requests cannot write privileged delivery caches.
+
+Security jobs retain complete scan reports and evaluate a separately reviewed, expiring policy.
+New findings, changed security context, expired approvals and scanner failures fail verification.
+Runtime Critical findings block image release artifacts. Source and non-image build delivery
+includes commit/tool manifests, checksums and detected-component SBOMs, without deploying services.
+
+```mermaid
+flowchart LR
+    checks[Language and contract checks] --> required[Required CI result]
+    build[Pinned image builds] --> scans[Scans and exact policy]
+    build --> browser[Fresh MOCK browser workflow]
+    scans --> required
+    browser --> required
+    required --> artifacts[Versioned checksummed artifacts]
+```
+
+`make test-ci` checks policy and artifact boundaries; `make lint-workflows` checks workflow
+syntax. `make demo-record` creates an isolated fresh MOCK stack, records an asserted buy/sell
+round trip and encodes genuine browser content using verified FFmpeg 9.0.2 (`DEMO_FFMPEG`).
+Recordings and publication configuration stay local. `make showcase-build` builds a static,
+destination-neutral presentation; it has no trading API, WebSocket or backend dependency.
 
 | Component | Responsibility |
 |---|---|

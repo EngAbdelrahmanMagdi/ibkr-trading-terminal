@@ -1,0 +1,3356 @@
+{
+  "schema_version": 1,
+  "exceptions": [
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-54369",
+      "severity": "HIGH",
+      "component": "libacl1",
+      "version": "2.3.2-2+b1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libncursesw6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libsystemd0",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libtinfo6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libudev1",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-base",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-bin",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl-base",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:ai-insights",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "19be4745587d1cd3435e724a1825dc54ac2bea0f599b4d3bded0bfe5dd7d6319",
+      "base_images": [
+        "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-54369",
+      "severity": "HIGH",
+      "component": "libacl1",
+      "version": "2.3.2-2+b1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libsystemd0",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libtinfo6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libudev1",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-base",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-bin",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl-base",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:web",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e1714dd48347d4ed03a5c36405905446516efed52215c6f2787438725a13aa8a",
+      "base_images": [
+        "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+        "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "dirmngr",
+      "version": "2.4.7-21+deb13u1+b5",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gnupg",
+      "version": "2.4.7-21+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gnupg-l10n",
+      "version": "2.4.7-21+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gpg",
+      "version": "2.4.7-21+deb13u1+b5",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gpg-agent",
+      "version": "2.4.7-21+deb13u1+b5",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gpgconf",
+      "version": "2.4.7-21+deb13u1+b5",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-24882",
+      "severity": "HIGH",
+      "component": "gpgsm",
+      "version": "2.4.7-21+deb13u1+b5",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-54369",
+      "severity": "HIGH",
+      "component": "libacl1",
+      "version": "2.3.2-2+b1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libncursesw6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "libperl5.40",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libsystemd0",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libtinfo6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libudev1",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-6653",
+      "severity": "CRITICAL",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-74860",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86138",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86139",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86140",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86142",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86143",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-86144",
+      "severity": "HIGH",
+      "component": "libxml2",
+      "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-base",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-bin",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl-base",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl-modules-5.40",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:postgres",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "56a79e83a5b2b20b6b1ecb4c5c36bf2d3b5f12b22a21f255afe0264df76f23a4",
+      "base_images": [
+        "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+        "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "bsdutils",
+      "version": "1:2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-54369",
+      "severity": "HIGH",
+      "component": "libacl1",
+      "version": "2.3.2-2+b1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libblkid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "liblastlog2-2",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libmount1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libsmartcols1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libsystemd0",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "libtinfo6",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-16742",
+      "severity": "HIGH",
+      "component": "libudev1",
+      "version": "257.13-1~deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "libuuid1",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "mount",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-base",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2025-69720",
+      "severity": "HIGH",
+      "component": "ncurses-bin",
+      "version": "6.5+20250216-2",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-9538",
+      "severity": "HIGH",
+      "component": "perl-base",
+      "version": "5.40.1-6+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-76642",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78408",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78409",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:redis",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "45afbedb2210c936207a22a1c1458b15d4e8714bc8175dbc52207e79f4611308",
+      "base_images": [
+        "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3"
+      ],
+      "advisory": "CVE-2026-78410",
+      "severity": "HIGH",
+      "component": "util-linux",
+      "version": "2.41.5-0+deb13u1",
+      "target": "debian:13.7",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:prom/prometheus:v3.13.4",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "prom/prometheus@sha256:87861b8cf91579109319ebc300f3f1060e6da9c05d6ae8ad15a20c879e84e32e"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "bin/prometheus",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:prom/prometheus:v3.13.4",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "prom/prometheus@sha256:87861b8cf91579109319ebc300f3f1060e6da9c05d6ae8ad15a20c879e84e32e"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "bin/promtool",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "usr/share/grafana/data/plugins-bundled/grafana-postgresql-datasource/gpx_grafana_postgresql_datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "usr/share/grafana/data/plugins-bundled/influxdb/gpx_grafana_influxdb_datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "usr/share/grafana/data/plugins-bundled/jaeger/gpx_grafana-jaeger-datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.1",
+      "target": "usr/share/grafana/data/plugins-bundled/prometheus/gpx_grafana-prometheus-datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84304",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.0",
+      "target": "usr/share/grafana/data/plugins-bundled/stackdriver/gpx_grafana_cloudmonitoring_datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-84445",
+      "severity": "HIGH",
+      "component": "google.golang.org/grpc",
+      "version": "v1.83.0",
+      "target": "usr/share/grafana/data/plugins-bundled/stackdriver/gpx_grafana_cloudmonitoring_datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-21728",
+      "severity": "HIGH",
+      "component": "github.com/grafana/tempo",
+      "version": "v1.5.1-0.20260910130453-bcfe9f230c1d",
+      "target": "usr/share/grafana/data/plugins-bundled/tempo/gpx_grafana-tempo-datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "image:grafana/grafana:13.2.3",
+      "architecture": "linux/amd64",
+      "recipe_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "base_images": [
+        "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572"
+      ],
+      "advisory": "CVE-2026-28377",
+      "severity": "HIGH",
+      "component": "github.com/grafana/tempo",
+      "version": "v1.5.1-0.20260910130453-bcfe9f230c1d",
+      "target": "usr/share/grafana/data/plugins-bundled/tempo/gpx_grafana-tempo-datasource_linux_amd64",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance for trusted local MOCK only; unresolved. No public backend deployment. Recheck compatible upstream fixes before expiry."
+    },
+    {
+      "artifact": "npm:development",
+      "architecture": "all",
+      "recipe_sha256": "de29e59fcf75b2265a3a8f81e5b78551e7f77019976281c948508282c5048695",
+      "base_images": [],
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "severity": "HIGH",
+      "component": "braces",
+      "version": "3.0.3",
+      "target": "node_modules/braces",
+      "owner": "repository owner",
+      "expires": "2026-10-11",
+      "reason": "Explicit temporary acceptance of development-only advisory; excluded from standalone production runtime. No compatible approved toolchain fix; unresolved."
+    }
+  ]
+}

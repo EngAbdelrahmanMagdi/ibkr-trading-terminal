@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="MarketPulse: a realtime trading terminal with explicit service ownership, authoritative financial state and resilient event delivery.">
+    <title>MarketPulse — Engineering showcase</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="mark.svg">
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header><a class="brand" href="#main"><img src="mark.svg" width="28" height="28" alt="">MarketPulse<span>/ ENGINEERING</span></a><a href="https://github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal" rel="noopener noreferrer">Source on GitHub ↗</a></header>
+    <main id="main">
+      <section class="intro">
+        <p class="eyebrow">JAVA / GO / TYPESCRIPT / PYTHON</p>
+        <h1>A trading terminal.<br>A system built to explain its state.</h1>
+        <p class="lede">Realtime quotes, authoritative order activity, exact financial calculations and asynchronous news insights in one compact workspace.</p>
+        <p class="mode"><span aria-hidden="true"></span>Full stack running locally in simulated/MOCK mode.</p>
+      </section>
+      <section aria-labelledby="demo-title">
+        <div class="section-heading"><h2 id="demo-title">The terminal in motion</h2><span>Real application recording · simulated trading</span></div>
+        <video controls preload="metadata" playsinline poster="poster.png" aria-describedby="video-description"><source src="terminal.mp4" type="video/mp4">Your browser cannot play this recording. Read the transcript below.</video>
+        <p id="video-description" class="caption">A fresh simulated session: quotes and chart history, a buy/sell round trip, Core-calculated Day P&amp;L, execution notifications and synthetic news insights. No live-money orders or live model calls.</p>
+        <details><summary>Recording transcript</summary><div class="transcript">__TRANSCRIPT__</div></details>
+      </section>
+      <section aria-labelledby="architecture-title">
+        <div class="section-heading"><h2 id="architecture-title">Four services. Clear authority.</h2><span>Quotes and financial truth follow separate paths</span></div>
+        <img class="architecture" src="architecture.svg" alt="The browser calls Trading Core REST for domain truth and Gateway REST/WebSocket for bars and quotes. Core alone owns PostgreSQL. Core, Gateway and the isolated AI worker exchange events through Kafka. Redis holds disposable caches.">
+        <div class="responsibilities">
+          <article><h3>Trading Core <span>Java / Spring</span></h3><p>Order validation and lifecycle, execution accounting, exact decimal P&amp;L, persistence, reconciliation and transactional inbox/outbox delivery.</p></article>
+          <article><h3>Realtime Gateway <span>Go</span></h3><p>Market-data normalization, authoritative bars, bounded quote fanout and order-update hints that trigger Core refetches.</p></article>
+          <article><h3>Web Terminal <span>Next.js / React</span></h3><p>Per-symbol quote subscriptions, one imperative chart, explicit uncertainty and notifications grounded in Core state.</p></article>
+          <article><h3>AI Insights <span>Python</span></h3><p>Validated asynchronous enrichment with durable worker state, bounded resources and deterministic public fixtures. No trading capability.</p></article>
+        </div>
+      </section>
+      <section aria-labelledby="decisions-title">
+        <div class="section-heading"><h2 id="decisions-title">Engineering decisions</h2></div>
+        <dl>
+          <div><dt>Authority before optimism</dt><dd>HTTP submission success is not a fill. UNKNOWN stays uncertain; ambiguous attempts preserve their idempotency key for deliberate retry.</dd></div>
+          <div><dt>Financial precision</dt><dd>Core calculates New York Day P&amp;L from execution cash flow, commissions, fresh marks and persisted opening valuations. Missing evidence stays unavailable.</dd></div>
+          <div><dt>Delivery with recovery</dt><dd>Stable event identities, database transactions and Kafka transactions make replay safe within explicit service boundaries.</dd></div>
+          <div><dt>Security boundaries</dt><dd>Kafka mTLS and service ACLs, nonce CSP, exact browser origins, bounded admission and isolated containers complement dependency and image verification.</dd></div>
+          <div><dt>Evidence over claims</dt><dd>Unit, contract, real-infrastructure integration, browser and failure tests exercise behavior. Performance comparisons separate security overhead from optimization benefit.</dd></div>
+        </dl>
+      </section>
+      <section aria-labelledby="preview-title"><div class="section-heading"><h2 id="preview-title">Workspace detail</h2></div><img class="preview" src="terminal.png" alt="MarketPulse simulated terminal with a watchlist, candlestick chart, order ticket, calculated Day P&amp;L and synthetic news."><p class="caption">Actual simulated application capture. The hosted page is a static showcase, not an interactive trading service.</p></section>
+    </main>
+    <footer><span>MarketPulse · Simulated trading</span><a href="https://github.com/EngAbdelrahmanMagdi/ibkr-trading-terminal" rel="noopener noreferrer">Explore the implementation ↗</a></footer>
+  </body>
+</html>

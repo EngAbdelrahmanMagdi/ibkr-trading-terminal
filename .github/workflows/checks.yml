@@ -1,0 +1,57 @@
+name: Functional checks
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  checks:
+    name: ${{ matrix.lane }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: contracts
+            targets: lint-infra lint-contracts lint-workflows test-contract test-ci
+          - lane: gateway
+            targets: lint-go test-unit
+          - lane: core
+            targets: test-core
+          - lane: frontend
+            targets: lint-web test-web
+          - lane: ai
+            targets: lint-ai test-ai eval-ai
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Configure download caches
+        run: bash infrastructure/ci/cache-environment.sh
+      - name: Restore trusted download cache
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .artifacts/cache
+          key: downloads-${{ runner.os }}-${{ runner.arch }}-${{ matrix.lane }}-${{ hashFiles('Makefile', '**/pom.xml', '**/go.sum', '**/package-lock.json', '**/requirements*.txt') }}
+      - name: Run existing gates
+        env:
+          CHECK_TARGETS: ${{ matrix.targets }}
+        run: make $CHECK_TARGETS
+      # Contributor PRs can read base caches but cannot create delivery cache inputs.
+      - name: Save trusted download cache
+        if: success() && github.event_name != 'pull_request' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .artifacts/cache
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+  required:
+    if: always()
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all functional lanes
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: test "$RESULT" = success

@@ -52,7 +52,10 @@ SHELL_SCRIPTS := infrastructure/scripts/bootstrap.sh infrastructure/scripts/veri
                  infrastructure/kafka/generate-certificates.sh infrastructure/kafka/start-kafka.sh \
                  infrastructure/kafka/apply-acls.sh infrastructure/scripts/scan-images.sh \
                  infrastructure/scripts/test-resilience.sh infrastructure/scripts/test-kafka-access.sh \
-                 infrastructure/scripts/benchmark.sh
+                 infrastructure/scripts/benchmark.sh infrastructure/ci/cache-environment.sh \
+                 infrastructure/ci/record-demo.sh infrastructure/ci/security.sh \
+                 infrastructure/ci/build-images.sh infrastructure/ci/e2e.sh infrastructure/ci/delivery.sh \
+                 infrastructure/ci/maintenance.sh
 
 # Contract tests run on a copy of the sources inside the container (repository mounted read-only).
 CONTRACT_COPY := mkdir -p /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cd /work/tests/contract
@@ -62,19 +65,43 @@ GATEWAY_COPY := mkdir -p /work/services && cp -r /src/contracts /work/ && cp -r 
 # Trading Core builds run on a copy of the service plus the contracts and infrastructure its tests use. The Docker
 # socket lets the integration tests start PostgreSQL and Redis with Testcontainers.
 CORE_COPY := mkdir -p /work/services /work/tests && cp -r /src/contracts /src/infrastructure /work/ && cp -r /src/tests/contract /work/tests/ && cp -r /src/$(CORE_DIR) /work/services/ && rm -rf /work/$(CORE_DIR)/target && cd /work/$(CORE_DIR)
-MAVEN_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-m2:/root/.m2
+# CI may bind download caches; local development keeps the existing named volumes.
+MAVEN_CACHE ?= trading-terminal-m2
+GO_MODULE_CACHE ?= trading-terminal-gomod
+GO_BUILD_CACHE ?= trading-terminal-gobuild
+NPM_CACHE ?= trading-terminal-npm
+PIP_CACHE ?= trading-terminal-pip
+AI_TOOLS ?= trading-terminal-ai-tools
+MAVEN_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v "$(MAVEN_CACHE):/root/.m2"
 TESTCONTAINERS_RUN := $(MAVEN_RUN) -v /var/run/docker.sock:/var/run/docker.sock --add-host=host.docker.internal:host-gateway \
 	-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal
-GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-gomod:/go/pkg/mod -v trading-terminal-gobuild:/root/.cache/go-build
+GO_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v "$(GO_MODULE_CACHE):/go/pkg/mod" -v "$(GO_BUILD_CACHE):/root/.cache/go-build"
 WEB_COPY := mkdir -p /work/apps/web && tar -C /src/$(WEB_DIR) --exclude=node_modules --exclude=.next --exclude=test-results --exclude=playwright-report -cf - . | tar -C /work/apps/web -xf - && cd /work/apps/web
-WEB_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-npm:/root/.npm
+WEB_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v "$(NPM_CACHE):/root/.npm"
 AI_COPY := mkdir -p /work/services /work/tests && cp -r /src/contracts /work/ && cp -r /src/tests/contract /work/tests/ && cp -r /src/services/ai-insights /work/services/ && cd /work/services/ai-insights
-AI_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v trading-terminal-pip:/root/.cache/pip -v trading-terminal-ai-tools:/venv
+AI_RUN := $(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -v "$(PIP_CACHE):/root/.cache/pip" -v "$(AI_TOOLS):/venv"
 AI_INSTALL := (test -x /venv/bin/python || python -m venv /venv) && if ! cmp -s requirements-dev.txt /venv/requirements-dev.txt; then /venv/bin/pip install --quiet --require-hashes -r requirements-dev.txt && cp requirements-dev.txt /venv/requirements-dev.txt; fi
 
 .PHONY: help bootstrap up up-obs up-mock up-ibkr up-ibkr-paper up-ibkr-fake ibkr-certs down ps logs verify probe load test test-unit test-core test-contract test-web test-e2e \
         contract-java contract-go contract-python contract-typescript lint lint-go lint-java lint-contracts lint-web security clean \
         lint-ai test-ai eval-ai test-kafka-access test-resilience security-ai security-web security-images security-source benchmark
+
+.PHONY: demo-record demo-publish showcase-build test-ci lint-workflows
+demo-publish: ## Publish the static showcase using ignored local configuration only
+	@python3 infrastructure/ci/publication.py
+
+lint-workflows: ## Validate GitHub workflow syntax and expressions with pinned actionlint
+	@$(GO_RUN) $(GO_IMAGE) sh -c 'mkdir /work && cp -r /src/.github /work/ && cd /work && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yml'
+
+demo-record: ## Record genuine MOCK trading in a fresh runner-owned environment
+	@bash infrastructure/ci/record-demo.sh
+
+showcase-build: ## Build a static destination-neutral showcase (recording supplied locally)
+	@$(DOCKER_RUN) -v "$(HOST_PWD):/src" -w /src -e SHOWCASE_PREFIX -e SHOWCASE_MEDIA -e SHOWCASE_OUTPUT $(NODE_IMAGE) node apps/showcase/build.mjs
+
+test-ci: ## Verify delivery security policy and static showcase boundaries
+	@$(DOCKER_RUN) -v "$(HOST_PWD):/src:ro" -w /src $(PYTHON_IMAGE) python -m unittest discover -s tests/ci -v
+	@$(DOCKER_RUN) -v "$(HOST_PWD):/src" -w /src $(NODE_IMAGE) node --test tests/ci/showcase.test.mjs
 
 benchmark: ## Three bounded, read-only load runs against a disposable stack (explicit environment required)
 	@bash infrastructure/scripts/benchmark.sh
@@ -160,22 +187,22 @@ test-core: ## Trading Core tests: domain, application, architecture, and the Pos
 test-contract: contract-java contract-go contract-python contract-typescript ## Run the contract tests in all four languages
 
 contract-java: ## Contract tests - Java (networknt json-schema-validator, Jackson, JUnit)
-	@$(CONTRACT_RUN) -v trading-terminal-m2:/root/.m2 $(MAVEN_IMAGE) sh -c \
+	@$(CONTRACT_RUN) -v "$(MAVEN_CACHE):/root/.m2" $(MAVEN_IMAGE) sh -c \
 		'$(CONTRACT_COPY)/java && mvn -B -ntp -q test'
 	@echo "contract-java: ok"
 
 contract-go: ## Contract tests - Go (santhosh-tekuri/jsonschema)
-	@$(CONTRACT_RUN) -v trading-terminal-gomod:/go/pkg/mod $(GO_IMAGE) sh -c \
+	@$(CONTRACT_RUN) -v "$(GO_MODULE_CACHE):/go/pkg/mod" $(GO_IMAGE) sh -c \
 		'$(CONTRACT_COPY)/go && go vet ./... && go test -count=1 ./...'
 	@echo "contract-go: ok"
 
 contract-python: ## Contract tests - Python (jsonschema) including the OpenAPI/AsyncAPI reference checks
-	@$(CONTRACT_RUN) -v trading-terminal-pip:/root/.cache/pip $(PYTHON_IMAGE) sh -c \
+	@$(CONTRACT_RUN) -v "$(PIP_CACHE):/root/.cache/pip" $(PYTHON_IMAGE) sh -c \
 		'$(CONTRACT_COPY)/python && pip install --quiet --disable-pip-version-check --root-user-action=ignore -r requirements.txt && python -m unittest'
 	@echo "contract-python: ok"
 
 contract-typescript: ## Contract tests - TypeScript (Ajv) with strict type checking
-	@$(CONTRACT_RUN) -v trading-terminal-npm:/root/.npm $(NODE_IMAGE) sh -c \
+	@$(CONTRACT_RUN) -v "$(NPM_CACHE):/root/.npm" $(NODE_IMAGE) sh -c \
 		'$(CONTRACT_COPY)/typescript && npm ci --ignore-scripts --no-audit --no-fund --loglevel=error && npm test --silent'
 	@echo "contract-typescript: ok"
 
@@ -218,7 +245,11 @@ lint-contracts: ## Lint the OpenAPI documents (Redocly) and validate the AsyncAP
 
 security: security-ai security-web security-images security-source ## Scan public files, dependencies and local runtime images
 
-security-source: ## Scan Git/public files and Go/Maven dependencies
+security-source: security-secrets security-go security-java ## Scan Git/public files and Go/Maven dependencies
+	@echo "security: ok"
+
+.PHONY: security-secrets security-go security-java
+security-secrets:
 	@echo "gitleaks: git history"
 	@$(DOCKER_RUN) -v "$(HOST_PWD):/repo:ro" --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'git config --global --add safe.directory /repo && gitleaks git /repo --redact --no-banner'
@@ -228,11 +259,12 @@ security-source: ## Scan Git/public files and Go/Maven dependencies
 		tar --null -T - -cf - | \
 		$(DOCKER_RUN) -i --entrypoint sh $(GITLEAKS_IMAGE) -c \
 		'mkdir -p /scan && tar -xf - -C /scan && gitleaks dir /scan --redact --no-banner'
+security-go:
 	@echo "govulncheck: realtime gateway and Go contract tests"
 	@$(GO_RUN) $(GO_IMAGE) sh -c '$(GATEWAY_COPY) && go run $(GOVULNCHECK) ./... && cp -r /src/tests/contract/go /tmp/contract-go && cd /tmp/contract-go && go run $(GOVULNCHECK) ./...'
+security-java:
 	@echo "osv-scanner: Trading Core Maven dependencies (transitive)"
 	@$(DOCKER_RUN) -v "$(HOST_PWD)/$(CORE_DIR):/src:ro" $(OSV_SCANNER_IMAGE) scan source /src/pom.xml
-	@echo "security: ok"
 
 clean: ## Stop containers and DELETE all local data volumes (asks for confirmation; CONFIRM=yes skips it)
 	@if [[ "$${CONFIRM:-}" != "yes" ]]; then \

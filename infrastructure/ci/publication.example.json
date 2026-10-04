@@ -1,0 +1,11 @@
+{
+  "account_id": "REPLACE_LOCALLY",
+  "zone_id": "REPLACE_LOCALLY",
+  "hostname": "REPLACE_LOCALLY",
+  "prefix": "REPLACE_LOCALLY",
+  "worker_name": "REPLACE_LOCALLY",
+  "token_file": "REPLACE_WITH_LOCAL_CREDENTIAL_FILE",
+  "media_directory": "REPLACE_WITH_VERIFIED_LOCAL_MEDIA_DIRECTORY",
+  "free_static_only_confirmed": false,
+  "scoped_token_permissions_confirmed": false
+}

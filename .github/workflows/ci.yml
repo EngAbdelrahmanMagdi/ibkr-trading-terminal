@@ -1,0 +1,78 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      runtime-image-delivery-allowed:
+        value: ${{ jobs.security.outputs.runtime-image-delivery-allowed }}
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver: docker-container
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: layers
+        with:
+          path: .artifacts/build-cache
+          key: layers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('security/image-inputs.json', '**/Dockerfile', '**/pom.xml', '**/go.sum', '**/package-lock.json', '**/requirements.txt') }}
+      - name: Build pinned runtime roles once
+        run: bash infrastructure/ci/build-images.sh
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: success() && github.event_name != 'pull_request' && steps.layers.outputs.cache-hit != 'true'
+        with:
+          path: .artifacts/build-cache
+          key: ${{ steps.layers.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-runtime-images
+          path: .artifacts/build/runtime-images.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+  security:
+    needs: build
+    uses: ./.github/workflows/security.yml
+    with:
+      reuse-images: true
+  e2e:
+    needs: [checks, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ci-runtime-images
+          path: .artifacts/build
+      - name: Load verified-build inputs
+        run: gzip -dc .artifacts/build/runtime-images.tar.gz | docker load
+      - name: Run fresh MOCK browser workflow
+        run: bash infrastructure/ci/e2e.sh
+  required:
+    if: always()
+    needs: [checks, build, security, e2e]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every mandatory result
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do test "$result" = success; done

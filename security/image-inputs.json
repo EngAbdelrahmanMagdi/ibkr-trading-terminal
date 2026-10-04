@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "architecture": "linux/amd64",
+  "verified_on": "2026-10-04",
+  "bases": {
+    "python:3.14.7-slim": "python@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d",
+    "postgres:18.6": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+    "redis:8.10.2": "redis@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3",
+    "apache/kafka:4.3.1": "apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837",
+    "node:24.21.0": "node@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4",
+    "node:24.21.0-trixie-slim": "node@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe",
+    "maven:3.9.16-eclipse-temurin-25": "maven@sha256:93b8a14ea2f412782e4e842651273b4d903e35cc496284f178fbbe2d67d00976",
+    "golang:1.27.1": "golang@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244",
+    "gcr.io/distroless/static-debian13:nonroot": "gcr.io/distroless/static-debian13@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3",
+    "eclipse-temurin:25.0.4.1_1-jre-noble": "eclipse-temurin@sha256:398f810215757dc1926390014272579fb0e57c41ef1c8aa4f64ae761613a168b",
+    "prom/prometheus:v3.13.4": "prom/prometheus@sha256:87861b8cf91579109319ebc300f3f1060e6da9c05d6ae8ad15a20c879e84e32e",
+    "grafana/grafana:13.2.3": "grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572",
+    "otel/opentelemetry-collector:0.161.0": "otel/opentelemetry-collector@sha256:b6d2b9a85b1029d05b5ad913150c1f014eed4ae99be81a1813ca5ade4a191913",
+    "grafana/tempo:3.1.0": "grafana/tempo@sha256:3076b8dcdfb32fd6bc5ccef85e7b7313e6199b9cb84366257fc17ecb696db5fd"
+  }
+}

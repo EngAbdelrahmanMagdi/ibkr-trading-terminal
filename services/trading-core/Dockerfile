@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Multi-stage build: Maven build on the JDK image, then a JRE-only runtime running as a non-root user.
 
-FROM maven:3.9.16-eclipse-temurin-25 AS build
+FROM maven:3-eclipse-temurin-24 AS build
 WORKDIR /src
 COPY pom.xml ./
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline

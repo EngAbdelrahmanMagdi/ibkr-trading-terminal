@@ -105,19 +105,22 @@ result before merging. No reviewer approvals or signed commits are required. A m
 branch run does not substitute for the required pull-request check in this configuration.
 
 Security jobs retain complete scan reports and evaluate them against `security/accepted-findings.json`.
-A change cannot approve its own exceptions: when a pull request changes the exception list or the
-policy code that applies it, the security job waits for a required reviewer to approve the run
-through the `security-exceptions` environment; otherwise those files are the reviewed base-branch
-versions and no approval is needed.
+A change cannot approve its own exceptions. The `Security approval` workflow runs from the default
+branch for every pull request, so a pull request cannot alter it, and never executes pull-request
+code. It sets the required `security-approval` status: immediately when no security-enforcing path
+changes (`security/`, `infrastructure/ci/`, workflows, the image scanner, the Makefile), otherwise
+only after a required reviewer approves through the `security-exceptions` environment.
 Unaccepted findings, including any with a published fix, and scanner failures fail verification.
 Only findings without an upstream fix are accepted, each bound to the exact package version
 in its artifact, so rebuilds keep their review. A pulled third-party image can also carry a
 patched component that no stable release of that image ships yet; such findings are accepted
 only after confirming the image is the newest stable upstream release. Accepted findings carry a
-review date. Review dates never fail pull requests: when one is due, a fix is published or the
-severity changes, runs list it in the job summary and the weekly scheduled security run fails
-until the exception is fixed or re-reviewed with `accept_findings.py --renew`. Findings are
-reported in job summaries, not pull-request comments.
+review date. Review dates never fail a run: when one is due, a fix is published or the severity
+changes, runs list it in the job summary and the weekly `Security review` workflow keeps a single
+"Security exception review" issue up to date (edited in place, closed when nothing is due) until
+the exception is fixed or re-reviewed with `accept_findings.py --renew`. That weekly run still
+fails on new, unaccepted or fixable findings and scanner failures. Findings are never posted as
+pull-request comments.
 Runtime Critical findings block image release artifacts. Source and non-image build delivery
 includes commit/tool manifests, checksums and detected-component SBOMs, without deploying services.
 

@@ -32,5 +32,5 @@ set -e
 printf '{"source":%s,"python":%s,"images":%s,"npm":%s}\n' "$source_status" "$python_status" "$image_status" "$npm_status" >"$output/scanner-status.json"
 python3 infrastructure/ci/collect_evidence.py --directory "$output"
 baseline="${SECURITY_BASELINE:-security/accepted-findings.json}"
-python3 "${SECURITY_POLICY:-infrastructure/ci/security_policy.py}" --baseline "$baseline" --evidence "$output/evidence.json" --output "$output/policy.json" --mode "${SECURITY_MODE:-gate}"
+python3 "${SECURITY_POLICY:-infrastructure/ci/security_policy.py}" --baseline "$baseline" --evidence "$output/evidence.json" --output "$output/policy.json"
 printf '%s\n' "$output" >.artifacts/security/latest-path.txt

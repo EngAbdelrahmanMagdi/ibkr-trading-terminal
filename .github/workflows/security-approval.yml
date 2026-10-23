@@ -1,0 +1,101 @@
+name: Security approval
+# Runs from the default branch for every pull-request CI run, so a pull request cannot change
+# this enforcement. It never checks out or executes pull-request code: it compares file lists
+# through the API and records the required `security-approval` commit status.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [requested]
+permissions:
+  contents: read
+concurrency:
+  group: security-approval-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+env:
+  GH_REPO: ${{ github.repository }}
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+jobs:
+  classify:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+      pull-requests: read
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+    steps:
+      - name: Compare security-enforcing paths with the pull request base
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid head commit' >&2; exit 1; }
+          status() { gh api -X POST "repos/$GH_REPO/statuses/$HEAD_SHA" -f context=security-approval \
+            -f state="$1" -f description="$2" -f target_url="$RUN_URL" >/dev/null; }
+          # Fork pull requests are not listed in the event; find the open one at this head.
+          number="${EVENT_PR:-$(gh pr list --state open --search "$HEAD_SHA" --json number,headRefOid \
+            --jq "map(select(.headRefOid == env.HEAD_SHA)) | first | .number // empty")}"
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo 'No open pull request at this head' >&2; exit 1; }
+          head="$(gh api "repos/$GH_REPO/pulls/$number" --jq .head.sha)"
+          if [ "$head" != "$HEAD_SHA" ]; then
+            echo 'The pull request moved on; its newer CI run is classified instead.'
+            echo changed=false >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files="$(gh api --paginate "repos/$GH_REPO/pulls/$number/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')"
+          # The files API lists at most 3000 files; a longer list cannot be classified safely.
+          [ "$(grep -c . <<<"$files")" -lt 3000 ] || { echo 'Too many files to classify' >&2; exit 1; }
+          # Exception data, the policy and scanners that apply it, workflows and build targets.
+          protected="$(grep -E '^(\.github/|security/|infrastructure/ci/|infrastructure/scripts/scan-images\.sh$|Makefile$)' <<<"$files" || true)"
+          if [ -n "$protected" ]; then
+            {
+              echo '### Security-enforcing changes need approval'
+              while IFS= read -r path; do printf -- '- %s\n' "$path"; done <<<"$protected"
+            } >>"$GITHUB_STEP_SUMMARY"
+            status pending 'Waiting for security-exceptions approval'
+            echo changed=true >>"$GITHUB_OUTPUT"
+          else
+            status success 'No security-enforcing changes'
+            echo changed=false >>"$GITHUB_OUTPUT"
+          fi
+      - name: Fail closed when changes cannot be classified
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          gh api -X POST "repos/$GH_REPO/statuses/$HEAD_SHA" -f context=security-approval \
+            -f state=error -f description='Changes could not be classified' -f target_url="$RUN_URL" >/dev/null
+  approve:
+    needs: classify
+    if: needs.classify.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: security-exceptions
+    permissions:
+      statuses: write
+    steps:
+      - name: Record the required reviewer's approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/$GH_REPO/statuses/$HEAD_SHA" -f context=security-approval \
+            -f state=success -f description='Approved through security-exceptions' -f target_url="$RUN_URL" >/dev/null
+  rejected:
+    needs: [classify, approve]
+    if: ${{ always() && needs.classify.outputs.changed == 'true' && needs.approve.result != 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - name: Record that approval was not granted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/$GH_REPO/statuses/$HEAD_SHA" -f context=security-approval \
+            -f state=failure -f description='security-exceptions approval not granted' -f target_url="$RUN_URL" >/dev/null

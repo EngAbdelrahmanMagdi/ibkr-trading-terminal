@@ -1,9 +1,8 @@
 """Evaluate complete vulnerability evidence without filtering scanner reports.
 
-Gate mode (pull requests, pushes, manual runs) fails on any finding without a reviewed
-exception. Accepted findings that need attention again (review date reached, upstream fix
-published, severity changed) are reported but only fail monitor mode, which runs on the
-weekly schedule so reviews never break unrelated pull requests.
+Any finding without a reviewed exception fails, as does incomplete evidence. Accepted findings
+that need attention again (review date reached, upstream fix published, severity changed) never
+fail a run: they are written to a review report that the weekly review keeps in one issue.
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ from typing import Any
 # digests are recorded as evidence but are not identity, so rebuilds keep their review.
 IDENTITY = ("artifact", "architecture", "advisory", "component", "version", "target")
 DISPOSITION = ("severity", "owner", "reason", "reviewed", "review_by")
-MODES = ("gate", "monitor")
 
 
 def recipe_hash(root: Path, files: list[str]) -> str:
@@ -78,9 +76,7 @@ def validate(baseline: dict[str, Any]) -> dict[tuple[Any, ...], dict[str, Any]]:
 
 
 def evaluate(observed: list[dict[str, Any]], baseline: dict[str, Any],
-             today: dt.date, mode: str = "gate") -> dict[str, Any]:
-    if mode not in MODES:
-        raise ValueError("Unknown policy mode")
+             today: dt.date) -> dict[str, Any]:
     exceptions = validate(baseline)
     accepted, rejected, needs_review, matched = [], [], [], set()
     for item in observed:
@@ -104,30 +100,48 @@ def evaluate(observed: list[dict[str, Any]], baseline: dict[str, Any],
         if reasons:
             needs_review.append({**item, "review_reasons": reasons})
     stale = [exception for key, exception in exceptions.items() if key not in matched]
-    failed = rejected + (needs_review if mode == "monitor" else [])
-    return {"mode": mode, "policy_pass": not failed, "accepted_unresolved": accepted,
+    return {"policy_pass": not rejected, "accepted_unresolved": accepted,
             "rejected": rejected, "needs_review": needs_review, "stale_exceptions": stale,
             "runtime_image_delivery_allowed": not any(
                 item["severity"] == "CRITICAL" and item["artifact"].startswith("image:")
                 for item in observed)}
 
 
+def table(title: str, items: list[dict[str, Any]], field: str) -> list[str]:
+    if not items:
+        return []
+    lines = ["", f"#### {title}", "| Reason | Artifact | Component | Version | Advisory |",
+             "|---|---|---|---|---|"]
+    for item in items:
+        reason = item[field] if isinstance(item[field], str) else ", ".join(item[field])
+        lines.append(f"| {reason} | {item['artifact']} | {item['component']} | "
+                     f"{item['version']} | {item['advisory']} |")
+    return lines
+
+
 def summary(outcome: dict[str, Any]) -> str:
     """Markdown for the run summary; findings are reported there, never as comments."""
-    lines = [f"### Security policy ({outcome['mode']}): {'pass' if outcome['policy_pass'] else 'fail'}",
+    lines = [f"### Security policy: {'pass' if outcome['policy_pass'] else 'fail'}",
              f"Accepted unresolved: {len(outcome['accepted_unresolved'])} · "
              f"unaccepted: {len(outcome['rejected'])} · needs review: {len(outcome['needs_review'])} · "
              f"stale exceptions: {len(outcome['stale_exceptions'])}"]
-    sections = (("Unaccepted findings", outcome["rejected"], "policy_reason"),
-                ("Accepted findings needing review", outcome["needs_review"], "review_reasons"))
-    for title, items, field in sections:
-        if items:
-            lines += ["", f"#### {title}", "| Reason | Artifact | Component | Version | Advisory |",
-                      "|---|---|---|---|---|"]
-            for item in items:
-                reason = item[field] if isinstance(item[field], str) else ", ".join(item[field])
-                lines.append(f"| {reason} | {item['artifact']} | {item['component']} | "
-                             f"{item['version']} | {item['advisory']} |")
+    lines += table("Unaccepted findings", outcome["rejected"], "policy_reason")
+    lines += table("Accepted findings needing review", outcome["needs_review"], "review_reasons")
+    return "\n".join(lines) + "\n"
+
+
+def review_report(outcome: dict[str, Any]) -> str:
+    """The periodic review's open work, or an empty string when every review is current."""
+    stale = [{**entry, "reason": "no longer observed"} for entry in outcome["stale_exceptions"]]
+    if not outcome["needs_review"] and not stale:
+        return ""
+    lines = ["Accepted findings that need another review. Fix them, or re-review with "
+             "`infrastructure/ci/accept_findings.py --renew` (stale entries are dropped by it) "
+             "in a pull request approved through the `security-exceptions` environment.",
+             "This issue is updated in place by the weekly security review and closed when "
+             "nothing is due."]
+    lines += table("Due for review", outcome["needs_review"], "review_reasons")
+    lines += table("Stale exceptions", stale, "reason")
     return "\n".join(lines) + "\n"
 
 
@@ -136,17 +150,17 @@ def main() -> None:
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=MODES, default="gate")
     args = parser.parse_args()
     evidence = json.loads(args.evidence.read_text())
     if evidence.get("schema_version") != 1 or not evidence.get("scanners_complete"):
         raise SystemExit("Security evidence incomplete; scanner failures cannot be accepted")
     outcome = evaluate(evidence["findings"], json.loads(args.baseline.read_text()),
-                       dt.datetime.now(dt.timezone.utc).date(), args.mode)
+                       dt.datetime.now(dt.timezone.utc).date())
     outcome["built_images"] = evidence.get("built_images", {})
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(outcome, indent=2) + "\n")
-    print(f"Mode: {outcome['mode']}; accepted unresolved: {len(outcome['accepted_unresolved'])}; "
+    (args.output.parent / "review.md").write_text(review_report(outcome))
+    print(f"Accepted unresolved: {len(outcome['accepted_unresolved'])}; "
           f"unaccepted: {len(outcome['rejected'])}; needs review: {len(outcome['needs_review'])}; "
           f"stale exceptions: {len(outcome['stale_exceptions'])}; "
           f"runtime image delivery allowed: {outcome['runtime_image_delivery_allowed']}")

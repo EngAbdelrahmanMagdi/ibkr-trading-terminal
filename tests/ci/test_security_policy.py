@@ -46,41 +46,41 @@ class SecurityPolicyTest(unittest.TestCase):
         self.assertFalse(result["policy_pass"])
         self.assertEqual("fix-available", result["rejected"][0]["policy_reason"])
 
-    def test_review_triggers_flag_gate_and_fail_monitor(self):
+    def test_review_triggers_are_reported_without_failing(self):
         cases = {"review-due": (self.item, dt.date(2026, 10, 12)),
                  "fix-available": ({**self.item, "fix_available": True}, self.today),
                  "severity-changed": ({**self.item, "severity": "HIGH"}, self.today)}
         for reason, (item, today) in cases.items():
             with self.subTest(reason=reason):
-                gate = policy.evaluate([item], self.baseline, today, "gate")
-                self.assertTrue(gate["policy_pass"])
-                self.assertEqual([reason], gate["needs_review"][0]["review_reasons"])
-                self.assertFalse(policy.evaluate([item], self.baseline, today, "monitor")["policy_pass"])
+                result = policy.evaluate([item], self.baseline, today)
+                self.assertTrue(result["policy_pass"])
+                self.assertEqual([reason], result["needs_review"][0]["review_reasons"])
+                self.assertIn(f"| {reason} | image:postgres |", policy.review_report(result))
 
-    def test_monitor_passes_when_reviews_are_current(self):
-        self.assertTrue(policy.evaluate([self.item], self.baseline, self.today, "monitor")["policy_pass"])
+    def test_no_review_report_when_reviews_are_current(self):
+        self.assertEqual("", policy.review_report(policy.evaluate([self.item], self.baseline, self.today)))
 
     def test_summary_lists_actionable_findings(self):
         new = {**self.item, "advisory": "CVE-new", "fix_available": True}
-        result = policy.evaluate([new, self.item], self.baseline, dt.date(2026, 10, 12), "monitor")
+        result = policy.evaluate([new, self.item], self.baseline, dt.date(2026, 10, 12))
         text = policy.summary(result)
-        self.assertIn("(monitor): fail", text)
+        self.assertIn("Security policy: fail", text)
         self.assertIn("| fix-available | image:postgres | libxml2 | 1.0 | CVE-new |", text)
         self.assertIn("| review-due | image:postgres | libxml2 | 1.0 | CVE-example |", text)
 
     def test_fix_recorded_at_review_is_not_flagged_again(self):
         self.baseline["exceptions"][0]["fix_available"] = True
         item = {**self.item, "fix_available": True}
-        result = policy.evaluate([item], self.baseline, self.today, "monitor")
-        self.assertTrue(result["policy_pass"])
-        self.assertEqual([], result["needs_review"])
-        self.assertFalse(policy.evaluate([item], self.baseline, dt.date(2026, 10, 12), "monitor")["policy_pass"])
+        self.assertEqual([], policy.evaluate([item], self.baseline, self.today)["needs_review"])
+        due = policy.evaluate([item], self.baseline, dt.date(2026, 10, 12))["needs_review"]
+        self.assertEqual(["review-due"], due[0]["review_reasons"])
 
     def test_clean_scan_reports_stale_exception(self):
         result = policy.evaluate([], self.baseline, self.today)
         self.assertTrue(result["policy_pass"])
         self.assertEqual([], result["accepted_unresolved"])
         self.assertEqual(1, len(result["stale_exceptions"]))
+        self.assertIn("| no longer observed | image:postgres |", policy.review_report(result))
 
     def test_malformed_scanner_report_fails_closed(self):
         for report in ({}, {"SchemaVersion": 2, "Results": []}):
@@ -102,10 +102,6 @@ class SecurityPolicyTest(unittest.TestCase):
                 mutate(baseline)
                 with self.assertRaises(ValueError):
                     policy.evaluate([self.item], baseline, self.today)
-
-    def test_unknown_mode_rejected(self):
-        with self.assertRaises(ValueError):
-            policy.evaluate([self.item], self.baseline, self.today, "lenient")
 
     def test_local_image_tag_is_not_security_context(self):
         report = {"SchemaVersion": 2, "Metadata": {"ImageID": "sha256:sample",

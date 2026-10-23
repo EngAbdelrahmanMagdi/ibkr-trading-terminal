@@ -1,4 +1,4 @@
-FROM golang:1.27.1 AS gosu
+FROM golang:1.27.3 AS gosu
 # Rebuild the same upstream privilege-switching release with the patched Go runtime.
 RUN CGO_ENABLED=0 go install -trimpath -ldflags='-s -w -X main.Version=1.19' github.com/tianon/gosu@1.19
 FROM postgres:18.6

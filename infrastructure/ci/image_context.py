@@ -16,8 +16,8 @@ RECIPES = {
     "web": ["apps/web/Dockerfile", "apps/web/package.json", "apps/web/package-lock.json"],
     "postgres": ["infrastructure/postgres/Dockerfile"],
     "redis": ["infrastructure/redis/Dockerfile"],
-    "kafka": ["infrastructure/kafka/Dockerfile", "infrastructure/kafka/security-patches.pom.xml"],
-    "kafka-provisioner": ["infrastructure/kafka/Dockerfile", "infrastructure/kafka/security-patches.pom.xml"],
+    "kafka": ["infrastructure/kafka/Dockerfile"],
+    "kafka-provisioner": ["infrastructure/kafka/Dockerfile"],
 }
 
 

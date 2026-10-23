@@ -34,7 +34,7 @@ def test_transactions_restart_saved_result_and_duplicate(contracts, raw):
     runner = client.containers.get(os.environ["HOSTNAME"])
     alias = "kafka-" + uuid4().hex
     container = (
-        DockerContainer("apache/kafka:4.3.1")
+        DockerContainer("apache/kafka:4.3.2")
         .with_name(alias)
         .with_kwargs(network=network.id, hostname=alias)
     )

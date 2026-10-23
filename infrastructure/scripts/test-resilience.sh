@@ -16,24 +16,32 @@ core="http://127.0.0.1:${TRADING_CORE_HOST_PORT:?}"
 management="http://127.0.0.1:${TRADING_CORE_MANAGEMENT_HOST_PORT:?}"
 gateway="http://127.0.0.1:${GATEWAY_HOST_PORT:?}"
 status() { curl -s --max-time 5 -o /dev/null -w '%{http_code}' "$1" || true; }
+# Report the observed status and public problem body, never internals, when a check fails.
+expect_status() {
+  local got
+  got="$(status "$1")"
+  [[ "$got" == "$2" ]] && return 0
+  echo "Expected HTTP $2 from $1, got $got: $(curl -s --max-time 5 "$1" | head -c 300)" >&2
+  return 1
+}
 wait_status() { for ((attempt=0; attempt<45; attempt++)); do [[ "$(status "$1")" == "$2" ]] && return 0; sleep 2; done; echo "Recovery deadline: $1" >&2; return 1; }
 restore() { compose up -d --no-deps postgres redis kafka realtime-gateway trading-core ai-insights >/dev/null; }
 trap restore EXIT
-compose config --format json | docker run --rm -i python:3.14.7-slim python -c 'import json,sys; s=json.load(sys.stdin)["services"]; assert s["trading-core"]["environment"]["APP_RUNTIME_MODE"] == "MOCK"; assert s["ai-insights"]["environment"]["AI_PROVIDER"] == "FIXTURE"'
+compose config --format json | docker run --rm -i python:3.14.9-slim python -c 'import json,sys; s=json.load(sys.stdin)["services"]; assert s["trading-core"]["environment"]["APP_RUNTIME_MODE"] == "MOCK"; assert s["ai-insights"]["environment"]["AI_PROVIDER"] == "FIXTURE"'
 wait_status "$management/actuator/health/readiness" 200
 echo 'PostgreSQL outage: readiness and false-success protection'
 compose stop postgres >/dev/null
 wait_status "$management/actuator/health/readiness" 503
-[[ "$(status "$core/api/v1/portfolio")" == 503 ]]
+expect_status "$core/api/v1/portfolio" 503
 compose start postgres >/dev/null
 wait_status "$management/actuator/health/readiness" 200
 echo 'Redis outage: bars remain available through disposable-cache fallback'
 compose stop redis >/dev/null
-[[ "$(status "$gateway/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d")" == 200 ]]
+expect_status "$gateway/api/v1/market/bars?symbol=NVDA&interval=1m&range=1d" 200
 compose start redis >/dev/null
 echo 'Kafka outage: Core remains ready, worker loses readiness and recovers'
 compose stop kafka >/dev/null
-[[ "$(status "$management/actuator/health/readiness")" == 200 ]]
+expect_status "$management/actuator/health/readiness" 200
 sleep 12
 docker exec "$(cid ai-insights)" python -c 'import urllib.request,urllib.error; r=None
 try: urllib.request.urlopen("http://127.0.0.1:8092/readiness", timeout=3)

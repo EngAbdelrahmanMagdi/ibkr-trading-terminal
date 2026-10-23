@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14.7-slim AS build
+FROM python:3.14.9-slim AS build
 WORKDIR /build
 COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip pip install --require-hashes --prefix=/install -r requirements.txt
 
-FROM python:3.14.7-slim
+FROM python:3.14.9-slim
 # Runtime needs neither package installation nor pip's vendored development libraries.
 RUN apt-get update -qq \
  && apt-get install --only-upgrade -y --no-install-recommends \

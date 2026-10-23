@@ -17,11 +17,6 @@ PARTITIONS="${KAFKA_TOPIC_PARTITIONS:-3}"
 REPLICATION="${KAFKA_TOPIC_REPLICATION:-1}"
 RETENTION_MS="${KAFKA_TOPIC_RETENTION_MS:-604800000}"
 
-# Provisioner-only mounts permit checking the exact observed identity before ACL creation.
-for principal in kafka-broker kafka-operator trading-core realtime-gateway ai-insights; do
-  java -Xmx64m --class-path '/opt/kafka/libs/*:/opt/principal-probe' PrincipalProbe "$principal"
-done
-
 for topic in trading.order-events.v1 trading.execution-events.v1 broker.order-updates.v1 news.raw.v1 news.enriched.v1 news.enriched.v1.dlq; do
   if [ "$topic" = news.enriched.v1.dlq ]; then max_message_bytes=2097152; else max_message_bytes=1048588; fi
   /opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP" --create --if-not-exists \
@@ -34,4 +29,10 @@ done
   --command-config /scripts/client.properties --topic news.ai-state.v1 --partitions 1 --replication-factor "$REPLICATION" \
   --config cleanup.policy=compact --config delete.retention.ms=86400000 --config min.insync.replicas=1
 echo "topic ready: news.ai-state.v1"
+
+# Provisioner-only mounts permit checking the exact observed identity before ACL creation. Topics
+# exist first, so no probe creates one without its configuration (authorization is still checked).
+for principal in kafka-broker kafka-operator trading-core realtime-gateway ai-insights; do
+  java -Xmx64m --class-path '/opt/kafka/libs/*:/opt/principal-probe' PrincipalProbe "$principal"
+done
 sh /scripts/apply-acls.sh

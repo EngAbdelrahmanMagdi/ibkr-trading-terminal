@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 from security_policy import recipe_hash
+
+
+def has_fixed_release(vulnerable_range: str) -> bool:
+    # Advisories name the first patched release as an exclusive bound ("<1.2.2"); an
+    # inclusive bound ("<=3.0.3") or open range ("*") means no patched release exists yet.
+    # Merged hyphen ranges ("1.0.0 - 1.2.1") are treated as fixable to fail closed.
+    return re.search(r"<(?!=)", vulnerable_range) is not None or " - " in vulnerable_range
 
 
 def findings(root: Path, report: dict[str, Any]) -> list[dict[str, Any]]:
@@ -33,7 +41,8 @@ def findings(root: Path, report: dict[str, Any]) -> list[dict[str, Any]]:
                 item = {"artifact": "npm:development" if package.get("dev") else "npm:production",
                         "architecture": "all", "recipe_sha256": recipe_hash(root, ["apps/web/package-lock.json"]),
                         "base_images": [], "advisory": identity, "severity": advisory["severity"].upper(),
-                        "component": name, "version": package["version"], "target": node}
+                        "component": name, "version": package["version"], "target": node,
+                        "fix_available": has_fixed_release(advisory.get("range", "*"))}
                 result[(identity, node)] = item
 
     for name, entry in vulnerabilities.items():

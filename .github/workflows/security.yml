@@ -8,8 +8,6 @@ on:
     outputs:
       runtime-image-delivery-allowed:
         value: ${{ jobs.security.outputs.runtime-image-delivery-allowed }}
-  schedule:
-    - cron: '19 7 * * 1'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,28 +24,20 @@ jobs:
           persist-credentials: false
       - name: Download internal runtime images
         if: inputs.reuse-images
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ci-runtime-images
           path: .artifacts/build
       - name: Load internal runtime images
         if: inputs.reuse-images
         run: gzip -dc .artifacts/build/runtime-images.tar.gz | docker load
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: ${{ !inputs.reuse-images }}
+        with:
+          driver: docker-container
       - name: Build standalone audit images
         if: ${{ !inputs.reuse-images }}
         run: bash infrastructure/ci/build-images.sh
-      - name: Select trusted exception baseline
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ -n "$BASE_SHA" ]; then
-            [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-            mkdir -p .artifacts/security
-            git show "$BASE_SHA:security/accepted-findings.json" >.artifacts/security/trusted-baseline.json
-            echo 'SECURITY_BASELINE=.artifacts/security/trusted-baseline.json' >>"$GITHUB_ENV"
-            git show "$BASE_SHA:infrastructure/ci/security_policy.py" >.artifacts/security/trusted-policy.py
-            echo 'SECURITY_POLICY=.artifacts/security/trusted-policy.py' >>"$GITHUB_ENV"
-          fi
       - name: Configure advisory cache
         run: |
           mkdir -p .artifacts/trivy-cache
@@ -80,7 +70,7 @@ jobs:
           key: ${{ steps.advisories.outputs.cache-primary-key }}
       - name: Retain complete scanner and policy evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: security-evidence
           path: .artifacts/security

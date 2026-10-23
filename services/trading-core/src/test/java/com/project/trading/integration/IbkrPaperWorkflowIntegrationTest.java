@@ -86,7 +86,7 @@ class IbkrPaperWorkflowIntegrationTest {
     private static final String ORDERS = API + "/iserver/account/" + ACCOUNT + "/orders";
 
     static final TradingInfrastructure INFRASTRUCTURE = TradingInfrastructure.start();
-    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
+    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.2")
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
     private static final String BROKER_UPDATES = "broker.order-updates.v1";
     static final Path CA_FILE;

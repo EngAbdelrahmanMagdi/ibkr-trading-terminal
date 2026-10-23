@@ -190,7 +190,7 @@ services:
   prometheus:
     <<: *defaults
     profiles: [observability]
-    image: prom/prometheus:v3.13.4
+    image: prom/prometheus:v3.15.1
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -218,7 +218,7 @@ services:
   otel-collector:
     <<: *defaults
     profiles: [observability]
-    image: otel/opentelemetry-collector:0.161.0
+    image: otel/opentelemetry-collector:0.163.2
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./infrastructure/observability/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
@@ -240,7 +240,7 @@ services:
   tempo:
     <<: *defaults
     profiles: [observability]
-    image: grafana/tempo:3.1.0
+    image: grafana/tempo:3.1.1
     command: ["-target=all", "-config.file=/etc/tempo/tempo.yaml"]
     volumes:
       - ./infrastructure/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
@@ -261,7 +261,7 @@ services:
   grafana:
     <<: *defaults
     profiles: [observability]
-    image: grafana/grafana:13.2.3
+    image: grafana/grafana:13.2.4
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
@@ -270,6 +270,8 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      # Keep the bundled datasource plugins: the root filesystem is read-only and nothing is downloaded.
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_LOG_MODE: console
     secrets:

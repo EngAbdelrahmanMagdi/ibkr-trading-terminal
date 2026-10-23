@@ -8,6 +8,10 @@ updates:
     directory: /apps/web
     schedule: {interval: weekly}
     open-pull-requests-limit: 3
+    ignore:
+      # Node.js types follow the pinned Node 24 LTS runtime (engines >=24 <25).
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
   - package-ecosystem: maven
     directory: /services/trading-core
     schedule: {interval: weekly}
@@ -31,3 +35,7 @@ updates:
       - /infrastructure/redis
     schedule: {interval: weekly}
     open-pull-requests-limit: 3
+    ignore:
+      # Java images stay on the current LTS line; non-LTS feature releases are skipped.
+      - dependency-name: eclipse-temurin
+        update-types: [version-update:semver-major]

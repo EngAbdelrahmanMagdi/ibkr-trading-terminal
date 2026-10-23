@@ -11,6 +11,8 @@ cleanup() { compose down --volumes --remove-orphans; }
 trap cleanup EXIT
 bash infrastructure/ci/build-images.sh
 sed -i "s/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=$project/" .env
+# Host directories remain private; mounted files must be readable by each nonroot service.
+chmod 444 secrets/*_password
 mkdir -p .artifacts/maintenance
 printf 'services: {}\n' >.artifacts/maintenance/compose.yml
 compose up -d --wait --wait-timeout 300 postgres redis kafka

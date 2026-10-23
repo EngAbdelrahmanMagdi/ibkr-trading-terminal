@@ -8,7 +8,7 @@ output="${SECURITY_REPORT_DIR:-docs/security/images}"
 mkdir -p "$output"
 host_output="$(cygpath -am "$output" 2>/dev/null || realpath "$output")"
 status=0
-for image in ${SECURITY_IMAGES:-trading-terminal/trading-core:local trading-terminal/realtime-gateway:local trading-terminal/ai-insights:local trading-terminal/web:local trading-terminal/kafka:local trading-terminal/postgres:local trading-terminal/redis:local trading-terminal/kafka-provisioner:local prom/prometheus:v3.13.4 otel/opentelemetry-collector:0.161.0 grafana/tempo:3.1.0 grafana/grafana:13.2.3}; do
+for image in ${SECURITY_IMAGES:-trading-terminal/trading-core:local trading-terminal/realtime-gateway:local trading-terminal/ai-insights:local trading-terminal/web:local trading-terminal/kafka:local trading-terminal/postgres:local trading-terminal/redis:local trading-terminal/kafka-provisioner:local prom/prometheus:v3.15.1 otel/opentelemetry-collector:0.163.2 grafana/tempo:3.1.1 grafana/grafana:13.2.4}; do
   docker image inspect --format '{{.Id}} {{json .RepoDigests}}' "$image"
   name="${image//\//_}"
   name="${name//:/_}"

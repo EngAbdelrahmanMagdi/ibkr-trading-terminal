@@ -27,12 +27,12 @@ GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 REDOCLY_IMAGE := redocly/cli:2.54.3
 ASYNCAPI_IMAGE := asyncapi/cli:6.1.0
 MAVEN_IMAGE := maven:3.9.16-eclipse-temurin-25
-GO_IMAGE := golang:1.27.1
+GO_IMAGE := golang:1.27.3
 GOLANGCI_IMAGE := golangci/golangci-lint:v2.14.0
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.8.0
 OSV_SCANNER_IMAGE := ghcr.io/google/osv-scanner:v2.6.0
-PYTHON_IMAGE := python:3.14.7-slim
-NODE_IMAGE := node:24.21.0
+PYTHON_IMAGE := python:3.14.9-slim
+NODE_IMAGE := node:24.22.1
 WEB_DIR := apps/web
 
 GATEWAY_DIR := services/ibkr-realtime-gateway

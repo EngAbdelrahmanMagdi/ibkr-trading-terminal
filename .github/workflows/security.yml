@@ -31,6 +31,10 @@ jobs:
       - name: Load internal runtime images
         if: inputs.reuse-images
         run: gzip -dc .artifacts/build/runtime-images.tar.gz | docker load
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: ${{ !inputs.reuse-images }}
+        with:
+          driver: docker-container
       - name: Build standalone audit images
         if: ${{ !inputs.reuse-images }}
         run: bash infrastructure/ci/build-images.sh

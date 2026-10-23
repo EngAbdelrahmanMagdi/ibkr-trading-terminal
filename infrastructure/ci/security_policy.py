@@ -12,6 +12,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -111,6 +112,25 @@ def evaluate(observed: list[dict[str, Any]], baseline: dict[str, Any],
                 for item in observed)}
 
 
+def summary(outcome: dict[str, Any]) -> str:
+    """Markdown for the run summary; findings are reported there, never as comments."""
+    lines = [f"### Security policy ({outcome['mode']}): {'pass' if outcome['policy_pass'] else 'fail'}",
+             f"Accepted unresolved: {len(outcome['accepted_unresolved'])} · "
+             f"unaccepted: {len(outcome['rejected'])} · needs review: {len(outcome['needs_review'])} · "
+             f"stale exceptions: {len(outcome['stale_exceptions'])}"]
+    sections = (("Unaccepted findings", outcome["rejected"], "policy_reason"),
+                ("Accepted findings needing review", outcome["needs_review"], "review_reasons"))
+    for title, items, field in sections:
+        if items:
+            lines += ["", f"#### {title}", "| Reason | Artifact | Component | Version | Advisory |",
+                      "|---|---|---|---|---|"]
+            for item in items:
+                reason = item[field] if isinstance(item[field], str) else ", ".join(item[field])
+                lines.append(f"| {reason} | {item['artifact']} | {item['component']} | "
+                             f"{item['version']} | {item['advisory']} |")
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, required=True)
@@ -136,6 +156,9 @@ def main() -> None:
     for item in outcome["needs_review"]:
         print(f"REVIEW {','.join(item['review_reasons'])}: {item['artifact']} "
               f"{item['component']} {item['version']} {item['advisory']}")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+            report.write(summary(outcome))
     raise SystemExit(0 if outcome["policy_pass"] else 1)
 
 

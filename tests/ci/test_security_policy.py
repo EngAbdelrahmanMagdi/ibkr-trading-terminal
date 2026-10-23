@@ -60,6 +60,14 @@ class SecurityPolicyTest(unittest.TestCase):
     def test_monitor_passes_when_reviews_are_current(self):
         self.assertTrue(policy.evaluate([self.item], self.baseline, self.today, "monitor")["policy_pass"])
 
+    def test_summary_lists_actionable_findings(self):
+        new = {**self.item, "advisory": "CVE-new", "fix_available": True}
+        result = policy.evaluate([new, self.item], self.baseline, dt.date(2026, 10, 12), "monitor")
+        text = policy.summary(result)
+        self.assertIn("(monitor): fail", text)
+        self.assertIn("| fix-available | image:postgres | libxml2 | 1.0 | CVE-new |", text)
+        self.assertIn("| review-due | image:postgres | libxml2 | 1.0 | CVE-example |", text)
+
     def test_fix_recorded_at_review_is_not_flagged_again(self):
         self.baseline["exceptions"][0]["fix_available"] = True
         item = {**self.item, "fix_available": True}

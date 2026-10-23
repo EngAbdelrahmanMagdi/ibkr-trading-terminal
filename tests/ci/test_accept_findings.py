@@ -16,10 +16,10 @@ def finding(advisory, artifact="image:redis", fix_available=False):
 class AcceptFindingsTest(unittest.TestCase):
     reviewed, review_by = dt.date(2026, 10, 22), dt.date(2027, 1, 20)
 
-    def propose(self, findings, exceptions=(), upstream_current=frozenset()):
+    def propose(self, findings, exceptions=(), upstream_current=frozenset(), renew=False):
         return accept_findings.propose(findings, {"schema_version": 2, "exceptions": list(exceptions)},
                                        self.reviewed, self.review_by, "repository owner",
-                                       upstream_current)
+                                       upstream_current, renew)
 
     def test_unfixable_finding_proposed_with_review_date(self):
         proposal, fixable = self.propose([finding("CVE-1")])
@@ -53,6 +53,22 @@ class AcceptFindingsTest(unittest.TestCase):
         stale = {**old, "advisory": "CVE-gone"}
         proposal, _ = self.propose([finding("CVE-1")], [old, stale])
         self.assertEqual([old], proposal["exceptions"])
+
+    def test_renewal_refreshes_dates_and_keeps_reason(self):
+        kept, _ = self.propose([finding("CVE-1")])
+        old = {**kept["exceptions"][0], "reviewed": "2026-07-01", "review_by": "2026-09-29",
+               "reason": "Reviewed rationale"}
+        proposal, _ = self.propose([finding("CVE-1")], [old], renew=True)
+        [entry] = proposal["exceptions"]
+        self.assertEqual(("Reviewed rationale", "2026-10-22", "2027-01-20"),
+                         (entry["reason"], entry["reviewed"], entry["review_by"]))
+
+    def test_renewal_drops_exception_once_fix_is_published(self):
+        kept, _ = self.propose([finding("CVE-1")])
+        proposal, fixable = self.propose([finding("CVE-1", fix_available=True)], kept["exceptions"],
+                                         renew=True)
+        self.assertEqual([], proposal["exceptions"])
+        self.assertEqual(["CVE-1"], [item["advisory"] for item in fixable])
 
     def test_unknown_artifact_class_requires_fix(self):
         with self.assertRaises(ValueError):

@@ -14,7 +14,34 @@ on:
 permissions:
   contents: read
 jobs:
+  exceptions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare exception policy with the reviewed base branch
+        id: compare
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bash infrastructure/ci/exception-changes.sh
+  exception-approval:
+    # A change cannot approve its own exceptions: changed exception data or policy code
+    # is only evaluated after a required reviewer approves this run.
+    needs: exceptions
+    if: needs.exceptions.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: security-exceptions
+    steps:
+      - run: echo 'Exception and policy changes approved for this run by a required reviewer.'
   security:
+    needs: [exceptions, exception-approval]
+    if: ${{ !cancelled() && needs.exceptions.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.exception-approval.result) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
@@ -36,18 +63,6 @@ jobs:
       - name: Build standalone audit images
         if: ${{ !inputs.reuse-images }}
         run: bash infrastructure/ci/build-images.sh
-      - name: Select trusted exception baseline
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ -n "$BASE_SHA" ]; then
-            [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-            mkdir -p .artifacts/security
-            git show "$BASE_SHA:security/accepted-findings.json" >.artifacts/security/trusted-baseline.json
-            echo 'SECURITY_BASELINE=.artifacts/security/trusted-baseline.json' >>"$GITHUB_ENV"
-            git show "$BASE_SHA:infrastructure/ci/security_policy.py" >.artifacts/security/trusted-policy.py
-            echo 'SECURITY_POLICY=.artifacts/security/trusted-policy.py' >>"$GITHUB_ENV"
-          fi
       - name: Configure advisory cache
         run: |
           mkdir -p .artifacts/trivy-cache

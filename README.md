@@ -104,8 +104,15 @@ Push work to a temporary branch, open a pull request, and wait for the aggregate
 result before merging. No reviewer approvals or signed commits are required. A manual
 branch run does not substitute for the required pull-request check in this configuration.
 
-Security jobs retain complete scan reports and evaluate a separately reviewed, expiring policy.
-New findings, changed security context, expired approvals and scanner failures fail verification.
+Security jobs retain complete scan reports and evaluate them against `security/accepted-findings.json`,
+taken from the base branch for pull requests so a change cannot approve its own exceptions.
+Unaccepted findings, including any with a published fix, and scanner failures fail verification.
+Only findings without an upstream fix are accepted, each bound to the exact package version
+in its artifact, so rebuilds keep their review. A pulled third-party image can also carry a
+patched component that no stable release of that image ships yet; such findings are accepted
+only after confirming the image is the newest stable upstream release. Accepted findings carry a review date; when
+one is due, a fix is published or the severity changes, pull-request runs report it and the
+weekly scheduled security run fails until the exception is fixed or re-reviewed.
 Runtime Critical findings block image release artifacts. Source and non-image build delivery
 includes commit/tool manifests, checksums and detected-component SBOMs, without deploying services.
 

@@ -19,10 +19,10 @@ ROLES = {
     "trading-terminal_postgres_local.json": "postgres",
     "trading-terminal_redis_local.json": "redis",
     "trading-terminal_kafka-provisioner_local.json": "kafka-provisioner",
-    "prom_prometheus_v3.13.4.json": "prom/prometheus:v3.13.4",
-    "otel_opentelemetry-collector_0.161.0.json": "otel/opentelemetry-collector:0.161.0",
-    "grafana_tempo_3.1.0.json": "grafana/tempo:3.1.0",
-    "grafana_grafana_13.2.3.json": "grafana/grafana:13.2.3",
+    "prom_prometheus_v3.15.1.json": "prom/prometheus:v3.15.1",
+    "otel_opentelemetry-collector_0.163.2.json": "otel/opentelemetry-collector:0.163.2",
+    "grafana_tempo_3.1.1.json": "grafana/tempo:3.1.1",
+    "grafana_grafana_13.2.4.json": "grafana/grafana:13.2.4",
 }
 
 

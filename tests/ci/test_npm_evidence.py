@@ -25,6 +25,13 @@ class NpmEvidenceTest(unittest.TestCase):
                 self.assertEqual(expected, result[0]["artifact"])
                 self.assertEqual("GHSA-example", result[0]["advisory"])
 
+    def test_fixed_release_detected_from_advisory_range(self):
+        for vulnerable_range, expected in [("*", False), (">=2.0.0", False), ("<=3.0.3", False),
+                                           ("<1.2.2", True), (">=2.0.0 <=2.4.1 || <1.9.0", True),
+                                           ("1.0.0 - 1.2.1", True), (">=16.0.0 <16.4.2", True)]:
+            with self.subTest(range=vulnerable_range):
+                self.assertEqual(expected, npm_evidence.has_fixed_release(vulnerable_range))
+
     def test_scanner_error_cannot_be_a_clean_result(self):
         with self.assertRaises(ValueError):
             npm_evidence.findings(Path("."), {"auditReportVersion": 2, "error": {"code": "network"}, "vulnerabilities": {}})

@@ -39,7 +39,7 @@ import static org.mockito.Mockito.doThrow;
         "app.outbox.publisher-enabled=false", "SECRETS_DIR=/nonexistent/", "management.server.port=0"})
 class NewsEnrichmentIntegrationTest {
     static final TradingInfrastructure INFRA = TradingInfrastructure.start();
-    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
+    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.2")
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
     static {
         KAFKA.start();

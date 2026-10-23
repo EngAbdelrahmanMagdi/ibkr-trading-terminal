@@ -19,7 +19,7 @@ status() { curl -s --max-time 5 -o /dev/null -w '%{http_code}' "$1" || true; }
 wait_status() { for ((attempt=0; attempt<45; attempt++)); do [[ "$(status "$1")" == "$2" ]] && return 0; sleep 2; done; echo "Recovery deadline: $1" >&2; return 1; }
 restore() { compose up -d --no-deps postgres redis kafka realtime-gateway trading-core ai-insights >/dev/null; }
 trap restore EXIT
-compose config --format json | docker run --rm -i python:3.14.7-slim python -c 'import json,sys; s=json.load(sys.stdin)["services"]; assert s["trading-core"]["environment"]["APP_RUNTIME_MODE"] == "MOCK"; assert s["ai-insights"]["environment"]["AI_PROVIDER"] == "FIXTURE"'
+compose config --format json | docker run --rm -i python:3.14.9-slim python -c 'import json,sys; s=json.load(sys.stdin)["services"]; assert s["trading-core"]["environment"]["APP_RUNTIME_MODE"] == "MOCK"; assert s["ai-insights"]["environment"]["AI_PROVIDER"] == "FIXTURE"'
 wait_status "$management/actuator/health/readiness" 200
 echo 'PostgreSQL outage: readiness and false-success protection'
 compose stop postgres >/dev/null

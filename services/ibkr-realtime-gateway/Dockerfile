@@ -3,7 +3,7 @@
 # The default (last) stage is the gateway. The fake-cpgw stage is a separate test image for the fake IBKR
 # end-to-end path and is never part of the gateway image.
 
-FROM golang:1.27.1 AS build
+FROM golang:1.27.3 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify

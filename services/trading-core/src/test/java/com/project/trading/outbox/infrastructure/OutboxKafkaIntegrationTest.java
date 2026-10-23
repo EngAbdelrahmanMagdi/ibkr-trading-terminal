@@ -68,7 +68,7 @@ class OutboxKafkaIntegrationTest {
     private static final String EXECUTION_TOPIC = "trading.execution-events.v1";
 
     static final TradingInfrastructure INFRASTRUCTURE = TradingInfrastructure.start();
-    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.1")
+    static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.3.2")
             .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false");
 
     static {
